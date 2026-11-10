@@ -41,6 +41,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: wasm/referee
+      - name: Native tests (mocked HTTP, fixtures)
+        run: cargo test --locked
       - run: cargo build --locked --release --target wasm32-wasip2
       - name: WASM size and sha256
         run: |
