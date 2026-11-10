@@ -4,9 +4,32 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "WS5: Next.js leaderboard / replay / population chart / sandbox",
+  "description": "WS5: Next.js live feed / replay / leaderboard / population chart / lineage / sandbox",
   "scripts": {
-    "lint": "node --check test/placeholder.test.mjs",
-    "test": "node --test test/*.test.mjs"
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit && eslint .",
+    "test": "vitest run && node scripts/e2e.mjs",
+    "test:unit": "vitest run",
+    "test:e2e": "node scripts/e2e.mjs",
+    "screenshots": "node scripts/e2e.mjs --screenshots"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
   }
 }
