@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createFixtureSource, createRpcSource, sourceFromEnv } from '@/lib/data';
+import { createFixtureSource, createRpcSource, parseTxIndex, sourceFromEnv } from '@/lib/data';
 import { lineageTree, matchDetail, population, promptFor, recentFeed } from '@/lib/queries';
 import { mockReferee, playSandbox, validatePrompts } from '@/lib/sandbox';
 
@@ -51,6 +51,20 @@ describe('rpc source', () => {
     });
     const ds = createRpcSource({ contractId: 'c.testnet', rpcUrl: 'http://rpc', network: 'testnet' });
     expect(await ds.getPublishedPrompts(1)).toEqual(pp);
+  });
+  it('resolves match tx from NEXT_PUBLIC_INDEX_URL (export-tx-index JSON)', async () => {
+    vi.stubGlobal('fetch', async (u: string) => {
+      expect(u).toBe('http://idx/tx-index.json');
+      return new Response(JSON.stringify({ version: 1, tx: { '1:a.t:b.t': 'HASH1' } }));
+    });
+    const ds = createRpcSource({ contractId: 'c.testnet', rpcUrl: 'http://rpc', network: 'testnet', indexUrl: 'http://idx/tx-index.json' });
+    expect(await ds.getMatchTx('1:a.t:b.t')).toBe('HASH1');
+    expect(await ds.getMatchTx('1:a.t:z.t')).toBeNull();
+  });
+  it('missing or broken index means no tx link', async () => {
+    vi.stubGlobal('fetch', async () => new Response('nope', { status: 404 }));
+    const ds = createRpcSource({ contractId: 'c.testnet', rpcUrl: 'http://rpc', network: 'testnet', indexUrl: 'http://idx/x' });
+    expect(await ds.getMatchTx('1:a.t:b.t')).toBeNull();
   });
   it('surfaces contract errors', async () => {
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ result: { error: 'MethodNotFound' } })));
@@ -130,5 +144,28 @@ describe('sandbox', () => {
     expect(r).toMatchObject({ mode: 'nearai', a_move: 'C', b_move: 'D' });
     expect(bodies[0]).toMatchObject({ temperature: 0, chat_template_kwargs: { enable_thinking: false } });
     expect(JSON.stringify(r)).not.toContain('"k"');
+  });
+});
+
+describe('parseTxIndex', () => {
+  const rec = (a: string, b: string, tx_hash: string, outcome = 'ok', method = 'play_match') =>
+    JSON.stringify({ ts: 't', kind: 'tx', season_id: 2, method, args: { season_id: 2, a, b }, tx_hash, outcome, attempt: 1, block: 9, signer: 's.t' });
+  it('reads a raw keeper journal (jsonl): ok play_match only, later sends win, torn lines skipped', () => {
+    const jsonl = [
+      rec('a.t', 'b.t', 'H1'),
+      rec('a.t', 'b.t', 'H2'),
+      rec('a.t', 'c.t', 'HE', 'error'),
+      rec('a.t', 'd.t', 'HD', 'dry_run'),
+      rec('x', 'y', 'HC', 'ok', 'close_commits'),
+      JSON.stringify({ ts: 't', kind: 'info', msg: 'match_final', match_key: '2:a.t:b.t' }),
+      '{"ts":"t","kind":"tx"',
+      '',
+    ].join('\n');
+    expect(parseTxIndex(jsonl)).toEqual({ tx: { '2:a.t:b.t': 'H2' } });
+  });
+  it('reads a JSON array of journal records and the export-tx-index shape', () => {
+    expect(parseTxIndex(`[${rec('a.t', 'b.t', 'H1')}]`)).toEqual({ tx: { '2:a.t:b.t': 'H1' } });
+    expect(parseTxIndex('{"version":1,"tx":{"1:a:b":"H","1:a:c":7}}')).toEqual({ tx: { '1:a:b': 'H' } });
+    expect(parseTxIndex('garbage')).toEqual({ tx: {} });
   });
 });

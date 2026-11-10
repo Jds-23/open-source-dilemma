@@ -2,7 +2,8 @@
 //  - "fixtures": interfaces/fixtures (season 1, frozen) + synthetic demo seasons 2–4 (web/fixtures/demo.ts)
 //  - "rpc": contract views from contract-abi.json over NEAR JSON-RPC, enabled by NEXT_PUBLIC_CONTRACT_ID
 // Published prompts come from `get_published_prompts` (and are still re-checked against the entry commitment
-// before display). Tx hashes are not a view: optional JSON index (NEXT_PUBLIC_INDEX_URL), e.g. keeper output.
+// before display). Tx hashes are not a view: optional index (NEXT_PUBLIC_INDEX_URL) built from the WS-6 keeper
+// journal, either `pnpm --filter @osd/ops export-tx-index` output or a raw ops/runs/<season>.jsonl (see parseTxIndex).
 import agentsFx from '../../interfaces/fixtures/agents.json';
 import entriesFx from '../../interfaces/fixtures/entries.json';
 import leaderboardFx from '../../interfaces/fixtures/leaderboard.json';
@@ -111,7 +112,49 @@ export function createFixtureSource(): DataSource {
 // ---------------------------------------------------------------- rpc
 
 interface IndexFile {
-  tx?: Record<string, string>;
+  tx: Record<string, string>;
+}
+
+/**
+ * Match key (`"<season_id>:<a>:<b>"`) → play_match tx hash. Accepts:
+ *  - `{"version": 1, "tx": {"<match_key>": "<hash>"}}` (ops `export-tx-index`), or
+ *  - a keeper journal (ops/runs/<season>.jsonl, one record per line, or a JSON array of them): records
+ *    `{kind: "tx", method: "play_match", outcome: "ok", tx_hash, args: {season_id, a, b}}` are used, later lines win.
+ * Anything unparseable yields an empty index (the tx link is simply not shown).
+ */
+export function parseTxIndex(text: string): IndexFile {
+  const tx: Record<string, string> = {};
+  const fromRecords = (recs: unknown[]) => {
+    for (const r of recs) {
+      if (!r || typeof r !== 'object') continue;
+      const { kind, method, outcome, tx_hash, args } = r as Record<string, unknown>;
+      if (kind !== 'tx' || method !== 'play_match' || outcome !== 'ok' || typeof tx_hash !== 'string' || !args || typeof args !== 'object') continue;
+      const { season_id, a, b } = args as Record<string, unknown>;
+      if (typeof season_id === 'number' && typeof a === 'string' && typeof b === 'string') tx[`${season_id}:${a}:${b}`] = tx_hash;
+    }
+  };
+  let whole: unknown;
+  try {
+    whole = JSON.parse(text);
+  } catch {
+    whole = undefined;
+  }
+  if (Array.isArray(whole)) fromRecords(whole);
+  else if (whole && typeof whole === 'object' && 'tx' in whole) {
+    for (const [k, v] of Object.entries((whole as { tx: unknown }).tx ?? {})) if (typeof v === 'string') tx[k] = v;
+  } else {
+    const recs: unknown[] = [];
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        recs.push(JSON.parse(line));
+      } catch {
+        // skip a torn/partial line
+      }
+    }
+    fromRecords(recs);
+  }
+  return { tx };
 }
 
 export function createRpcSource(opts: { contractId: string; rpcUrl: string; network: 'testnet' | 'mainnet'; indexUrl?: string }): DataSource {
@@ -155,9 +198,9 @@ export function createRpcSource(opts: { contractId: string; rpcUrl: string; netw
   const index = (): Promise<IndexFile> =>
     (indexCache ??= indexUrl
       ? fetch(indexUrl, { next: { revalidate: 30 } })
-          .then((r): Promise<IndexFile> | IndexFile => (r.ok ? r.json() : {}))
-          .catch((): IndexFile => ({}))
-      : Promise.resolve<IndexFile>({}));
+          .then(async (r): Promise<IndexFile> => (r.ok ? parseTxIndex(await r.text()) : { tx: {} }))
+          .catch((): IndexFile => ({ tx: {} }))
+      : Promise.resolve<IndexFile>({ tx: {} }));
 
   return {
     mode: 'rpc',
@@ -172,7 +215,7 @@ export function createRpcSource(opts: { contractId: string; rpcUrl: string; netw
     getLineage: (agent_id) => view<LineageEntry[]>('get_lineage', { agent_id }),
     getPublishedPrompts: (id) => paged<PublishedPrompt>('get_published_prompts', id),
     async getMatchTx(matchKey) {
-      return (await index()).tx?.[matchKey] ?? null;
+      return (await index()).tx[matchKey] ?? null;
     },
   };
 }
