@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OSD dilemma contract ABI (interfaces-v3)",
+  "title": "OSD dilemma contract ABI (interfaces-v4)",
   "description": "Hand-written frozen interface; see INTERFACE.md. Not the near-abi format. JSON args/returns.",
-  "version": "interfaces-v3",
+  "version": "interfaces-v4",
   "contract_testnet": "osd.baldingsucks7993.testnet",
   "near_sdk": "5.9.0",
   "rustc": "1.85.0",
@@ -183,13 +183,26 @@
         "properties": {
           "params": {
             "$ref": "#/$defs/SeasonParams"
+          },
+          "wasm_url": {
+            "type": "string",
+            "description": "optional per-season override of config wasm_url; must come with wasm_hash"
+          },
+          "wasm_hash": {
+            "type": "string",
+            "description": "optional per-season override of config wasm_hash; must come with wasm_url"
+          },
+          "secrets_profile": {
+            "type": "string",
+            "description": "optional per-season override of config secrets_profile"
           }
         }
       },
       "returns": {
         "type": "integer",
         "minimum": 0
-      }
+      },
+      "effects": "creates season (status pending_key) with wasm{url,hash} + secrets_profile pinned (overrides or config); pool starts at the pending carry-over; detached OutLayer derive_pubkey -> on_pubkey. Allowed when the previous season is settled, cancelled or key_failed"
     },
     {
       "name": "on_pubkey",
@@ -227,7 +240,7 @@
       "name": "commit",
       "kind": "call",
       "caller": "agent account (FC key) or its owner",
-      "effects": "debits entry_deposit_yocto from budget; emits committed. Refuses: status != commit; past deadline; agent already entered; owner at max_entries_per_owner; max_agents reached; budget < entry_deposit_yocto; bad hex/size; bad family. No duplicate check on chain (commitments are salted): duplicate prompts are voided by the TEE (duplicate_prompt)",
+      "effects": "debits entry_deposit_yocto from budget; emits committed. Refuses: status != commit; past deadline; agent already entered; owner at max_entries_per_owner; max_agents reached; budget < entry_deposit_yocto; bad hex/size; bad family. No duplicate check on chain (commitments are salted): duplicate prompts are voided by the TEE (duplicate_prompt) Refuses parent.season_id < 1.",
       "args": {
         "type": "object",
         "additionalProperties": false,
@@ -319,7 +332,7 @@
       "kind": "call",
       "payable": ">= 0.02 NEAR (OutLayer; unused refunded to caller)",
       "caller": "anyone (keeper)",
-      "effects": "scheduled -> pending; OutLayer request_execution with pinned WasmUrl{url,hash} + secrets_ref",
+      "effects": "scheduled -> pending; OutLayer request_execution with pinned WasmUrl{url,hash} + secrets_ref; uses the season's pinned wasm/secrets_profile; accepted while status = play (also after play_deadline_ns)",
       "args": {
         "type": "object",
         "additionalProperties": false,
@@ -412,7 +425,7 @@
       "name": "settle_season",
       "kind": "call",
       "caller": "anyone",
-      "effects": "ranks vs distinct owners; pays pool by prize_split_bps; returns bonds; emits season_settled",
+      "effects": "ranks vs distinct owners; pays pool by prize_split_bps (floor); unpaid remainder -> carry_over for the next season; returns bonds; emits season_settled. After the play deadline, unfinished matches are voided + refunded at most 40 per call (receipt log limit): returns [] (status stays play) until the final call returns the ranking",
       "args": {
         "type": "object",
         "additionalProperties": false,
@@ -463,7 +476,7 @@
       "name": "publish_prompt",
       "kind": "call",
       "caller": "agent owner, after settle",
-      "effects": "checks sha256(utf8(prompt) || salt || utf8(agent_id)) == entry.commitment; stores {prompt, salt} (readable via get_published_prompts); emits prompt_published",
+      "effects": "checks sha256(utf8(prompt) || salt || utf8(agent_id)) == entry.commitment; stores {prompt, salt} (first publish fixes the list position; re-publish allowed) (readable via get_published_prompts); emits prompt_published",
       "args": {
         "type": "object",
         "additionalProperties": false,
@@ -756,7 +769,8 @@
         "items": {
           "$ref": "#/$defs/PublishedPrompt"
         }
-      }
+      },
+      "description": "first-publish order"
     }
   ],
   "$defs": {
@@ -912,6 +926,7 @@
         "status",
         "params",
         "wasm",
+        "secrets_profile",
         "pubkey",
         "entry_deposit_yocto",
         "stake_per_agent_yocto",
@@ -922,6 +937,8 @@
         "n_settled",
         "n_void",
         "pool_yocto",
+        "carry_in_yocto",
+        "carry_over_yocto",
         "opened_at_ns",
         "closed_at_ns",
         "settled_at_ns"
@@ -952,6 +969,9 @@
               "type": "string"
             }
           }
+        },
+        "secrets_profile": {
+          "type": "string"
         },
         "pubkey": {
           "oneOf": [
@@ -1002,6 +1022,14 @@
         },
         "pool_yocto": {
           "$ref": "#/$defs/U128"
+        },
+        "carry_in_yocto": {
+          "$ref": "#/$defs/U128",
+          "description": "carry-over from earlier seasons added to this pool at open_season (included in pool_yocto)"
+        },
+        "carry_over_yocto": {
+          "$ref": "#/$defs/U128",
+          "description": "unpaid pool rolled to the next season at settle (or the carry-in handed back if key_failed/cancelled)"
         },
         "opened_at_ns": {
           "$ref": "#/$defs/U64"
@@ -1421,7 +1449,8 @@
         "secrets_owner",
         "secrets_profile",
         "nearai_signer",
-        "current_season_id"
+        "current_season_id",
+        "carry_over_yocto"
       ],
       "properties": {
         "owner": {
@@ -1455,6 +1484,10 @@
               "type": "null"
             }
           ]
+        },
+        "carry_over_yocto": {
+          "$ref": "#/$defs/U128",
+          "description": "unpaid prize money waiting for the next open_season"
         }
       }
     },

@@ -1,4 +1,4 @@
-# NEP-297 events (`interfaces-v3`)
+# NEP-297 events (`interfaces-v4`)
 
 Logged by the contract as `EVENT_JSON:{"standard":"osd","version":"1.0.0","event":"<name>","data":[{...}]}`.
 `data` always holds exactly one object. Amounts are yocto strings; payoffs are units. Full sample stream: [`fixtures/events.jsonl`](fixtures/events.jsonl).
@@ -10,8 +10,8 @@ Logged by the contract as `EVENT_JSON:{"standard":"osd","version":"1.0.0","event
 | `committed` | `commit` | `season_id`, `agent_id`, `commitment` (salted, INTERFACE.md §5), `family`, `parent` (`{season_id, agent_id}` or `null`) |
 | `commits_closed` | `close_commits` | `season_id`, `n_entries`, `total_rounds`, `stake_per_agent_yocto` |
 | `match_played` | `on_match` (settled) | `season_id`, `a`, `b`, `a_move`, `b_move`, `a_payoff`, `b_payoff`, `pool_delta`, `sig_a_ok`, `sig_b_ok` |
-| `match_void` | `on_match` (failure), `refund_void` (stale pending), `settle_season` (unfinished at deadline) | `season_id`, `a`, `b`, `reason` |
-| `season_settled` | `settle_season` | `season_id`, `pool_yocto`, `ranking`: `[{agent_id, rank, avg_payoff_milli, prize_yocto}]` |
+| `match_void` | `on_match` (failure), `refund_void` (stale pending), `settle_season` (unfinished at deadline; ≤ 40 per call, see INTERFACE.md §6.1) | `season_id`, `a`, `b`, `reason` |
+| `season_settled` | `settle_season` (final call) | `season_id`, `pool_yocto` (incl. carry-in), `ranking`: `[{agent_id, rank, avg_payoff_milli, prize_yocto}]` |
 | `prompt_published` | `publish_prompt` | `season_id`, `agent_id`, `commitment` (prompt text + salt are in the tx args and stored on chain: read them with `get_published_prompts`, [`fixtures/published-prompts.json`](fixtures/published-prompts.json)) |
 
 Required by the Phase 0 brief: `agent_registered`, `committed`, `match_played`, `match_void`, `season_settled`. The other three are additions.

@@ -100,7 +100,7 @@ fn register(c: &mut Dilemma, chain: &Chain, name: &str, owner: &str, budget_near
 
 fn open(c: &mut Dilemma, chain: &mut Chain, p: SeasonParams) -> u32 {
     chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
-    let sid = c.open_season(p);
+    let sid = c.open_season(p, None, None, None);
     chain.callback(Some(&json!({"pubkey": fx("season")["pubkey"]}).to_string()));
     assert!(c.on_pubkey(sid).is_some());
     sid
@@ -248,6 +248,11 @@ fn fixture_season_replay_matches_fixture_views() {
     assert_eq!(serde_json::to_value(&rows).unwrap(), fx("leaderboard"));
     assert_eq!(event_names(), vec!["season_settled"]);
     assert_eq!(c.get_season(sid).unwrap().status, SeasonStatus::Settled);
+    // View shapes equal the fixture shapes (same keys).
+    let keys = |v: &Value| v.as_object().unwrap().keys().cloned().collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(keys(&serde_json::to_value(c.get_season(sid).unwrap()).unwrap()), keys(&season_fx));
+    assert_eq!(keys(&serde_json::to_value(c.get_config()).unwrap()), keys(&fx("config")));
+    assert_eq!(serde_json::to_value(c.get_season(sid).unwrap()).unwrap()["carry_over_yocto"], season_fx["carry_over_yocto"]);
 
     // Lineage per agent matches the fixture.
     for l in fx("lineage").as_array().unwrap() {
@@ -574,27 +579,27 @@ fn open_season_rules() {
     p.commit_deadline_ns = U64(10_000);
     p.play_deadline_ns = U64(20_000);
     chain.pay("mallory.near", MIN_OUTLAYER_DEPOSIT);
-    expect_panic(|| { c.open_season(p.clone()); }, "owner only");
+    expect_panic(|| { c.open_season(p.clone(), None, None, None); }, "owner only");
     chain.pay(OWNER, NearToken::from_millinear(1));
-    expect_panic(|| { c.open_season(p.clone()); }, "attach >= 0.02 NEAR");
+    expect_panic(|| { c.open_season(p.clone(), None, None, None); }, "attach >= 0.02 NEAR");
     let mut bad = p.clone();
     bad.prize_split_bps = vec![5000, 4000];
     chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
-    expect_panic(|| { c.open_season(bad); }, "prize_split_bps must sum to 10000");
+    expect_panic(|| { c.open_season(bad, None, None, None); }, "prize_split_bps must sum to 10000");
     let mut bad = p.clone();
     bad.max_agents = 41;
-    expect_panic(|| { c.open_season(bad); }, "max_agents");
+    expect_panic(|| { c.open_season(bad, None, None, None); }, "max_agents");
     chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
-    let sid = c.open_season(p.clone());
+    let sid = c.open_season(p.clone(), None, None, None);
     assert_eq!(c.get_season(sid).unwrap().status, SeasonStatus::PendingKey);
-    expect_panic(|| { c.open_season(p.clone()); }, "previous season not finished");
+    expect_panic(|| { c.open_season(p.clone(), None, None, None); }, "previous season not finished");
     // key derivation failure → key_failed, then a new season may open
     chain.callback(Some(r#"{"error":"no_seed"}"#));
     assert_eq!(c.on_pubkey(sid), None);
     assert_eq!(c.get_season(sid).unwrap().status, SeasonStatus::KeyFailed);
     assert_eq!(c.get_season_pubkey(sid), None);
     chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
-    assert_eq!(c.open_season(p), 2);
+    assert_eq!(c.open_season(p, None, None, None), 2);
     // wasm + secrets snapshot
     let s = c.get_season(2).unwrap();
     assert_eq!(s.wasm, WasmSource { url: "https://example/referee.wasm".into(), hash: "ab".repeat(32) });
@@ -766,4 +771,92 @@ fn settle_at_deadline_batches_voids_under_log_limit() {
     assert_eq!((s.status, s.n_void, s.n_settled), (SeasonStatus::Settled, 779, 1));
     let total: u128 = ids.iter().map(|i| c.get_claimable(sid, i.clone()).0).sum();
     assert_eq!(total, 40 * s.entry_deposit_yocto.0);
+}
+
+#[test]
+fn unpaid_prize_share_carries_over_to_next_season() {
+    // 2 ranked agents, split 50/30/20: the 3rd slot's 20% is carried over.
+    let (mut c, mut chain, sid, ids) = small_season(&[("p1", "o1.near"), ("p2", "o2.near")]);
+    let unit = 10u128.pow(22);
+    let (a, b) = (&ids[0], &ids[1]);
+    play(&mut c, &mut chain, sid, a, b, Some(&out_for(&mkey(sid, a, b), "D", "D")));
+    chain.call(KEEPER);
+    let rows = c.settle_season(sid);
+    let paid: u128 = rows.iter().map(|r| r.prize_yocto.0).sum();
+    assert_eq!(paid, 4 * unit * 8 / 10);
+    let s1 = c.get_season(sid).unwrap();
+    assert_eq!(s1.carry_over_yocto.0, 4 * unit * 2 / 10);
+    assert_eq!(c.get_config().carry_over_yocto.0, 4 * unit * 2 / 10);
+
+    // Season 2 starts with the carry in its pool.
+    chain.ts = 30_000;
+    let mut p = params_from_fixture();
+    p.commit_deadline_ns = U64(40_000);
+    p.play_deadline_ns = U64(50_000);
+    let s2 = open(&mut c, &mut chain, p.clone());
+    let v = c.get_season(s2).unwrap();
+    assert_eq!((v.carry_in_yocto.0, v.pool_yocto.0), (s1.carry_over_yocto.0, s1.carry_over_yocto.0));
+    assert_eq!(c.get_config().carry_over_yocto.0, 0);
+
+    // A cancelled season hands the carry back; the next season picks it up again.
+    chain.ts = 40_001;
+    chain.call(KEEPER);
+    assert_eq!(c.close_commits(s2), 0);
+    let v = c.get_season(s2).unwrap();
+    assert_eq!((v.status, v.pool_yocto.0, v.carry_over_yocto.0), (SeasonStatus::Cancelled, 0, s1.carry_over_yocto.0));
+    assert_eq!(c.get_config().carry_over_yocto.0, s1.carry_over_yocto.0);
+    p.commit_deadline_ns = U64(60_000);
+    p.play_deadline_ns = U64(70_000);
+    let s3 = open(&mut c, &mut chain, p);
+    assert_eq!(c.get_season(s3).unwrap().pool_yocto.0, s1.carry_over_yocto.0);
+
+    // ...and pays it out when s3 settles (2 ranked agents again → 80% paid, 20% carried).
+    let x = register(&mut c, &chain, "x1", "ox.near", 2);
+    let y = register(&mut c, &chain, "y1", "oy.near", 2);
+    for id in [&x, &y] {
+        chain.call(id.as_str());
+        c.commit(s3, id.clone(), "04ab".into(), "cd".repeat(32), "fam".into(), None);
+    }
+    chain.ts = 60_001;
+    chain.call(KEEPER);
+    c.close_commits(s3);
+    c.schedule_round(s3);
+    play(&mut c, &mut chain, s3, &x, &y, Some(&out_for(&mkey(s3, &x, &y), "C", "C")));
+    chain.call(KEEPER);
+    let rows = c.settle_season(s3);
+    let pool3 = s1.carry_over_yocto.0;
+    assert_eq!(rows.iter().map(|r| r.prize_yocto.0).sum::<u128>(), pool3 * 8 / 10);
+    assert_eq!(c.get_config().carry_over_yocto.0, pool3 - pool3 * 8 / 10);
+}
+
+#[test]
+fn per_season_referee_override_is_pinned() {
+    let mut chain = Chain { ts: 1_000, height: 100 };
+    let mut c = new_contract(&chain);
+    let mut p = params_from_fixture();
+    p.commit_deadline_ns = U64(10_000);
+    p.play_deadline_ns = U64(20_000);
+    // url without hash is refused
+    chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
+    expect_panic(
+        || { c.open_season(p.clone(), Some("https://x/a.wasm".into()), None, None); },
+        "wasm_url and wasm_hash must be overridden together",
+    );
+    chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
+    let s1 = c.open_season(p.clone(), Some("https://x/a.wasm".into()), Some("aa".repeat(32)), Some("prof-a".into()));
+    chain.callback(Some(&json!({"pubkey": fx("season")["pubkey"]}).to_string()));
+    c.on_pubkey(s1);
+    chain.ts = 10_001;
+    chain.call(KEEPER);
+    c.close_commits(s1); // cancelled (no entries)
+    p.commit_deadline_ns = U64(30_000);
+    p.play_deadline_ns = U64(40_000);
+    chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
+    let s2 = c.open_season(p.clone(), Some("https://x/b.wasm".into()), Some("bb".repeat(32)), None);
+    let v1 = c.get_season(s1).unwrap();
+    let v2 = c.get_season(s2).unwrap();
+    assert_eq!((v1.wasm.url.as_str(), v1.wasm.hash.clone(), v1.secrets_profile.as_str()), ("https://x/a.wasm", "aa".repeat(32), "prof-a"));
+    assert_eq!((v2.wasm.url.as_str(), v2.wasm.hash.clone(), v2.secrets_profile.as_str()), ("https://x/b.wasm", "bb".repeat(32), "osd-s1"));
+    // config itself is unchanged
+    assert_eq!(c.get_config().wasm_url, "https://example/referee.wasm");
 }

@@ -6,5 +6,6 @@
   "secrets_owner": "baldingsucks7993.testnet",
   "secrets_profile": "osd",
   "nearai_signer": "229a641c3631caba413136011c5fa3777cea72664ca9538aadb6c40708fb6413",
-  "current_season_id": 1
+  "current_season_id": 1,
+  "carry_over_yocto": "0"
 }

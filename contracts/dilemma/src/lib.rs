@@ -119,6 +119,10 @@ pub struct SeasonState {
     pub settled_at_ns: Option<u64>,
     /// Next match index `settle_season` scans when voiding unfinished matches in batches.
     pub settle_cursor: u32,
+    /// Carry-over from earlier seasons added to this pool at `open_season`.
+    pub carry_in_yocto: u128,
+    /// Unpaid pool (rounding dust + unfilled prize slots) rolled to the next season.
+    pub carry_over_yocto: u128,
 }
 
 #[near(serializers = [json])]
@@ -128,6 +132,7 @@ pub struct Season {
     pub status: SeasonStatus,
     pub params: SeasonParams,
     pub wasm: WasmSource,
+    pub secrets_profile: String,
     pub pubkey: Option<String>,
     pub entry_deposit_yocto: U128,
     pub stake_per_agent_yocto: Option<U128>,
@@ -138,6 +143,8 @@ pub struct Season {
     pub n_settled: u32,
     pub n_void: u32,
     pub pool_yocto: U128,
+    pub carry_in_yocto: U128,
+    pub carry_over_yocto: U128,
     pub opened_at_ns: U64,
     pub closed_at_ns: Option<U64>,
     pub settled_at_ns: Option<U64>,
@@ -283,6 +290,8 @@ pub struct Config {
     pub secrets_profile: String,
     pub nearai_signer: String,
     pub current_season_id: Option<u32>,
+    /// Unpaid prize money waiting to be added to the next season's pool.
+    pub carry_over_yocto: U128,
 }
 
 /// Parsed referee result (wasm-io.schema.json `play_match_output`).
@@ -398,6 +407,7 @@ pub struct Dilemma {
     secrets_profile: String,
     nearai_signer: String,
     current_season_id: Option<u32>,
+    carry_over_yocto: u128,
     agents: LookupMap<AccountId, AgentState>,
     pending_agents: LookupSet<AccountId>,
     seasons: LookupMap<u32, SeasonState>,
@@ -435,6 +445,7 @@ impl Dilemma {
             secrets_profile,
             nearai_signer,
             current_season_id: None,
+            carry_over_yocto: 0,
             agents: LookupMap::new(b"a"),
             pending_agents: LookupSet::new(b"p"),
             seasons: LookupMap::new(b"s"),
@@ -542,8 +553,17 @@ impl Dilemma {
 
     /// Opens a season (status `pending_key`) and asks the referee WASM for its pubkey.
     /// Returns the new `season_id`; `on_pubkey` moves it to `commit`.
+    /// Optional `wasm_url` + `wasm_hash` (together) and `secrets_profile` override the config
+    /// for this season only; they are frozen in the season and used by its `play_match` calls.
+    /// Any carry-over from earlier seasons is added to the new pool.
     #[payable]
-    pub fn open_season(&mut self, params: SeasonParams) -> u32 {
+    pub fn open_season(
+        &mut self,
+        params: SeasonParams,
+        wasm_url: Option<String>,
+        wasm_hash: Option<String>,
+        secrets_profile: Option<String>,
+    ) -> u32 {
         require!(env::predecessor_account_id() == self.owner, "owner only");
         require!(env::attached_deposit() >= MIN_OUTLAYER_DEPOSIT, "attach >= 0.02 NEAR");
         if let Some(cur) = self.current_season_id {
@@ -574,6 +594,15 @@ impl Dilemma {
             .checked_mul(STAKE_UNITS_PER_MATCH * (p.max_agents as u128 - 1))
             .and_then(|s| s.checked_add(p.bond_yocto.0))
             .unwrap_or_else(|| env::panic_str("deposit overflow"));
+        require!(wasm_url.is_some() == wasm_hash.is_some(), "wasm_url and wasm_hash must be overridden together");
+        let wasm = WasmSource {
+            url: wasm_url.unwrap_or_else(|| self.wasm_url.clone()),
+            hash: wasm_hash.unwrap_or_else(|| self.wasm_hash.clone()),
+        };
+        require!(!wasm.url.is_empty() && !wasm.hash.is_empty(), "wasm url/hash required");
+        let secrets_profile = secrets_profile.unwrap_or_else(|| self.secrets_profile.clone());
+        require!(!secrets_profile.is_empty(), "secrets_profile required");
+        let carry_in = std::mem::take(&mut self.carry_over_yocto);
         let season_id = self.current_season_id.map(|x| x + 1).unwrap_or(1);
         self.seasons.insert(
             season_id,
@@ -581,9 +610,9 @@ impl Dilemma {
                 season_id,
                 status: SeasonStatus::PendingKey,
                 params,
-                wasm: WasmSource { url: self.wasm_url.clone(), hash: self.wasm_hash.clone() },
+                wasm,
                 secrets_owner: self.secrets_owner.clone(),
-                secrets_profile: self.secrets_profile.clone(),
+                secrets_profile,
                 pubkey: None,
                 entry_deposit_yocto: entry_deposit,
                 stake_per_agent_yocto: None,
@@ -593,11 +622,13 @@ impl Dilemma {
                 n_matches: 0,
                 n_settled: 0,
                 n_void: 0,
-                pool_yocto: 0,
+                pool_yocto: carry_in,
                 opened_at_ns: now,
                 closed_at_ns: None,
                 settled_at_ns: None,
                 settle_cursor: 0,
+                carry_in_yocto: carry_in,
+                carry_over_yocto: 0,
             },
         );
         self.current_season_id = Some(season_id);
@@ -641,6 +672,7 @@ impl Dilemma {
             None => {
                 log!("derive_pubkey failed for season {}", season_id);
                 s.status = SeasonStatus::KeyFailed;
+                self.return_carry(&mut s);
                 self.seasons.insert(season_id, s);
                 None
             }
@@ -717,6 +749,7 @@ impl Dilemma {
         s.closed_at_ns = Some(env::block_timestamp());
         if n < 2 {
             s.status = SeasonStatus::Cancelled;
+            self.return_carry(&mut s);
             for id in self.entry_ids(season_id, n) {
                 self.credit(season_id, &id, s.entry_deposit_yocto);
             }
@@ -987,9 +1020,11 @@ impl Dilemma {
                 .collect::<Vec<_>>(),
         );
         let mut ranking = vec![];
+        let mut paid = 0u128;
         for (idx, r) in order {
             let id = &ids[idx];
             let prize_yocto = prize(s.pool_yocto, &s.params.prize_split_bps, r);
+            paid += prize_yocto;
             if prize_yocto > 0 {
                 self.credit(season_id, id, prize_yocto);
             }
@@ -1004,6 +1039,9 @@ impl Dilemma {
                 "prize_yocto": U128(prize_yocto),
             }));
         }
+        // Rounding dust and unfilled prize slots roll into the next season's pool.
+        s.carry_over_yocto = s.pool_yocto - paid;
+        self.carry_over_yocto += s.carry_over_yocto;
         s.status = SeasonStatus::Settled;
         s.settled_at_ns = Some(now);
         emit("season_settled", json!({"season_id": season_id, "pool_yocto": U128(s.pool_yocto), "ranking": ranking}));
@@ -1061,6 +1099,7 @@ impl Dilemma {
             secrets_profile: self.secrets_profile.clone(),
             nearai_signer: self.nearai_signer.clone(),
             current_season_id: self.current_season_id,
+            carry_over_yocto: U128(self.carry_over_yocto),
         }
     }
 
@@ -1070,6 +1109,7 @@ impl Dilemma {
             status: s.status,
             params: s.params.clone(),
             wasm: s.wasm.clone(),
+            secrets_profile: s.secrets_profile.clone(),
             pubkey: s.pubkey.clone(),
             entry_deposit_yocto: U128(s.entry_deposit_yocto),
             stake_per_agent_yocto: s.stake_per_agent_yocto.map(U128),
@@ -1080,6 +1120,8 @@ impl Dilemma {
             n_settled: s.n_settled,
             n_void: s.n_void,
             pool_yocto: U128(s.pool_yocto),
+            carry_in_yocto: U128(s.carry_in_yocto),
+            carry_over_yocto: U128(s.carry_over_yocto),
             opened_at_ns: U64(s.opened_at_ns),
             closed_at_ns: s.closed_at_ns.map(U64),
             settled_at_ns: s.settled_at_ns.map(U64),
@@ -1229,6 +1271,13 @@ impl Dilemma {
 
     fn entry_ids(&self, season_id: u32, n: u32) -> Vec<AccountId> {
         (0..n).map(|i| self.entry_order.get(&(season_id, i)).cloned().unwrap()).collect()
+    }
+
+    /// A season that never plays (key_failed / cancelled) hands its carry-in back.
+    fn return_carry(&mut self, s: &mut SeasonState) {
+        s.pool_yocto -= s.carry_in_yocto;
+        s.carry_over_yocto = s.carry_in_yocto;
+        self.carry_over_yocto += s.carry_in_yocto;
     }
 
     fn credit(&mut self, season_id: u32, agent_id: &AccountId, amount: u128) {

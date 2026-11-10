@@ -152,6 +152,18 @@ impl Env {
         max_agents: u32,
         max_entries_per_owner: u32,
     ) -> anyhow::Result<(u32, u64)> {
+        self.open_season_full(commit_secs, play_secs, max_agents, max_entries_per_owner, json!({})).await
+    }
+
+    /// `overrides` = optional `{wasm_url, wasm_hash, secrets_profile}` for this season.
+    async fn open_season_full(
+        &self,
+        commit_secs: u64,
+        play_secs: u64,
+        max_agents: u32,
+        max_entries_per_owner: u32,
+        overrides: Value,
+    ) -> anyhow::Result<(u32, u64)> {
         self.mock
             .call("set_output")
             .args_json(json!({"key": "derive_pubkey", "output": json!({"pubkey": fx("season.json")["pubkey"]}).to_string()}))
@@ -167,7 +179,11 @@ impl Env {
         let r = self
             .admin
             .call(self.osd.id(), "open_season")
-            .args_json(json!({"params": params}))
+            .args_json({
+                let mut a = overrides.clone();
+                a["params"] = params;
+                a
+            })
             .deposit(NearToken::from_millinear(20))
             .max_gas()
             .transact()
@@ -177,7 +193,9 @@ impl Env {
         let sid: u32 = r.into_result()?.json()?;
         let s = self.view("get_season", json!({"season_id": sid})).await?;
         assert_eq!(s["status"], "commit");
-        assert_eq!(s["wasm"], json!({"url": "https://test.fastfs.io/osd/referee.wasm", "hash": "ab".repeat(32)}));
+        let url = overrides.get("wasm_url").cloned().unwrap_or(json!("https://test.fastfs.io/osd/referee.wasm"));
+        let hash = overrides.get("wasm_hash").cloned().unwrap_or(json!("ab".repeat(32)));
+        assert_eq!(s["wasm"], json!({"url": url, "hash": hash}));
         Ok((sid, deadline))
     }
 }
@@ -226,7 +244,9 @@ async fn full_season_flow() -> anyhow::Result<()> {
     let c1 = env.register(&carol, "c1", 2).await?;
     let agents = [&a1, &a2, &b1, &c1];
 
-    let (sid, deadline) = env.open_season(25).await?;
+    // Season 1 pins its own referee (override); config keeps the default.
+    let pinned = json!({"wasm_url": "https://test.fastfs.io/osd/referee-s1.wasm", "wasm_hash": "cd".repeat(32), "secrets_profile": "osd-s1"});
+    let (sid, deadline) = env.open_season_full(25, 3_600, 4, 3, pinned.clone()).await?;
     let entry_deposit: u128 =
         env.view("get_season", json!({"season_id": sid})).await?["entry_deposit_yocto"].as_str().unwrap().parse()?;
     assert_eq!(entry_deposit, BOND + 3 * UNIT * 3);
@@ -326,9 +346,9 @@ async fn full_season_flow() -> anyhow::Result<()> {
             assert_eq!(req["deposit"], NearToken::from_millinear(20).as_yoctonear().to_string());
             assert_eq!(
                 req["source"],
-                json!({"WasmUrl": {"url": "https://test.fastfs.io/osd/referee.wasm", "hash": "ab".repeat(32), "build_target": "wasm32-wasip2"}})
+                json!({"WasmUrl": {"url": pinned["wasm_url"], "hash": pinned["wasm_hash"], "build_target": "wasm32-wasip2"}})
             );
-            assert_eq!(req["secrets_ref"], json!({"profile": "osd-test", "account_id": env.admin.id()}));
+            assert_eq!(req["secrets_ref"], json!({"profile": "osd-s1", "account_id": env.admin.id()}));
             let input = &req["input"];
             let mut keys_in: Vec<&str> = input.as_object().unwrap().keys().map(|k| k.as_str()).collect();
             keys_in.sort();
@@ -445,6 +465,17 @@ async fn full_season_flow() -> anyhow::Result<()> {
         .await?;
     record_gas("withdraw", &r);
     assert_eq!(r.into_result()?.json::<String>()?, "0");
+
+    // Next season with the config default: season 1 keeps its pinned referee.
+    let (sid2, _) = env.open_season(25).await?;
+    let s1 = env.view("get_season", json!({"season_id": sid})).await?;
+    assert_eq!(s1["wasm"], json!({"url": pinned["wasm_url"], "hash": pinned["wasm_hash"]}));
+    assert_eq!(s1["secrets_profile"], "osd-s1");
+    let s2 = env.view("get_season", json!({"season_id": sid2})).await?;
+    assert_eq!(s2["secrets_profile"], "osd-test");
+    // Season 1 paid its whole pool (3 ranked agents, 3 slots, no dust) → nothing carried.
+    assert_eq!(s1["carry_over_yocto"], "0");
+    assert_eq!(s2["carry_in_yocto"], "0");
 
     let g = gas_log().lock().unwrap();
     println!("GAS (Tgas burnt, max per call):");
