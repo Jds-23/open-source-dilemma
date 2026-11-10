@@ -4,9 +4,25 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "WS6: deploy, FastFS upload, secret profile, keeper, evidence export",
+  "description": "WS6: deploy, FastFS upload, secret profile, keeper, house agents, evidence export",
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
-    "lint": "node --check test/placeholder.test.mjs",
-    "test": "node --test test/*.test.mjs"
+    "lint": "tsc -p tsconfig.json && node scripts/shellcheck.mjs",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test test/*.test.ts",
+    "keeper": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/keeper.ts",
+    "house-agents": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/house-agents.ts",
+    "fastfs-upload": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/fastfs-upload.ts",
+    "verify-secret": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/verify-secret.ts",
+    "export-evidence": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/export-evidence.ts"
+  },
+  "dependencies": {
+    "@osd/sdk": "workspace:*",
+    "near-api-js": "7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
   }
 }

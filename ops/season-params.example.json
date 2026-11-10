@@ -1,0 +1,11 @@
+{
+  "commit_deadline_ns": "+2h",
+  "play_deadline_ns": "+8h",
+  "unit_yocto": "10000000000000000000000",
+  "bond_yocto": "50000000000000000000000",
+  "max_agents": 30,
+  "max_entries_per_owner": 3,
+  "referee_template_hash": "645b0cff071367cc7b0df7aa38a348e7eb9fcb0e955a47ac879f6076533180f0",
+  "model": "Qwen/Qwen3.8-27B",
+  "prize_split_bps": [5000, 3000, 2000]
+}

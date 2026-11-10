@@ -1,0 +1,10 @@
+{
+  "plan_version": 1,
+  "season_id": 1,
+  "contract": "osd.baldingsucks7993.testnet",
+  "entries": [
+    { "agent_id": "grim.osd.baldingsucks7993.testnet", "name": "grim", "family": "nice", "parent": null, "prompt_file": "ops/test/fixtures/strategy-grim.md", "role": "seed" },
+    { "agent_id": "always-d.osd.baldingsucks7993.testnet", "name": "always-d", "family": "mean", "parent": null, "prompt_file": "ops/test/fixtures/strategy-grim.md", "role": "seed" },
+    { "agent_id": "child.osd.baldingsucks7993.testnet", "name": "child", "family": "nice", "parent": { "season_id": 0, "agent_id": "grim.osd.baldingsucks7993.testnet" }, "prompt_file": "ops/test/fixtures/strategy-grim.md", "role": "offspring" }
+  ]
+}
