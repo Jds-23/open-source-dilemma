@@ -163,10 +163,12 @@ const season = {
     unit_yocto: String(UNIT), bond_yocto: String(BOND), max_agents: MAX_AGENTS, max_entries_per_owner: 3,
     referee_template_hash: TEMPLATE_HASH, model: MODEL, prize_split_bps: SPLIT },
   wasm: { url: 'https://test.fastfs.io/baldingsucks7993.testnet/outlayer.testnet/<sha256>.wasm', hash: '<sha256 of referee wasm, frozen in P2>' },
+  secrets_profile: 'osd',
   pubkey: pk, entry_deposit_yocto: String(ENTRY_DEPOSIT), stake_per_agent_yocto: String(3n * UNIT * BigInt(agents.length - 1)),
   n_entries: agents.length, total_rounds: rounds.length, rounds_scheduled: rounds.length,
   n_matches: matches.length, n_settled: matches.filter((m) => m.status === 'settled').length,
   n_void: matches.filter((m) => m.status === 'void').length, pool_yocto: String(poolYocto),
+  carry_in_yocto: '0', carry_over_yocto: '0', // pool fully paid (3 ranked >= 3 slots, no dust)
   opened_at_ns: String(T0 - 3_600_000_000_000n), closed_at_ns: String(T0 + 86_400_000_000_000n),
   settled_at_ns: String(T0 + 90_000_000_000_000n),
 };
@@ -198,7 +200,7 @@ write('prompts.json', agents.map((a) => ({ season_id: SEASON_ID, agent_id: a.age
 write('published-prompts.json', agents.map((a) => ({ agent_id: a.agent_id, prompt: a.prompt, salt: a.salt.toString('hex'), commitment: entries[a.idx].commitment })));
 // get_config() on the testnet deployment (wasm url/hash are placeholders until the P2 freeze).
 write('config.json', { owner: 'baldingsucks7993.testnet', outlayer_account: 'outlayer.testnet', wasm_url: season.wasm.url, wasm_hash: season.wasm.hash,
-  secrets_owner: 'baldingsucks7993.testnet', secrets_profile: 'osd', nearai_signer: edPub, current_season_id: SEASON_ID });
+  secrets_owner: 'baldingsucks7993.testnet', secrets_profile: 'osd', nearai_signer: edPub, current_season_id: SEASON_ID, carry_over_yocto: '0' });
 // get_claimable per agent after settle_season (INTERFACE.md §6.1; WS-1 to confirm):
 // unused stake + match payoffs + 3 units per void match + prize share + bond (withheld if the agent forfeited any match).
 const STAKE_PER_AGENT = 3n * UNIT * BigInt(agents.length - 1);

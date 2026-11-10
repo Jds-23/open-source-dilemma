@@ -1,9 +1,9 @@
-# Open Source Dilemma: frozen interfaces (`interfaces-v3`)
+# Open Source Dilemma: frozen interfaces (`interfaces-v4`)
 
 Owner: integrator. Changes only through an `interface-change` PR (see `docs/BUILD_PLAN.md` §0).
 Machine-readable copies: [`contract-abi.json`](contract-abi.json), [`wasm-io.schema.json`](wasm-io.schema.json), [`events.md`](events.md). Mock data: [`fixtures/`](fixtures/).
 
-The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2, §9.2: v2 → v3).
+The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2, §9.2: v2 → v3, §9.3: v3 → v4).
 
 ---
 
@@ -45,7 +45,8 @@ close_commits ─► status "play" (N entries frozen, stake fixed, excess deposi
 schedule_round × total_rounds ─► matches "scheduled"
 play_match(a,b) ─OutLayer play_match─► on_match ─► "settled" | "void"
 refund_void(a,b) on "void" (or stale "pending") ─► "refunded"
-settle_season ─► status "settled" (ranking, pool paid, bonds returned)
+settle_season ─► status "settled" (ranking, pool paid, bonds returned, unpaid pool carried over)
+   (after the play deadline: [] per call while unfinished matches are voided in batches of 40)
 claim ─► claimable moves into the agent budget
 ```
 
@@ -87,7 +88,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `register_agent` | owner of the new agent (any account) | ≥ 0.25 NEAR | `{name, agent_public_key}` (`"ed25519:<base58>"`) | `AgentId` (promise result) | name taken/invalid |
 | `fund_agent` | anyone | > 0 | `{agent_id}` | `U128` new budget | unknown agent |
 | `withdraw` | agent's owner | 1 yocto | `{agent_id, amount_yocto}` | `U128` new budget | not owner; amount > budget |
-| `open_season` | contract owner | ≥ 0.02 NEAR (OutLayer) | `{params: SeasonParams}` | `u32` season_id (promise; `on_pubkey` sets the key) | previous season not `settled`/`cancelled`; bad params |
+| `open_season` | contract owner | ≥ 0.02 NEAR (OutLayer) | `{params: SeasonParams, wasm_url?, wasm_hash?, secrets_profile?}` (overrides default to `get_config`; `wasm_url` and `wasm_hash` only together; frozen in the season and used by its `play_match`) | `u32` season_id (returned directly; the detached OutLayer call ends in `on_pubkey`, which sets the key) | previous season not `settled`/`cancelled`/`key_failed`; bad params; only one of `wasm_url`/`wasm_hash` |
 | `on_pubkey` | **private** callback | – | `{season_id}` + callback result `{pubkey}` | `Option<String>` | – |
 | `commit` | agent account or its owner | 0 | `{season_id, agent_id, ciphertext_hex, commitment, family, parent}` | `null` | status ≠ `commit`; past deadline; agent already entered (no overwrite); owner reached `max_entries_per_owner`; `max_agents` reached; budget < `entry_deposit_yocto`; bad hex/size; `family` not `^[a-z0-9_]{1,32}$` |
 | `close_commits` | anyone | 0 | `{season_id}` | `u32` n_entries | before deadline; status ≠ `commit` |
@@ -95,14 +96,20 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `play_match` | anyone (keeper) | ≥ 0.02 NEAR (OutLayer; unused part refunded by OutLayer to caller) | `{season_id, a, b}` | promise → `String` `"settled CD"` / `"void"` | match not `scheduled` |
 | `on_match` | **private** callback | – | `{season_id, a, b}` + callback result (WASM output) | `String` | match not `pending` |
 | `refund_void` | anyone | 0 | `{season_id, a, b}` | `U128` refunded per side | match not `void`, and not `pending` for > 250 blocks |
-| `settle_season` | anyone | 0 | `{season_id}` | `LeaderboardRow[]` | status ≠ `play`; unfinished matches and `now < play_deadline_ns` (after the deadline, unfinished matches are voided and refunded) |
+| `settle_season` | anyone | 0 | `{season_id}` | `LeaderboardRow[]`; returns `[]` while unfinished matches are voided in batches of 40 after the play deadline: call again until it returns the ranking | status ≠ `play`; unfinished matches and `now < play_deadline_ns` (after the deadline, unfinished matches are voided and refunded, ≤ 40 per call because of the 100-log receipt limit) |
 | `claim` | agent account or its owner | 0 | `{season_id, agent_id}` | `U128` moved to budget | nothing claimable |
 | `publish_prompt` | agent's owner | 0 | `{season_id, agent_id, prompt, salt}` (`salt` 64 hex) | `null` (stores `prompt` + `salt`, see `get_published_prompts`) | season not `settled`; `sha256(utf8(prompt) ‖ salt ‖ utf8(agent_id)) ≠ commitment` |
 
 `commit` debits `entry_deposit_yocto = bond + 3 × unit × (max_agents − 1)` from the budget. `close_commits` fixes `stake_per_agent_yocto = 3 × unit × (N − 1)` and credits the excess to `claimable`. `on_match` credits payoffs to `claimable` and the pool delta to the season pool. `settle_season` ranks, splits the pool by `prize_split_bps`, and credits prizes and non-forfeited bonds to `claimable`.
 
-**Claimable formula** (per agent per season, after `settle_season`; **WS-1 to confirm**):
-`claimable = unused stake + match payoffs + 3 units per void match + prize share + bond`, where unused stake = `entry_deposit_yocto − bond − stake_per_agent_yocto`, payoffs/void refunds are in units × `unit_yocto`, and the bond is withheld (→ pool) if the agent forfeited (`F`) any match. Summed over all agents it equals the total entry deposits. Example per agent with breakdown: [`fixtures/claimable.json`](fixtures/claimable.json).
+**Claimable formula** (per agent per season, after `settle_season`; confirmed by WS-1, implemented in the contract):
+`claimable = unused stake + match payoffs + 3 units per void match + prize share + bond`, where unused stake = `entry_deposit_yocto − bond − stake_per_agent_yocto`, payoffs/void refunds are in units × `unit_yocto`, and the bond is withheld (→ pool) if the agent forfeited (`F`) any match. Summed over all agents it equals the total entry deposits. Example per agent with breakdown: [`fixtures/claimable.json`](fixtures/claimable.json). Void matches are credited when `refund_void` runs (it also works after settlement); matches cut off at the deadline are refunded by `settle_season` itself. If some rounds were never scheduled by the deadline, the agent also gets `3 × unit × (N − 1 − its scheduled matches)` back.
+
+**Carry-over.** Prizes are `floor(pool × bps / 10000)`. Whatever is left (rounding dust, plus the shares of split slots with no ranked agent) is the season's `carry_over_yocto`. It is added to the **next** season's pool at `open_season` (`Season.carry_in_yocto`; pending amount in `get_config().carry_over_yocto`). A season that never plays (`key_failed`, `cancelled`) hands its carry-in back to the next one.
+
+**Other rules.** `get_published_prompts` lists in first-publish order; publishing again (same hash-checked prompt) is accepted and keeps the first position. `commit` refuses `parent.season_id < 1`. `play_match` is still accepted after `play_deadline_ns` while the season is `play`; `settle_season` voids whatever is unfinished. The contract has no setter for the config wasm/secrets; use the `open_season` overrides.
+
+**Storage** (paid by the contract account, so fund it): about 4.3 KB per entry (ciphertext stored as bytes, max 4200 B, plus metadata) and about 0.7 KB per match. A 40-agent season (40 entries, 780 matches) needs ≈ 0.72 MB ≈ 7.2 NEAR at 1 NEAR / 100 KB; a 6-agent season < 0.4 NEAR.
 
 `commit` does **not** check for duplicate prompts (commitments are salted, so they never collide); see §5.
 
@@ -112,7 +119,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 
 | View | Args | Returns |
 |---|---|---|
-| `get_config` | `{}` | `{owner, outlayer_account, wasm_url, wasm_hash, secrets_owner, secrets_profile, nearai_signer, current_season_id}` ([fixture](fixtures/config.json)) |
+| `get_config` | `{}` | `{owner, outlayer_account, wasm_url, wasm_hash, secrets_owner, secrets_profile, nearai_signer, current_season_id, carry_over_yocto}` ([fixture](fixtures/config.json)) |
 | `get_season` | `{season_id}` | `Season \| null` |
 | `get_season_pubkey` | `{season_id}` | `String \| null` (66 hex) |
 | `get_entries` | `{season_id, from_index?, limit?}` | `Entry[]` (commit order) |
@@ -121,14 +128,14 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `get_agent` | `{agent_id}` | `Agent \| null` |
 | `get_lineage` | `{agent_id}` | `LineageEntry[]` (one per season entered; follow `parent` to walk ancestors) |
 | `get_claimable` | `{season_id, agent_id}` | `U128` (formula §6.1; [fixture](fixtures/claimable.json)) |
-| `get_published_prompts` | `{season_id, from_index?, limit?}` | `PublishedPrompt[]` = `[{agent_id, prompt, salt, commitment}]` (publish order; only prompts revealed via `publish_prompt`; [fixture](fixtures/published-prompts.json)) |
+| `get_published_prompts` | `{season_id, from_index?, limit?}` | `PublishedPrompt[]` = `[{agent_id, prompt, salt, commitment}]` (first-publish order; only prompts revealed via `publish_prompt`; [fixture](fixtures/published-prompts.json)) |
 
 Pagination defaults: `from_index = 0`, `limit = 100`, max 200.
 
 ### 6.3 Types (see `contract-abi.json` `$defs`; examples in `fixtures/`)
 
 - `SeasonParams` `{commit_deadline_ns, play_deadline_ns, unit_yocto, bond_yocto, max_agents (≤ 40), max_entries_per_owner, referee_template_hash, model, prize_split_bps: u16[] (sum 10000)}`; immutable once opened.
-- `Season` `{season_id, status, params, wasm{url,hash}, pubkey, entry_deposit_yocto, stake_per_agent_yocto, n_entries, total_rounds, rounds_scheduled, n_matches, n_settled, n_void, pool_yocto, opened_at_ns, closed_at_ns, settled_at_ns}` ([fixture](fixtures/season.json))
+- `Season` `{season_id, status, params, wasm{url,hash}, secrets_profile, pubkey, entry_deposit_yocto, stake_per_agent_yocto, n_entries, total_rounds, rounds_scheduled, n_matches, n_settled, n_void, pool_yocto, carry_in_yocto, carry_over_yocto, opened_at_ns, closed_at_ns, settled_at_ns}` ([fixture](fixtures/season.json)); `wasm` + `secrets_profile` are the season's pinned referee; `pool_yocto` includes `carry_in_yocto`.
 - `Agent` `{agent_id, name, owner, registered_at_ns, budget_yocto, seasons}` ([fixture](fixtures/agents.json))
 - `Entry` `{season_id, agent_id, owner, family, parent, commitment, ciphertext_hex, committed_at_ns}` ([fixture](fixtures/entries.json))
 - `MatchKey` `{season_id, a, b}`
@@ -211,6 +218,18 @@ Integrator additions in v3:
 | Claimable | undocumented sum | formula in §6.1 (WS-1 to confirm); fixture `claimable.json` with breakdown |
 | Config | no fixture | fixture `config.json` (`get_config` shape) |
 | Lineage fixture | `grim.parent.season_id = 0` | `1` (season ids start at 1); `Parent.season_id` minimum 1 |
+
+### 9.3 `interfaces-v3` → `interfaces-v4` (WS1 contract decisions)
+
+| Area | `interfaces-v3` | `interfaces-v4` |
+|---|---|---|
+| `settle_season` | one call returns the ranking | after the play deadline, unfinished matches are voided ≤ 40 per call (100-log receipt limit); returns `[]` until the final call returns the ranking |
+| Prize remainder | unspecified | `carry_over`: dust + unfilled slots roll into the next season's pool; `Season.carry_in_yocto`, `Season.carry_over_yocto`, `Config.carry_over_yocto` |
+| Referee per season | config `wasm_url`/`wasm_hash`/`secrets_profile` for every season | optional `open_season` overrides `wasm_url`+`wasm_hash` (together), `secrets_profile`; pinned per season, `Season.secrets_profile` added |
+| `open_season` after `key_failed` | refused (previous not `settled`/`cancelled`) | allowed |
+| `open_season` return | promise | `u32` returned directly (OutLayer call detached) |
+| Referee output | all proof fields required | missing `*_chat_id`/`*_signed_text`/`*_sig` read as `""` (WS-2 §9.2 vi); sig flags false |
+| Misc | – | `get_published_prompts` first-publish order, re-publish keeps position; `parent.season_id ≥ 1`; `play_match` allowed after the play deadline; storage sizes documented (§6.1) |
 
 Additions beyond the Phase 0 brief (so other workstreams don't block): `fund_agent`, `withdraw`, `publish_prompt`, `get_config`, `get_entries`, `get_claimable`, `get_published_prompts`, events `season_opened`, `commits_closed`, `prompt_published`, move `F`, WASM inputs `hash_a`/`hash_b`/`action`.
 

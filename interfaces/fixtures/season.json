@@ -20,6 +20,7 @@
     "url": "https://test.fastfs.io/baldingsucks7993.testnet/outlayer.testnet/<sha256>.wasm",
     "hash": "<sha256 of referee wasm, frozen in P2>"
   },
+  "secrets_profile": "osd",
   "pubkey": "0360e153bf8c4758cda4f312a2cc3da490d6593ee843475888337ee944b3ec8cf4",
   "entry_deposit_yocto": "1220000000000000000000000",
   "stake_per_agent_yocto": "150000000000000000000000",
@@ -30,6 +31,8 @@
   "n_settled": 14,
   "n_void": 1,
   "pool_yocto": "200000000000000000000000",
+  "carry_in_yocto": "0",
+  "carry_over_yocto": "0",
   "opened_at_ns": "1794316329000000000",
   "closed_at_ns": "1794406329000000000",
   "settled_at_ns": "1794409929000000000"
