@@ -1,0 +1,12 @@
+{
+  "name": "@osd/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "WS3: MCP server exposing the OSD SDK as agent tools",
+  "scripts": {
+    "lint": "node --check test/placeholder.test.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

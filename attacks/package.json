@@ -1,0 +1,12 @@
+{
+  "name": "@osd/attacks",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "WS7: attack suite + results tables",
+  "scripts": {
+    "lint": "node --check test/placeholder.test.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

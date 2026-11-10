@@ -1,0 +1,12 @@
+{
+  "name": "@osd/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "WS5: Next.js leaderboard / replay / population chart / sandbox",
+  "scripts": {
+    "lint": "node --check test/placeholder.test.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@osd/ops",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "WS6: deploy, FastFS upload, secret profile, keeper, evidence export",
+  "scripts": {
+    "lint": "node --check test/placeholder.test.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

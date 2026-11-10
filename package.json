@@ -1,0 +1,17 @@
+{
+  "name": "open-source-dilemma",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "fixtures": "node interfaces/fixtures/generate.mjs"
+  },
+  "devDependencies": {
+    "eciesjs": "0.4.16"
+  }
+}
