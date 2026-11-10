@@ -22,7 +22,8 @@ import { fetchAll } from '../keeper.ts';
 import { loadSignerKey } from '../near-chain.ts';
 import { DEFAULT_RPC, NearRpc } from '../rpc.ts';
 import { SeasonRoutedLog } from '../txlog.ts';
-import { nearToYocto, TGAS, type Entry, type Season } from '../types.ts';
+import { gasFor } from '../chain.ts';
+import { nearToYocto, type Entry, type Season } from '../types.ts';
 import { banner, DEFAULTS, die, OPS_DIR, REPO_DIR, RUNS_DIR } from './common.ts';
 
 const USAGE = `usage: pnpm --filter @osd/ops house-agents --plan agents/plans/season-1.json [options]
@@ -174,14 +175,14 @@ async function main(): Promise<void> {
         const { pub } = loadOrCreateKey(network, s.agent_id, true);
         const r = await acct(s.owner).signAndSendTransaction({
           receiverId: contract,
-          actions: [actions.functionCall('register_agent', { name: s.name, agent_public_key: pub }, 300n * TGAS, BigInt(s.deposit_yocto))],
+          actions: [actions.functionCall('register_agent', { name: s.name, agent_public_key: pub }, gasFor('register_agent'), BigInt(s.deposit_yocto))],
           waitUntil: 'FINAL',
         });
         hash = r.transaction.hash;
       } else if (s.kind === 'fund_agent') {
         const r = await acct(s.owner).signAndSendTransaction({
           receiverId: contract,
-          actions: [actions.functionCall('fund_agent', { agent_id: s.agent_id }, 30n * TGAS, BigInt(s.deposit_yocto))],
+          actions: [actions.functionCall('fund_agent', { agent_id: s.agent_id }, gasFor('fund_agent'), BigInt(s.deposit_yocto))],
           waitUntil: 'FINAL',
         });
         hash = r.transaction.hash;
@@ -194,7 +195,7 @@ async function main(): Promise<void> {
             actions.functionCall(
               'commit',
               { season_id: sid, agent_id: s.agent_id, ciphertext_hex: sealed.ciphertext_hex, commitment: sealed.commitment, family: s.family, parent: s.parent },
-              100n * TGAS,
+              gasFor('commit'),
               0n,
             ),
           ],

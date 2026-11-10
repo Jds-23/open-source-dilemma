@@ -1,5 +1,5 @@
 // Fixture-backed in-memory mock of the dilemma contract, so consumers (WS4 evolver, WS5 web, MCP)
-// can run fully offline. Views mirror INTERFACE.md §6.2 (interfaces-v3); calls for the player/owner flow
+// can run fully offline. Views mirror INTERFACE.md §6.2 (interfaces-v4); calls for the player/owner flow
 // (register_agent, fund_agent, withdraw, open_season, commit, claim, publish_prompt) are simulated
 // with the contract's refusal rules. Keeper calls (close_commits, schedule_round, play_match,
 // refund_void, settle_season) are not simulated and throw.
@@ -179,7 +179,11 @@ export class MockChain implements ViewProvider {
   }
 
   /** Test helper: open a new season straight into `commit` status (skips the OutLayer key round trip). */
-  openSeason(params: Partial<SeasonParams> = {}, pubkey: string = TEST_ONLY_SEASON_PUBKEY): Season {
+  openSeason(
+    params: Partial<SeasonParams> = {},
+    pubkey: string = TEST_ONLY_SEASON_PUBKEY,
+    overrides: { wasm_url?: string; wasm_hash?: string; secrets_profile?: string } = {},
+  ): Season {
     const prev = this.seasons.get(this.config.current_season_id ?? -1);
     const now = this.#now();
     const p: SeasonParams = {
@@ -195,12 +199,15 @@ export class MockChain implements ViewProvider {
       ...params,
     };
     const season_id = Math.max(0, ...this.seasons.keys()) + 1;
+    const carryIn = this.config.carry_over_yocto ?? '0';
+    this.config.carry_over_yocto = '0';
     const entry = BigInt(p.bond_yocto) + BigInt(STAKE_UNITS_PER_MATCH) * BigInt(p.unit_yocto) * BigInt(p.max_agents - 1);
     const s: Season = {
       season_id,
       status: 'commit',
       params: p,
-      wasm: prev?.wasm ?? { url: this.config.wasm_url, hash: this.config.wasm_hash },
+      wasm: { url: overrides.wasm_url ?? this.config.wasm_url, hash: overrides.wasm_hash ?? this.config.wasm_hash },
+      secrets_profile: overrides.secrets_profile ?? this.config.secrets_profile,
       pubkey,
       entry_deposit_yocto: String(entry),
       stake_per_agent_yocto: null,
@@ -210,7 +217,9 @@ export class MockChain implements ViewProvider {
       n_matches: 0,
       n_settled: 0,
       n_void: 0,
-      pool_yocto: '0',
+      pool_yocto: carryIn,
+      carry_in_yocto: carryIn,
+      carry_over_yocto: '0',
       opened_at_ns: String(now),
       closed_at_ns: null,
       settled_at_ns: null,
@@ -335,10 +344,11 @@ export class MockChain implements ViewProvider {
         if (caller !== this.config.owner) fail('only the contract owner');
         if (deposit < MIN_OUTLAYER_DEPOSIT) fail('deposit below 0.02 NEAR');
         const prev = this.seasons.get(this.config.current_season_id ?? -1);
-        if (prev && prev.status !== 'settled' && prev.status !== 'cancelled') fail('previous season not finished');
-        const { params } = a as CallArgs['open_season'];
+        if (prev && !['settled', 'cancelled', 'key_failed'].includes(prev.status)) fail('previous season not finished');
+        const { params, wasm_url, wasm_hash, secrets_profile } = a as CallArgs['open_season'];
         if (params.prize_split_bps.reduce((x, y) => x + y, 0) !== 10000) fail('prize_split_bps must sum to 10000');
-        return this.openSeason(params).season_id;
+        if ((wasm_url === undefined) !== (wasm_hash === undefined)) fail('wasm_url and wasm_hash must be overridden together');
+        return this.openSeason(params, undefined, { wasm_url, wasm_hash, secrets_profile }).season_id;
       }
       case 'commit': {
         const c = a as unknown as CallArgs['commit'];

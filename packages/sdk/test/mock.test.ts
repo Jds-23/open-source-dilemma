@@ -196,4 +196,17 @@ describe('mock chain: player flow', () => {
     expect((await admin.openSeason(s.params)).value).toBe(2);
     expect((await admin.getSeason(2))!.status).toBe('commit');
   });
+
+  test('open_season v4: per-season referee override, carry-over into the pool', async () => {
+    const s = (await owner.getSeason(1))!;
+    const admin = owner.withSigner(chain.signer(chain.config.owner));
+    await expect(admin.openSeason(s.params, undefined, undefined, { wasmUrl: 'https://x/y.wasm' })).rejects.toThrow(/together/);
+    chain.config.carry_over_yocto = '7';
+    const id = (await admin.openSeason(s.params, undefined, undefined, { wasmUrl: 'https://x/ab.wasm', wasmHash: 'ab'.repeat(32), secretsProfile: 'osd-v2' })).value;
+    const s2 = (await admin.getSeason(id))!;
+    expect(s2.wasm).toEqual({ url: 'https://x/ab.wasm', hash: 'ab'.repeat(32) });
+    expect(s2.secrets_profile).toBe('osd-v2');
+    expect([s2.carry_in_yocto, s2.pool_yocto, s2.carry_over_yocto]).toEqual(['7', '7', '0']);
+    expect((await admin.getConfig()).carry_over_yocto).toBe('0');
+  });
 });

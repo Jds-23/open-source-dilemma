@@ -335,8 +335,18 @@ export class OsdClient {
 
   // keeper / contract-owner calls
 
-  async openSeason(params: SeasonParams, depositYocto: bigint = MIN_OUTLAYER_DEPOSIT, gas?: bigint) {
-    return this.call('open_season', { params }, { deposit: depositYocto, gas });
+  /** Owner: open a season, optionally pinning a different referee (`wasmUrl` + `wasmHash` together) or secrets profile. */
+  async openSeason(
+    params: SeasonParams,
+    depositYocto: bigint = MIN_OUTLAYER_DEPOSIT,
+    gas?: bigint,
+    overrides: { wasmUrl?: string; wasmHash?: string; secretsProfile?: string } = {},
+  ) {
+    if ((overrides.wasmUrl === undefined) !== (overrides.wasmHash === undefined)) throw new Error('wasmUrl and wasmHash must be overridden together');
+    const args: CallArgs['open_season'] = { params };
+    if (overrides.wasmUrl !== undefined) Object.assign(args, { wasm_url: overrides.wasmUrl, wasm_hash: overrides.wasmHash });
+    if (overrides.secretsProfile !== undefined) args.secrets_profile = overrides.secretsProfile;
+    return this.call('open_season', args, { deposit: depositYocto, gas });
   }
 
   async closeCommits(seasonId: number, gas?: bigint) {
@@ -356,8 +366,23 @@ export class OsdClient {
     return this.call('refund_void', orderKey(key), { gas });
   }
 
+  /** One `settle_season` call: `[]` means a void batch ran and more calls are needed (see `settleSeasonFully`). */
   async settleSeason(seasonId: number, gas?: bigint) {
     return this.call('settle_season', { season_id: seasonId }, { gas });
+  }
+
+  /**
+   * Call `settle_season` until the season is settled (non-empty ranking, or status `settled` when nobody ranked).
+   * After the play deadline each call voids ≤ 40 unfinished matches and returns `[]` (40 agents: up to 20 calls).
+   */
+  async settleSeasonFully(seasonId: number, o: { maxCalls?: number; gas?: bigint } = {}): Promise<LeaderboardRow[]> {
+    const maxCalls = o.maxCalls ?? 32;
+    for (let i = 0; i < maxCalls; i++) {
+      const out = await this.settleSeason(seasonId, o.gas);
+      if (Array.isArray(out.value) && out.value.length > 0) return out.value;
+      if ((await this.getSeason(seasonId))?.status === 'settled') return this.view('get_leaderboard', { season_id: seasonId });
+    }
+    throw new Error(`settle_season: season ${seasonId} not settled after ${maxCalls} calls`);
   }
 
   /** Can the configured signer call `method`? (agent FC keys: commit/claim only) */

@@ -67,6 +67,21 @@ account_exists() {
   curl -fsS -m 20 -H 'content-type: application/json' -d "$body" "$(rpc_url "$1")" | grep -q '"amount"'
 }
 
+# account_state NETWORK ACCOUNT → "<amount yocto> <storage_usage bytes>" (read-only RPC query).
+account_state() {
+  local body
+  body=$(printf '{"jsonrpc":"2.0","id":"osd","method":"query","params":{"request_type":"view_account","finality":"final","account_id":"%s"}}' "$2")
+  curl -fsS -m 20 -H 'content-type: application/json' -d "$body" "$(rpc_url "$1")" |
+    node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).result;if(!r){process.exit(1)}process.stdout.write(r.amount+" "+r.storage_usage)})'
+}
+
+# storage_budget_near MAX_AGENTS SEASONS CODE_KB → NEAR (2 decimals) the contract account should hold for
+# its code plus SEASONS seasons of MAX_AGENTS entries (INTERFACE.md §6.1: ~4.3 KB per entry, ~0.7 KB per
+# match, N(N-1)/2 matches; 1 NEAR per 100 KB) plus a 1 NEAR margin for gas-free headroom.
+storage_budget_near() {
+  node -e 'const [n,k,code]=process.argv.slice(1).map(Number);const kb=code+k*(n*4.3+(n*(n-1)/2)*0.7);process.stdout.write((kb/100+1).toFixed(2))' "$1" "$2" "$3"
+}
+
 # view_json NETWORK CONTRACT METHOD ARGS_JSON → decoded JSON result on stdout (read-only).
 view_json() {
   local args64 body

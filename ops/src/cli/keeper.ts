@@ -24,10 +24,15 @@ const USAGE = `usage: pnpm --filter @osd/ops keeper [options]
   --signer <id>              signing account (default ${DEFAULTS.signer}; must be the contract owner to open seasons)
   --season <n>               season to drive (default: get_config.current_season_id)
   --open <params.json>       open a new season with these SeasonParams if none is active
+  --wasm-url <url>           with --open: pin this referee WASM for the new season (needs --wasm-hash)
+  --wasm-hash <hex>          with --open: sha256 of that WASM (needs --wasm-url)
+  --secrets-profile <name>   with --open: OutLayer secrets profile for the new season (default: get_config)
   --concurrency <n>          parallel play_match txs (default 4)
   --play-deposit <NEAR>      deposit per play_match (default 0.05; OutLayer refunds the unused part)
   --open-deposit <NEAR>      deposit for open_season (default 0.05)
-  --gas-tgas <n>             gas per call (default 300)
+  --gas-tgas <n>             gas for every call (default per method: play_match/settle_season/open_season 300,
+                             schedule_round 100, close_commits/refund_void 30)
+  --max-settle-calls <n>     settle_season calls per settle phase while it returns [] (default 32)
   --max-attempts <n>         attempts per tx on transient errors (default 5)
   --poll-ms <n>              poll interval (default 5000)
   --no-settle                stop before settle_season
@@ -63,6 +68,10 @@ async function main(): Promise<void> {
       'play-deposit': { type: 'string', default: '0.05' },
       'open-deposit': { type: 'string', default: '0.05' },
       'gas-tgas': { type: 'string' },
+      'wasm-url': { type: 'string' },
+      'wasm-hash': { type: 'string' },
+      'secrets-profile': { type: 'string' },
+      'max-settle-calls': { type: 'string' },
       'max-attempts': { type: 'string' },
       'poll-ms': { type: 'string' },
       'no-settle': { type: 'boolean', default: false },
@@ -83,13 +92,24 @@ async function main(): Promise<void> {
 
   const openParams = v.open ? resolveDeadlines(JSON.parse(readFileSync(v.open, 'utf8')) as SeasonParams, BigInt(Date.now()) * 1_000_000n) : undefined;
   if (openParams) console.error(`open params: ${JSON.stringify(openParams)}`);
+  if ((v['wasm-url'] === undefined) !== (v['wasm-hash'] === undefined)) die('--wasm-url and --wasm-hash go together');
+  if ((v['wasm-url'] || v['secrets-profile']) && !openParams) die('--wasm-url/--wasm-hash/--secrets-profile only apply with --open');
+  if (v['wasm-hash'] !== undefined && !/^[0-9a-f]{64}$/.test(v['wasm-hash'])) die('--wasm-hash must be 64 lowercase hex');
+  if (v['wasm-url'] !== undefined && !/^https:\/\/\S+$/.test(v['wasm-url'])) die('--wasm-url must be an https URL');
+  const openOverrides = {
+    ...(v['wasm-url'] !== undefined ? { wasm_url: v['wasm-url'], wasm_hash: v['wasm-hash'] } : {}),
+    ...(v['secrets-profile'] !== undefined ? { secrets_profile: v['secrets-profile'] } : {}),
+  };
+  if (Object.keys(openOverrides).length) console.error(`open overrides: ${JSON.stringify(openOverrides)}`);
   const base: KeeperOptions = {
     ...DEFAULT_KEEPER_OPTIONS,
     seasonId: v.season === undefined ? undefined : intArg(v.season, 'season', 0),
     openParams,
+    openOverrides: Object.keys(openOverrides).length ? openOverrides : undefined,
     openDepositYocto: nearToYocto(v['open-deposit']!),
     playDepositYocto: nearToYocto(v['play-deposit']!),
-    gas: BigInt(intArg(v['gas-tgas'], 'gas-tgas', 300)) * TGAS,
+    gas: v['gas-tgas'] === undefined ? undefined : BigInt(intArg(v['gas-tgas'], 'gas-tgas', 300)) * TGAS,
+    maxSettleCalls: Math.max(1, intArg(v['max-settle-calls'], 'max-settle-calls', DEFAULT_KEEPER_OPTIONS.maxSettleCalls)),
     concurrency: Math.max(1, intArg(v.concurrency, 'concurrency', DEFAULT_KEEPER_OPTIONS.concurrency)),
     maxAttempts: Math.max(1, intArg(v['max-attempts'], 'max-attempts', DEFAULT_KEEPER_OPTIONS.maxAttempts)),
     pollMs: intArg(v['poll-ms'], 'poll-ms', DEFAULT_KEEPER_OPTIONS.pollMs),

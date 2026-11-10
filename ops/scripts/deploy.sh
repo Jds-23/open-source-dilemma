@@ -5,6 +5,8 @@
 # (~/.near-credentials); nothing secret is read from or written to the repo.
 #
 #   ops/scripts/deploy.sh --wasm-url URL --wasm-hash HEX --secrets-profile P --nearai-signer HEX [--execute]
+# The contract account pays for all storage: it is funded for the code plus --seasons seasons of
+# --max-agents entries (40 agents ≈ 7.2 NEAR per season), and topped up on an existing account.
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
 . "$(dirname "$0")/lib.sh"
@@ -13,7 +15,10 @@ NETWORK=testnet
 PARENT=baldingsucks7993.testnet
 CONTRACT=osd.baldingsucks7993.testnet
 OWNER=""            # default: PARENT (owner opens seasons; the keeper signs as it)
-INITIAL_BALANCE="10 NEAR"
+INITIAL_BALANCE=""  # default: storage budget (code + SEASONS × MAX_AGENTS season), see storage_budget_near
+MAX_AGENTS=40
+SEASONS=1
+CODE_KB=350         # cargo near build output is ~343 KB
 WASM_URL=""
 WASM_HASH=""
 SECRETS_OWNER=""    # default: PARENT (the account that ran store-secret.sh)
@@ -23,9 +28,10 @@ OUTLAYER_ACCOUNT=outlayer.testnet
 CONTRACT_WASM=""    # default: build contracts/dilemma
 SKIP_BUILD=0
 REDEPLOY=0
+FUND_ONLY=0
 
 usage() {
-  sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
   cat <<EOF
 
 options:
@@ -33,7 +39,9 @@ options:
   --parent ID            account that creates + funds the contract account ($PARENT)
   --contract ID          contract account ($CONTRACT)
   --owner ID             init caller = contract owner (default: --parent)
-  --initial-balance AMT  NEAR moved to the new contract account ("$INITIAL_BALANCE")
+  --initial-balance AMT  NEAR moved to a new contract account (default: the storage budget below)
+  --max-agents N         storage budget: entries per season ($MAX_AGENTS; ~4.3 KB/entry + ~0.7 KB/match)
+  --seasons K            storage budget: seasons to cover ($SEASONS; state of past seasons is kept)
   --wasm-url URL         FastFS URL of the referee WASM (fastfs-upload output)
   --wasm-hash HEX        sha256 of the referee WASM (CI wasm-release artifact)
   --secrets-owner ID     OutLayer secrets owner (default: --parent)
@@ -54,6 +62,8 @@ while [ $# -gt 0 ]; do
     --contract) CONTRACT=$2; shift 2 ;;
     --owner) OWNER=$2; shift 2 ;;
     --initial-balance) INITIAL_BALANCE=$2; shift 2 ;;
+    --max-agents) MAX_AGENTS=$2; shift 2 ;;
+    --seasons) SEASONS=$2; shift 2 ;;
     --wasm-url) WASM_URL=$2; shift 2 ;;
     --wasm-hash) WASM_HASH=$2; shift 2 ;;
     --secrets-owner) SECRETS_OWNER=$2; shift 2 ;;
@@ -63,6 +73,7 @@ while [ $# -gt 0 ]; do
     --contract-wasm) CONTRACT_WASM=$2; shift 2 ;;
     --skip-build) SKIP_BUILD=1; shift ;;
     --redeploy) REDEPLOY=1; shift ;;
+    --fund-only) FUND_ONLY=1; shift ;;
     --execute) EXECUTE=1; shift ;;
     -h | --help) usage; exit 0 ;;
     *) die "unknown option $1 (see --help)" ;;
@@ -74,11 +85,16 @@ SECRETS_OWNER=${SECRETS_OWNER:-$PARENT}
 [ "$NETWORK" = testnet ] || die "testnet only in this phase"
 for a in "$PARENT" "$CONTRACT" "$OWNER" "$SECRETS_OWNER" "$OUTLAYER_ACCOUNT"; do is_account "$a" || die "bad account id: $a"; done
 case "$CONTRACT" in *".$PARENT") ;; *) die "$CONTRACT must be a sub-account of $PARENT" ;; esac
-is_hex64 "$WASM_HASH" || die "--wasm-hash must be 64 lowercase hex (CI wasm-release sha256)"
-[[ "$WASM_URL" =~ ^https://[A-Za-z0-9./_-]+$ ]] || die "--wasm-url must be an https URL without quotes/spaces"
-case "$WASM_URL" in *"$WASM_HASH"*) ;; *) log "warn: --wasm-url does not contain --wasm-hash; double-check the pair" ;; esac
-[[ "$SECRETS_PROFILE" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || die "--secrets-profile required ([A-Za-z0-9_-])"
-is_hex64 "$NEARAI_SIGNER" || die "--nearai-signer (or NEARAI_SIGNER_PUBKEY) must be 64 lowercase hex"
+if [ "$FUND_ONLY" = 0 ]; then
+  is_hex64 "$WASM_HASH" || die "--wasm-hash must be 64 lowercase hex (CI wasm-release sha256)"
+  [[ "$WASM_URL" =~ ^https://[A-Za-z0-9./_-]+$ ]] || die "--wasm-url must be an https URL without quotes/spaces"
+  case "$WASM_URL" in *"$WASM_HASH"*) ;; *) log "warn: --wasm-url does not contain --wasm-hash; double-check the pair" ;; esac
+  [[ "$SECRETS_PROFILE" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || die "--secrets-profile required ([A-Za-z0-9_-])"
+  is_hex64 "$NEARAI_SIGNER" || die "--nearai-signer (or NEARAI_SIGNER_PUBKEY) must be 64 lowercase hex"
+fi
+
+[[ "$MAX_AGENTS" =~ ^[0-9]+$ ]] && [ "$MAX_AGENTS" -ge 2 ] && [ "$MAX_AGENTS" -le 40 ] || die "--max-agents must be 2..40"
+[[ "$SEASONS" =~ ^[1-9][0-9]*$ ]] || die "--seasons must be a positive integer"
 
 banner
 need near "near CLI (near-cli-rs)"
@@ -86,7 +102,9 @@ need curl
 need node
 
 # 1. contract wasm
-if [ -z "$CONTRACT_WASM" ]; then
+if [ "$FUND_ONLY" = 1 ]; then
+  log "# 1. --fund-only: no build"
+elif [ -z "$CONTRACT_WASM" ]; then
   CONTRACT_WASM="$REPO_DIR/contracts/dilemma/target/near/dilemma_contract.wasm"
   if [ "$SKIP_BUILD" = 0 ]; then
     need cargo-near "cargo install cargo-near"
@@ -94,7 +112,9 @@ if [ -z "$CONTRACT_WASM" ]; then
     run bash -c "cd $(printf '%q' "$REPO_DIR/contracts/dilemma") && cargo near build non-reproducible-wasm --locked"
   fi
 fi
-if [ -f "$CONTRACT_WASM" ]; then
+if [ "$FUND_ONLY" = 1 ]; then
+  :
+elif [ -f "$CONTRACT_WASM" ]; then
   log "contract wasm: $CONTRACT_WASM sha256 $(shasum -a 256 "$CONTRACT_WASM" | cut -d' ' -f1)"
 elif [ "$EXECUTE" = 1 ]; then
   die "contract wasm not found: $CONTRACT_WASM"
@@ -102,12 +122,27 @@ else
   log "contract wasm: $CONTRACT_WASM (built on --execute)"
 fi
 
-# 2. account
-log "# 2. contract account"
+# 2. account (+ storage budget: the contract pays for every entry and match it stores)
+BUDGET=$(storage_budget_near "$MAX_AGENTS" "$SEASONS" "$CODE_KB")
+INITIAL_BALANCE=${INITIAL_BALANCE:-"$BUDGET NEAR"}
+log "# 2. contract account (storage budget for code + $SEASONS season(s) x $MAX_AGENTS agents: $BUDGET NEAR)"
 if account_exists "$NETWORK" "$CONTRACT"; then
   log "$CONTRACT exists"
-  if view_json "$NETWORK" "$CONTRACT" get_config '{}' >/dev/null 2>&1 && [ "$REDEPLOY" = 0 ]; then
-    die "$CONTRACT already has an initialised contract; pass --redeploy to replace the code (state kept, init skipped)"
+  if [ "$FUND_ONLY" = 0 ] && [ "$REDEPLOY" = 0 ] && view_json "$NETWORK" "$CONTRACT" get_config '{}' >/dev/null 2>&1; then
+    die "$CONTRACT already has an initialised contract; pass --redeploy to replace the code (state kept, init skipped), or --fund-only to top up storage"
+  fi
+  read -r AMOUNT USAGE <<<"$(account_state "$NETWORK" "$CONTRACT")"
+  # NEAR still free for new state = balance - current usage x 1e19 yocto/byte; top up to the season budget.
+  TOPUP=$(node -e 'const [a,u,n,k]=process.argv.slice(1);const free=Number(BigInt(a)-BigInt(u)*10n**19n)/1e24;const need=Number(k)*(Number(n)*4.3+(Number(n)*(Number(n)-1)/2)*0.7)/100+1;process.stdout.write(Math.max(0,need-free).toFixed(2))' "$AMOUNT" "$USAGE" "$MAX_AGENTS" "$SEASONS")
+  if [ "$TOPUP" != "0.00" ]; then
+    log "storage: $CONTRACT is short by $TOPUP NEAR for $SEASONS more season(s) of $MAX_AGENTS agents; topping up"
+    run near tokens "$PARENT" send-near "$CONTRACT" "$TOPUP NEAR" network-config "$NETWORK" sign-with-legacy-keychain send
+  else
+    log "storage: $CONTRACT has enough free balance for $SEASONS season(s) of $MAX_AGENTS agents"
+  fi
+  if [ "$FUND_ONLY" = 1 ]; then
+    log "--fund-only: storage checked/topped up; not touching code"
+    exit 0
   fi
 else
   run near account create-account fund-myself "$CONTRACT" "$INITIAL_BALANCE" \

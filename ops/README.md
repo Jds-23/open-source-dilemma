@@ -10,7 +10,8 @@ Secrets are read only at runtime: signing keys from `~/.near-credentials/<networ
 | FastFS upload + verify | `pnpm --filter @osd/ops fastfs-upload --file referee-wasm.wasm --version 1 --expect-sha256 <ci hash>` |
 | Secret profile | `NEARAI_API_KEY=… ops/scripts/store-secret.sh --wasm-hash <hash>` |
 | Verify secret (read-only) | `ops/scripts/store-secret.sh --verify-only --wasm-hash <hash> [--profile p]` |
-| Contract deploy + init | `ops/scripts/deploy.sh --wasm-url … --wasm-hash … --secrets-profile … --nearai-signer …` |
+| Contract deploy + init | `ops/scripts/deploy.sh --wasm-url … --wasm-hash … --secrets-profile … --nearai-signer … [--max-agents 40 --seasons 1]` |
+| Top up contract storage | `ops/scripts/deploy.sh --fund-only [--max-agents 40 --seasons 1]` |
 | House agents (h01..h25) | `pnpm --filter @osd/ops house-agents --plan agents/plans/season-1.json` |
 | Keeper (season runner) | `pnpm --filter @osd/ops keeper [--open ops/season-params.example.json]` |
 | Keeper on the mock contract | `pnpm --filter @osd/ops keeper --mock` / `--mock --plan --mock-at play` |
@@ -27,7 +28,8 @@ Every WASM rebuild produces a new hash. A new hash needs a new FastFS path, a ne
 2. **Upload:** `fastfs-upload --file referee-wasm.wasm --version 1 --expect-sha256 <hash> --execute`. The URL is `https://test.fastfs.io/<sender>/outlayer.testnet/osd-referee/v<N>/<sha256>.wasm`. FastFS paths **can't be overwritten**: if a path already holds other bytes the tool says so, so bump `--version`. Files over 1 MiB go up as 1 MiB-aligned partial chunks. After upload the tool fetches the URL until the sha256 matches (indexer lag), then prints `WASM_URL` / `WASM_HASH`.
 3. **Secret:** `outlayer login testnet` (as the secrets owner), then `NEARAI_API_KEY=… store-secret.sh --wasm-hash <hash> --execute`. This stores profile `osd-<hash12>` with `PROTECTED_SEASON_SEED` (hex32, generated in the TEE), `NEARAI_API_KEY`, accessor `WasmHash(<hash>)` and access `Predecessor{Whitelist[osd.baldingsucks7993.testnet]}` (`--via`, which reproduces the spike's `season1` row). It then checks the row through `outlayer.testnet::list_user_secrets`.
 4. **Deploy:** `deploy.sh --wasm-url … --wasm-hash … --secrets-profile osd-<hash12> --nearai-signer <64 hex> --execute`. It builds the contract (`cargo near build non-reproducible-wasm --locked`), creates `osd.baldingsucks7993.testnet` under the parent, deploys, calls `new(...)` signed by `--owner` (default: the parent, which then opens seasons), and checks `get_config` field by field. It refuses to touch an initialised contract unless you pass `--redeploy`.
-5. **Season:** `keeper --open ops/season-params.example.json --execute`. Deadlines may be relative (`+2h`). The command opens the season and waits for `on_pubkey`. Run `house-agents --plan … --execute` during the commit window. The keeper then waits for the deadline, calls `close_commits` and `schedule_round` ×R, runs `play_match` for every pair, `refund_void`, and `settle_season`.
+   **Storage:** the contract account pays for everything it stores (INTERFACE.md §6.1): ~4.3 KB per entry and ~0.7 KB per match, at 1 NEAR / 100 KB. A 40-agent season (40 entries, 780 matches) needs ≈ 7.2 NEAR, a 6-agent season < 0.4 NEAR; the code is ~3.5 NEAR. A new account is funded with code + `--seasons` × `--max-agents` + 1 NEAR margin (40 agents, 1 season: 11.68 NEAR). Past seasons' state stays, so before every new season run `deploy.sh --fund-only --max-agents N --execute`: it reads the free balance (`amount − storage_usage × 10¹⁹`) and sends only the shortfall from `--parent`.
+5. **Season:** `keeper --open ops/season-params.example.json --execute`. To pin a different referee for this season only (a rebuilt WASM, a new secret profile), add `--wasm-url … --wasm-hash …` (together) and/or `--secrets-profile …`; they go to `open_season` and are frozen in the season (`get_season.wasm`, `.secrets_profile`); the config defaults stay as deployed. Deadlines may be relative (`+2h`). The command opens the season and waits for `on_pubkey`. Run `house-agents --plan … --execute` during the commit window. The keeper then waits for the deadline, calls `close_commits` and `schedule_round` ×R, runs `play_match` for every pair, `refund_void`, and `settle_season`.
 6. **Evidence:** `export-evidence --season 1 --fetch-tx` writes `ops/runs/evidence/<contract>/` (see below).
 
 ## Reproducible WASM build (`scripts/build-wasm.sh`, `.github/workflows/wasm-release.yml`)
@@ -42,6 +44,10 @@ Every WASM rebuild produces a new hash. A new hash needs a new FastFS path, a ne
 It is a state machine over `get_season.status` that re-reads chain state before every step, so you can kill it and run it again at any point:
 
 `open_season` (only if no season is active; otherwise it resumes the active one) → wait `pending_key` → wait `commit_deadline_ns` (chain time) → `close_commits` → `schedule_round` until `rounds_scheduled == total_rounds` → sweep: `play_match` for each `scheduled` match (concurrency limit, default 4) and `refund_void` for each `void` match or each `pending` match older than 250 blocks → `settle_season` once every match is `settled`/`refunded`, or after `play_deadline_ns` (the contract then voids anything unfinished).
+
+**Batched settle (interfaces-v4).** After the play deadline `settle_season` voids at most 40 unfinished matches per call (100-log receipt limit) and returns `[]`; the keeper calls it again, with backoff, until it returns the ranking or the season reads `settled` (40 agents, nothing played: 780 matches → 20 calls, ~41 Tgas each). Capped by `--max-settle-calls` (32) per pass; the next pass carries on. Unpaid pool (prize rounding, unfilled slots) is the season's `carry_over_yocto` and is added to the next season's pool at `open_season` (`carry_in_yocto`).
+
+**Gas** (per method, from the WS-1 sandbox measurements; same table as `@osd/sdk` `DEFAULT_GAS`): `register_agent` 50, `commit` 30, `claim` 30, `close_commits`/`refund_void`/`fund_agent`/`withdraw` 30, `schedule_round` 100, `play_match` 300 (the rest goes to OutLayer), `settle_season` 300, `open_season` 300 Tgas. `--gas-tgas` overrides it for every call.
 
 **Idempotency, in layers:**
 1. The contract is the source of truth: `play_match` is sent only for matches the view shows as `scheduled`. The contract also refuses anything else (one-shot rule).
@@ -90,7 +96,7 @@ Across seasons: `seasons.csv`, `families.csv`. `export-evidence --fixtures` runs
 
 - `fastfs/`: the spike's Python payload tools (reference). `src/fastfs.ts` is the TS port; a test checks the payload layout byte for byte, and its output matches `fastfs_payload.py` exactly on the referee WASM.
 - `src/secrets.ts` / `verify-secret`: reads keystore metadata (no values) and checks profile, `WasmHash`, and a Predecessor whitelist of exactly `[contract]` with no `AllowAll`.
-- `src/rpc.ts`: a minimal JSON-RPC client with injectable `fetch` (the tests use a mock RPC). `src/near-chain.ts`: signing through `near-api-js` 7.4.0. TODO: switch views to `@osd/sdk` once WS3 lands.
+- `src/rpc.ts`: a minimal JSON-RPC client with injectable `fetch` (the tests use a mock RPC). `src/near-chain.ts`: signing through `near-api-js` 7.4.0; decodes the call's `SuccessValue` (used for `settle_season`'s `[]` vs ranking).
 
 ## Known caveats
 

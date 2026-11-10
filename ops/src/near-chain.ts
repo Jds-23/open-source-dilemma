@@ -3,9 +3,8 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Account, JsonRpcProvider, actions, type KeyPairString } from 'near-api-js';
-import { ChainError, classifyError, type CallOptions, type Chain, type TxResult } from './chain.ts';
+import { ChainError, classifyError, gasFor, type CallOptions, type Chain, type TxResult } from './chain.ts';
 import { NearRpc } from './rpc.ts';
-import { TGAS } from './types.ts';
 
 /**
  * Signing key, loaded at runtime and never logged:
@@ -71,7 +70,7 @@ export class NearChain implements Chain {
     try {
       res = await this.account.signAndSendTransaction({
         receiverId: this.contractId,
-        actions: [actions.functionCall(method, args, opts.gas ?? 300n * TGAS, opts.depositYocto ?? 0n)],
+        actions: [actions.functionCall(method, args, opts.gas ?? gasFor(method), opts.depositYocto ?? 0n)],
         waitUntil: 'INCLUDED_FINAL',
         throwOnFailure: true,
       });
@@ -80,6 +79,17 @@ export class NearChain implements Chain {
     }
     const txHash = (res as { transaction?: { hash?: string } }).transaction?.hash;
     if (!txHash) throw new ChainError('transient', `${method}: no tx hash in response`);
-    return { txHash, block: height };
+    return { txHash, block: height, value: successValue(res) };
+  }
+}
+
+/** Decode `status.SuccessValue` (base64 JSON) of a final execution outcome; undefined if absent or not JSON. */
+export function successValue(res: unknown): unknown {
+  const sv = (res as { status?: { SuccessValue?: string } } | null)?.status?.SuccessValue;
+  if (typeof sv !== 'string' || sv === '') return undefined;
+  try {
+    return JSON.parse(Buffer.from(sv, 'base64').toString('utf8')) as unknown;
+  } catch {
+    return undefined;
   }
 }

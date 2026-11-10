@@ -36,6 +36,40 @@ function recordingSigner(kind: TxSigner['kind'] = 'full_access') {
   return { signer, calls };
 }
 
+describe('settleSeasonFully (interfaces-v4 batched settle)', () => {
+  const row = { agent_id: 'a', owner: 'o', family: 'f', matches_counted: 1, total_payoff_counted: 3, avg_payoff_milli: 3000, rank: 1, prize_yocto: '1' };
+  test('repeats settle_season while it returns [] and returns the ranking', async () => {
+    const results: unknown[] = [[], [], [row]];
+    const calls: { method: string; gas: bigint }[] = [];
+    const signer: TxSigner = {
+      accountId: 'k.testnet',
+      kind: 'full_access',
+      async call(_c, method, _a, opts) {
+        calls.push({ method, gas: opts.gas });
+        return { txHash: 'h', value: results.shift(), logs: [], events: [] };
+      },
+    };
+    const provider = { view: vi.fn(async () => ({ status: 'play' })) };
+    const c = new OsdClient({ contractId: C, provider, signer });
+    expect(await c.settleSeasonFully(1)).toEqual([row]);
+    expect(calls.map((x) => x.method)).toEqual(['settle_season', 'settle_season', 'settle_season']);
+    expect(calls.every((x) => x.gas === 300_000_000_000_000n)).toBe(true);
+  });
+  test('stops on status settled with an empty ranking, and gives up after maxCalls', async () => {
+    const signer: TxSigner = { accountId: 'k', kind: 'full_access', call: async () => ({ txHash: 'h', value: [], logs: [], events: [] }) };
+    const settled = new OsdClient({ contractId: C, signer, provider: { view: vi.fn(async (_c: string, m: string) => (m === 'get_season' ? { status: 'settled' } : [])) } });
+    expect(await settled.settleSeasonFully(1)).toEqual([]);
+    const stuck = new OsdClient({ contractId: C, signer, provider: { view: vi.fn(async () => ({ status: 'play' })) } });
+    await expect(stuck.settleSeasonFully(1, { maxCalls: 3 })).rejects.toThrow(/after 3 calls/);
+  });
+  test('recommended gas defaults', () => {
+    const T = 1_000_000_000_000n;
+    expect([DEFAULT_GAS.register_agent, DEFAULT_GAS.commit, DEFAULT_GAS.claim, DEFAULT_GAS.play_match, DEFAULT_GAS.schedule_round, DEFAULT_GAS.settle_season, DEFAULT_GAS.open_season]).toEqual(
+      [50n * T, 30n * T, 30n * T, 300n * T, 100n * T, 300n * T, 300n * T],
+    );
+  });
+});
+
 describe('OsdClient call encoding', () => {
   const provider = { view: vi.fn(async () => null) };
 

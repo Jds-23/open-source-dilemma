@@ -1,7 +1,13 @@
 // The keeper talks to the contract only through this interface, so the same
 // logic runs against testnet (NearChain), a read-only planner (DryRunChain)
 // and an in-memory contract (MockChain, tests + `--mock`).
-// TODO(P2): swap NearChain's views for @osd/sdk once WS3 lands.
+
+import { DEFAULT_GAS } from '@osd/sdk';
+
+/** Recommended gas per method (WS-1 measurements, shared with @osd/sdk `DEFAULT_GAS`); 300 Tgas for unknown methods. */
+export function gasFor(method: string): bigint {
+  return (DEFAULT_GAS as Record<string, bigint>)[method] ?? 300_000_000_000_000n;
+}
 
 export interface CallOptions {
   depositYocto?: bigint;
@@ -12,6 +18,8 @@ export interface TxResult {
   txHash: string;
   /** Block height seen when the tx was sent (for grace windows). */
   block: number;
+  /** JSON-decoded return value when known (e.g. settle_season's ranking or `[]`). */
+  value?: unknown;
 }
 
 export interface Chain {
