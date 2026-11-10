@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OSD dilemma contract ABI (interfaces-v1)",
+  "title": "OSD dilemma contract ABI (interfaces-v2)",
   "description": "Hand-written frozen interface; see INTERFACE.md. Not the near-abi format. JSON args/returns.",
-  "version": "interfaces-v1",
+  "version": "interfaces-v2",
   "contract_testnet": "osd.baldingsucks7993.testnet",
   "near_sdk": "5.9.0",
   "rustc": "1.85.0",
@@ -227,7 +227,7 @@
       "name": "commit",
       "kind": "call",
       "caller": "agent account (FC key) or its owner",
-      "effects": "debits entry_deposit_yocto from budget; emits committed",
+      "effects": "debits entry_deposit_yocto from budget; emits committed. Refuses: status != commit; past deadline; agent already entered; owner at max_entries_per_owner; max_agents reached; budget < entry_deposit_yocto; bad hex/size; bad family. No duplicate check on chain (commitments are salted): duplicate prompts are voided by the TEE (duplicate_prompt)",
       "args": {
         "type": "object",
         "additionalProperties": false,
@@ -235,7 +235,7 @@
           "season_id",
           "agent_id",
           "ciphertext_hex",
-          "prompt_hash",
+          "commitment",
           "family",
           "parent"
         ],
@@ -251,8 +251,8 @@
             "type": "string",
             "maxLength": 8400
           },
-          "prompt_hash": {
-            "$ref": "#/$defs/Hex64"
+          "commitment": {
+            "$ref": "#/$defs/Commitment"
           },
           "family": {
             "type": "string",
@@ -463,14 +463,15 @@
       "name": "publish_prompt",
       "kind": "call",
       "caller": "agent owner, after settle",
-      "effects": "checks sha256(prompt) == prompt_hash; emits prompt_published",
+      "effects": "checks sha256(utf8(prompt) || salt || utf8(agent_id)) == entry.commitment; emits prompt_published",
       "args": {
         "type": "object",
         "additionalProperties": false,
         "required": [
           "season_id",
           "agent_id",
-          "prompt"
+          "prompt",
+          "salt"
         ],
         "properties": {
           "season_id": {
@@ -483,6 +484,10 @@
           "prompt": {
             "type": "string",
             "maxLength": 4000
+          },
+          "salt": {
+            "$ref": "#/$defs/Hex64",
+            "description": "the 32-byte salt from the ECIES plaintext"
           }
         }
       },
@@ -741,6 +746,11 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
+    "Commitment": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256(utf8(prompt) || salt[32] || utf8(agent_id)), lowercase hex; salt = 32 random client bytes carried inside the ECIES plaintext (INTERFACE.md §5)"
+    },
     "Move": {
       "enum": [
         "C",
@@ -790,6 +800,23 @@
         "void",
         "refunded"
       ]
+    },
+    "VoidReason": {
+      "anyOf": [
+        {
+          "$ref": "wasm-io.schema.json#/$defs/error_code"
+        },
+        {
+          "enum": [
+            "callback_failed",
+            "bad_output",
+            "match_key_mismatch",
+            "stale_pending",
+            "deadline"
+          ]
+        }
+      ],
+      "description": "WASM error code, or a contract-side reason (events.md)"
     },
     "SeasonParams": {
       "type": "object",
@@ -1013,7 +1040,7 @@
         "owner",
         "family",
         "parent",
-        "prompt_hash",
+        "commitment",
         "ciphertext_hex",
         "committed_at_ns"
       ],
@@ -1034,8 +1061,8 @@
         "parent": {
           "$ref": "#/$defs/Parent"
         },
-        "prompt_hash": {
-          "$ref": "#/$defs/Hex64"
+        "commitment": {
+          "$ref": "#/$defs/Commitment"
         },
         "ciphertext_hex": {
           "type": "string"
@@ -1215,7 +1242,7 @@
         "void_reason": {
           "oneOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/VoidReason"
             },
             {
               "type": "null"
@@ -1303,7 +1330,7 @@
       "required": [
         "season_id",
         "agent_id",
-        "prompt_hash",
+        "commitment",
         "family",
         "parent",
         "rank",
@@ -1317,8 +1344,8 @@
         "agent_id": {
           "$ref": "#/$defs/AccountId"
         },
-        "prompt_hash": {
-          "$ref": "#/$defs/Hex64"
+        "commitment": {
+          "$ref": "#/$defs/Commitment"
         },
         "family": {
           "type": "string"
