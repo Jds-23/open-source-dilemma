@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync, chmodSync, existsSync } from 'n
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { OsdClient, httpPromptSource, staticPromptSource, type PromptSource } from './client.js';
+import { OsdClient, httpPromptSource, type PromptSource } from './client.js';
 import { NETWORKS, type NetworkId } from './constants.js';
 import { MockChain, type Fixtures } from './mock.js';
 import { RpcViewProvider, agentKeySigner, fullAccessSigner, publicKeyOf } from './near.js';
@@ -25,14 +25,16 @@ export function loadFixtures(dir: string = DEFAULT_FIXTURES_DIR): Fixtures {
     matches: readJson(f('matches.json')) as Fixtures['matches'],
     leaderboard: readJson(f('leaderboard.json')) as Fixtures['leaderboard'],
     lineage: readJson(f('lineage.json')) as Fixtures['lineage'],
-    prompts: existsSync(f('prompts.json')) ? (readJson(f('prompts.json')) as Fixtures['prompts']) : [],
+    config: readJson(f('config.json')) as Fixtures['config'],
+    publishedPrompts: existsSync(f('published-prompts.json')) ? (readJson(f('published-prompts.json')) as Fixtures['publishedPrompts']) : [],
+    claimable: existsSync(f('claimable.json')) ? (readJson(f('claimable.json')) as Fixtures['claimable']) : [],
     events: existsSync(f('events.jsonl'))
       ? readFileSync(f('events.jsonl'), 'utf8').split('\n').filter((l) => l.trim())
       : [],
   };
 }
 
-/** Offline client: MockChain over the repo fixtures, with a static prompt source. */
+/** Offline client: MockChain over the repo fixtures (published prompts via the `get_published_prompts` view). */
 export function mockClient(o: { fixturesDir?: string; contractId?: string; signerAccountId?: string; signerKind?: 'full_access' | 'function_call' } = {}): {
   client: OsdClient;
   chain: MockChain;
@@ -43,7 +45,6 @@ export function mockClient(o: { fixturesDir?: string; contractId?: string; signe
     contractId: chain.contractId,
     provider: chain,
     signer: o.signerAccountId ? chain.signer(o.signerAccountId, o.signerKind) : undefined,
-    prompts: { list: (f) => staticPromptSource(chain.prompts).list(f) },
   });
   return { client, chain };
 }
@@ -124,7 +125,8 @@ export interface EnvConfig {
  * Config from env:
  * `OSD_NETWORK` (mock|testnet|mainnet; default mock unless `OSD_RPC_URL` is set, then testnet),
  * `OSD_CONTRACT_ID`, `OSD_RPC_URL`, `OSD_FIXTURES_DIR`, `OSD_AGENT_ID`, `OSD_AGENT_KEY_PATH`,
- * `OSD_OWNER_ID`, `OSD_OWNER_KEY_PATH`, `OSD_SALT_DIR`, `OSD_PROMPTS_URL`, `OSD_MOCK_OPEN_SEASON` (1 = open a commit-phase season in the mock).
+ * `OSD_OWNER_ID`, `OSD_OWNER_KEY_PATH`, `OSD_SALT_DIR`, `OSD_PROMPTS_URL` (optional fallback for published prompts when the
+ * `get_published_prompts` view fails), `OSD_MOCK_OPEN_SEASON` (1 = open a commit-phase season in the mock).
  */
 export function configFromEnv(env: NodeJS.ProcessEnv = process.env): EnvConfig {
   const network = (env.OSD_NETWORK || (env.OSD_RPC_URL ? 'testnet' : 'mock')) as EnvNetwork;
@@ -169,9 +171,7 @@ export function buildClient(config: EnvConfig, as: 'agent' | 'owner' | 'none' = 
     let signer: TxSigner | undefined;
     if (as === 'agent' && agentId) signer = chain.signer(agentId, 'function_call');
     if (as === 'owner' && config.ownerId) signer = chain.signer(config.ownerId, 'full_access');
-    const prompts: PromptSource = config.promptsUrl
-      ? httpPromptSource(config.promptsUrl)
-      : { list: (f) => staticPromptSource(chain.prompts).list(f) };
+    const prompts: PromptSource | undefined = config.promptsUrl ? httpPromptSource(config.promptsUrl) : undefined;
     return { client: new OsdClient({ contractId: chain.contractId, provider: chain, signer, prompts }), config, agentId, chain };
   }
   const provider = new RpcViewProvider(config.rpcUrl!);

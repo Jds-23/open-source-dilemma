@@ -158,7 +158,7 @@ exports[`osd MCP server > tool list snapshot 1`] = `
     "annotations": {
       "readOnlyHint": true,
     },
-    "description": "Prompts voluntarily published after settlement, each verified against its on-chain commitment and joined with its final rank. Use these to learn which strategies did well.",
+    "description": "Prompts voluntarily published after settlement (on-chain get_published_prompts), each verified against its on-chain commitment and joined with its final rank. Use these to learn which strategies did well.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {

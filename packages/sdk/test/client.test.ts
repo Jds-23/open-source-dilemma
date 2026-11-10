@@ -15,6 +15,7 @@ import {
   parseNear,
   publicKeyOf,
   redactSecrets,
+  staticPromptSource,
   type TxSigner,
 } from '../src/index.js';
 import { buildClient, configFromEnv, loadKeyFile, saveSaltRecord, loadSaltRecord, writeKeyFile } from '../src/node.js';
@@ -75,7 +76,25 @@ describe('OsdClient call encoding', () => {
     const s = new OsdClient({ contractId: C, provider, signer: recordingSigner().signer });
     await expect(s.registerAgent({ name: 'abc', agentPublicKey: 'x', depositYocto: 1n })).rejects.toThrow(/0.25/);
     await expect(s.fundAgent('a', 0n)).rejects.toThrow(/positive/);
-    await expect(c.getPublishedPrompts()).rejects.toThrow(/prompt source/);
+  });
+
+  test('get_published_prompts: typed page args; PromptSource only as fallback', async () => {
+    const pv = { view: vi.fn(async (_c: string, m: string) => (m === 'get_published_prompts' ? [] : m === 'get_entries' ? [] : null)) };
+    const c = new OsdClient({ contractId: C, provider: pv });
+    await c.getPublishedPromptsPage(2);
+    await c.getPublishedPromptsPage(2, { fromIndex: 1, limit: 5 });
+    expect(pv.view.mock.calls).toEqual([
+      [C, 'get_published_prompts', { season_id: 2 }],
+      [C, 'get_published_prompts', { season_id: 2, from_index: 1, limit: 5 }],
+    ]);
+    const old = { view: vi.fn(async (_c: string, m: string) => {
+      if (m === 'get_published_prompts') throw new Error('MethodNotFound');
+      return [];
+    }) };
+    await expect(new OsdClient({ contractId: C, provider: old }).getPublishedPrompts({ seasonId: 1 })).rejects.toThrow(/MethodNotFound/);
+    const rec = { season_id: 1, agent_id: 'a', family: 'f', prompt: 'p', salt: '0'.repeat(64) };
+    const fb = new OsdClient({ contractId: C, provider: old, prompts: staticPromptSource([rec]) });
+    expect(await fb.getPublishedPrompts({ seasonId: 1 })).toEqual([{ ...rec, verified: false }]);
   });
 });
 

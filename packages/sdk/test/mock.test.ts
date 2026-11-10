@@ -52,18 +52,42 @@ describe('mock provider: fixture views', () => {
     expect(await client.getAgent('nobody')).toBeNull();
     const lin = await client.getLineage(GRIM);
     expect(lin).toHaveLength(1);
-    expect(lin[0]!.parent).toEqual({ season_id: 0, agent_id: TFT });
-    expect(await client.getAncestry(1, GRIM)).toHaveLength(1); // parent season 0 not in fixtures
-    // excess stake (1.22 - 0.05 bond - 0.15 stake) + payoffs + bond + prize
-    const inj = BigInt(await client.getClaimable(1, `injector.${C}`));
-    expect(inj).toBeGreaterThan(parseNear('1'));
+    expect(lin[0]!.parent).toEqual({ season_id: 1, agent_id: TFT });
+    // grim -> tft (same-season parent in the fixtures)
+    expect((await client.getAncestry(1, GRIM)).map((l) => l.agent_id)).toEqual([GRIM, TFT]);
+    expect(await client.getClaimable(1, `injector.${C}`)).toBe('1320000000000000000000000');
     expect(await client.getClaimable(1, 'nobody')).toBe('0');
+  });
+
+  test('config and claimable come from fixtures; §6.1 formula reproduces claimable.json', async () => {
+    const fx = loadFixtures();
+    expect(await client.getConfig()).toEqual(fx.config);
+    const computed = new MockChain({ ...fx, claimable: [] }).computeClaimable(1);
+    expect(fx.claimable).toHaveLength(6);
+    for (const c of fx.claimable!) {
+      expect(computed.get(c.agent_id)).toBe(BigInt(c.claimable_yocto));
+      expect(await client.getClaimable(1, c.agent_id)).toBe(c.claimable_yocto);
+    }
+    // fixture sum = total entry deposits
+    const s = (await client.getSeason(1))!;
+    const sum = [...computed.values()].reduce((x, y) => x + y, 0n);
+    expect(sum).toBe(BigInt(s.entry_deposit_yocto) * BigInt(s.n_entries));
+  });
+
+  test('get_published_prompts view serves published-prompts.json with pagination', async () => {
+    const fx = loadFixtures();
+    expect(await client.getPublishedPromptsPage(1)).toEqual(fx.publishedPrompts);
+    expect(await client.getPublishedPromptsPage(1, { fromIndex: 4, limit: 10 })).toHaveLength(2);
+    expect(await client.getAllPublishedPrompts(1)).toHaveLength(6);
+    expect(await client.getPublishedPromptsPage(99)).toEqual([]);
   });
 
   test('published prompts are verified against entry commitments', async () => {
     const ps = await client.getPublishedPrompts({ seasonId: 1 });
     expect(ps).toHaveLength(6);
     expect(ps.every((p) => p.verified)).toBe(true);
+    expect(ps.find((p) => p.agent_id === TFT)).toMatchObject({ season_id: 1, family: 'tit_for_tat' });
+    expect(await client.getPublishedPrompts()).toHaveLength(6); // all seasons up to current
     const one = await client.getPublishedPrompts({ agentId: TFT });
     expect(one).toHaveLength(1);
   });
@@ -152,7 +176,7 @@ describe('mock chain: player flow', () => {
     const alice = owner.withSigner(chain.signer('alice.testnet'));
     await expect(owner.withdraw(TFT, 1n)).rejects.toThrow(/not owner/);
     expect((await alice.withdraw(TFT, parseNear('1'))).value).toBe(String(parseNear('4')));
-    const p = chain.prompts.find((x) => x.agent_id === TFT)!;
+    const p = chain.prompts.get(1)!.find((x) => x.agent_id === TFT)!;
     const r = await alice.publishPrompt({ seasonId: 1, agentId: TFT, prompt: p.prompt, salt: p.salt });
     expect(r.events[0]?.event).toBe('prompt_published');
     await expect(alice.publishPrompt({ seasonId: 1, agentId: TFT, prompt: 'other', salt: p.salt })).rejects.toThrow(/mismatch/);

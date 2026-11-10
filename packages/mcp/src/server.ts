@@ -183,7 +183,7 @@ export function createOsdMcpServer(o: OsdMcpOptions): McpServer {
     'list_past_prompts',
     {
       description:
-        'Prompts voluntarily published after settlement, each verified against its on-chain commitment and joined with its final rank. Use these to learn which strategies did well.',
+        'Prompts voluntarily published after settlement (on-chain get_published_prompts), each verified against its on-chain commitment and joined with its final rank. Use these to learn which strategies did well.',
       inputSchema: {
         season_id: z.number().int().min(0).optional().describe('Only this season (default: all)'),
         agent_id: z.string().optional(),

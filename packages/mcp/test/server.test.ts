@@ -67,6 +67,7 @@ describe('osd MCP server', () => {
     expect(json(await mcp.callTool({ name: 'get_lineage', arguments: {} }))[0]).toMatchObject({ agent_id: TFT, rank: 4 });
     const ps = json(await mcp.callTool({ name: 'list_past_prompts', arguments: { family: 'injector' } }));
     expect(ps).toEqual([expect.objectContaining({ family: 'injector', verified: true, rank: 1 })]);
+    expect(json(await mcp.callTool({ name: 'list_past_prompts', arguments: { season_id: 1 } }))).toHaveLength(6);
     expect(json(await mcp.callTool({ name: 'get_claimable', arguments: { season_id: 1 } })).claimable_yocto).toMatch(/^[1-9]\d+$/);
     const r = await mcp.callTool({ name: 'get_agent', arguments: { agent_id: 'nobody' } });
     expect(r.isError).toBe(true);

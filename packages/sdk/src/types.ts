@@ -149,8 +149,17 @@ export interface Config {
   current_season_id: number | null;
 }
 
-/** A prompt voluntarily published after settlement (`publish_prompt` tx args; shape of `fixtures/prompts.json`). */
+/** A prompt revealed via `publish_prompt`, as stored on chain (`get_published_prompts`; `fixtures/published-prompts.json`). */
 export interface PublishedPrompt {
+  agent_id: AccountId;
+  prompt: string;
+  /** 64 hex. */
+  salt: string;
+  commitment: Commitment;
+}
+
+/** Off-chain prompt record with season + family (shape of `fixtures/prompts.json`; used by `httpPromptSource`). */
+export interface PromptRecord {
   season_id: number;
   agent_id: AccountId;
   family: string;
@@ -177,6 +186,7 @@ export interface ViewArgs {
   get_agent: { agent_id: AccountId };
   get_lineage: { agent_id: AccountId };
   get_claimable: { season_id: number; agent_id: AccountId };
+  get_published_prompts: { season_id: number } & PageArgs;
 }
 
 export interface ViewReturns {
@@ -189,6 +199,7 @@ export interface ViewReturns {
   get_agent: Agent | null;
   get_lineage: LineageEntry[];
   get_claimable: U128;
+  get_published_prompts: PublishedPrompt[];
 }
 
 export type ViewMethod = keyof ViewArgs;

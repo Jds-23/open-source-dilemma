@@ -25,6 +25,7 @@ import type {
   MatchKey,
   MatchStatus,
   Parent,
+  PromptRecord,
   PublishedPrompt,
   Season,
   SeasonParams,
@@ -33,13 +34,17 @@ import type {
   ViewReturns,
 } from './types.js';
 
-/** Where published prompts come from. On chain they live only in `publish_prompt` tx args, so an indexer is needed. */
+/**
+ * Optional off-chain source of published prompts (indexer / web export). The default source is the
+ * on-chain `get_published_prompts` view; a PromptSource is only used as a fallback when that view fails
+ * (e.g. a contract deployed before interfaces-v3).
+ */
 export interface PromptSource {
-  list(filter?: { seasonId?: number; agentId?: string }): Promise<PublishedPrompt[]>;
+  list(filter?: { seasonId?: number; agentId?: string }): Promise<PromptRecord[]>;
 }
 
 /** Static list (fixtures, tests). */
-export function staticPromptSource(prompts: PublishedPrompt[]): PromptSource {
+export function staticPromptSource(prompts: PromptRecord[]): PromptSource {
   return {
     async list(f = {}) {
       return prompts.filter(
@@ -55,7 +60,7 @@ export function httpPromptSource(url: string, fetchImpl: typeof fetch = fetch): 
     async list(f = {}) {
       const r = await fetchImpl(url);
       if (!r.ok) throw new Error(`prompt index ${url}: HTTP ${r.status}`);
-      return staticPromptSource((await r.json()) as PublishedPrompt[]).list(f);
+      return staticPromptSource((await r.json()) as PromptRecord[]).list(f);
     },
   };
 }
@@ -65,6 +70,7 @@ export interface OsdClientOptions {
   provider: ViewProvider;
   /** Needed for calls. Use `agentKeySigner` for commit/claim, `fullAccessSigner` for owner actions. */
   signer?: TxSigner;
+  /** Fallback for `getPublishedPrompts` when the `get_published_prompts` view fails. */
   prompts?: PromptSource;
 }
 
@@ -90,7 +96,7 @@ export interface SealAndCommitResult {
   outcome: CallOutcome<null>;
 }
 
-export interface VerifiedPrompt extends PublishedPrompt {
+export interface VerifiedPrompt extends PromptRecord {
   /** `commitment(prompt, salt, agent_id)` equals the on-chain entry's commitment. */
   verified: boolean;
 }
@@ -211,19 +217,54 @@ export class OsdClient {
     return this.view('get_claimable', { season_id: seasonId, agent_id: agentId });
   }
 
+  /** One page of `get_published_prompts` (publish order; only prompts revealed via `publish_prompt`). */
+  getPublishedPromptsPage(seasonId: number, page: { fromIndex?: number; limit?: number } = {}): Promise<PublishedPrompt[]> {
+    return this.view('get_published_prompts', { season_id: seasonId, ...pageArgs(page) });
+  }
+
+  /** Every published prompt of a season (follows pagination). */
+  getAllPublishedPrompts(seasonId: number): Promise<PublishedPrompt[]> {
+    return paginate((fromIndex, limit) => this.getPublishedPromptsPage(seasonId, { fromIndex, limit }));
+  }
+
   /**
-   * Published prompts (needs a PromptSource), each checked against the on-chain entry commitment.
-   * Unverified prompts are returned with `verified: false`, never silently dropped.
+   * Published prompts joined with season + family and checked against the on-chain entry commitment.
+   * Reads `get_published_prompts` (all seasons up to `current_season_id` when `seasonId` is omitted);
+   * falls back to the configured PromptSource if the view fails. Unverified prompts are returned
+   * with `verified: false`, never silently dropped.
    */
   async getPublishedPrompts(filter: { seasonId?: number; agentId?: string } = {}): Promise<VerifiedPrompt[]> {
-    if (!this.prompts) throw new Error('no prompt source configured (published prompts are only in publish_prompt tx args)');
-    const list = await this.prompts.list(filter);
+    let list: PromptRecord[];
+    try {
+      list = await this.#chainPrompts(filter);
+    } catch (err) {
+      if (!this.prompts) throw err;
+      list = await this.prompts.list(filter);
+    }
     const bySeason = new Map<number, Entry[]>();
     const out: VerifiedPrompt[] = [];
     for (const p of list) {
       if (!bySeason.has(p.season_id)) bySeason.set(p.season_id, await this.getAllEntries(p.season_id));
       const e = bySeason.get(p.season_id)!.find((x) => x.agent_id === p.agent_id);
-      out.push({ ...p, verified: !!e && verifyCommitment(p.prompt, p.salt, p.agent_id, e.commitment) });
+      out.push({ ...p, family: p.family || e?.family || '', verified: !!e && verifyCommitment(p.prompt, p.salt, p.agent_id, e.commitment) });
+    }
+    return out;
+  }
+
+  async #chainPrompts(f: { seasonId?: number; agentId?: string }): Promise<PromptRecord[]> {
+    let seasons: number[];
+    if (f.seasonId !== undefined) seasons = [f.seasonId];
+    else {
+      const cur = (await this.getConfig()).current_season_id;
+      seasons = cur === null ? [] : Array.from({ length: cur }, (_, i) => i + 1);
+    }
+    const out: PromptRecord[] = [];
+    for (const season_id of seasons) {
+      for (const p of await this.getAllPublishedPrompts(season_id)) {
+        if (f.agentId !== undefined && p.agent_id !== f.agentId) continue;
+        // family is filled from the entry in getPublishedPrompts
+        out.push({ season_id, agent_id: p.agent_id, family: '', prompt: p.prompt, salt: p.salt, published: true });
+      }
     }
     return out;
   }

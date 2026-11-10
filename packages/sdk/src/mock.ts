@@ -1,5 +1,5 @@
 // Fixture-backed in-memory mock of the dilemma contract, so consumers (WS4 evolver, WS5 web, MCP)
-// can run fully offline. Views mirror INTERFACE.md §6.2; calls for the player/owner flow
+// can run fully offline. Views mirror INTERFACE.md §6.2 (interfaces-v3); calls for the player/owner flow
 // (register_agent, fund_agent, withdraw, open_season, commit, claim, publish_prompt) are simulated
 // with the contract's refusal rules. Keeper calls (close_commits, schedule_round, play_match,
 // refund_void, settle_season) are not simulated and throw.
@@ -44,10 +44,23 @@ export interface Fixtures {
   /** Leaderboard of the fixture season (or a map season_id -> rows). */
   leaderboard: LeaderboardRow[] | Record<number, LeaderboardRow[]>;
   lineage: LineageEntry[];
-  prompts?: PublishedPrompt[];
+  /** `get_config` (`config.json`). */
+  config: Config;
+  /** `published-prompts.json` (rows of the fixture season, or a map season_id -> rows). */
+  publishedPrompts?: PublishedPrompt[] | Record<number, PublishedPrompt[]>;
+  /** `claimable.json`; seasons without rows here get claimable computed by the §6.1 formula. */
+  claimable?: ClaimableFixture[];
   /** Raw `EVENT_JSON:` lines (`events.jsonl`). */
   events?: string[];
-  config?: Partial<Config>;
+}
+
+/** A row of `fixtures/claimable.json` (the view returns only `claimable_yocto`). */
+export interface ClaimableFixture {
+  season_id: number;
+  agent_id: string;
+  claimable_yocto: string;
+  breakdown?: Record<string, string>;
+  forfeited?: boolean;
 }
 
 export class MockContractError extends Error {
@@ -75,7 +88,8 @@ export class MockChain implements ViewProvider {
   readonly matches: Match[] = [];
   readonly leaderboards = new Map<number, LeaderboardRow[]>();
   readonly lineage: LineageEntry[] = [];
-  readonly prompts: PublishedPrompt[] = [];
+  /** season_id -> published prompts, publish order. */
+  readonly prompts = new Map<number, PublishedPrompt[]>();
   /** Event log lines, fixture stream first, then everything the mock emits. */
   readonly eventLog: string[] = [];
   readonly #claimable = new Map<string, bigint>();
@@ -91,25 +105,21 @@ export class MockChain implements ViewProvider {
     this.entries.push(...clone(fx.entries));
     this.matches.push(...clone(fx.matches));
     this.lineage.push(...clone(fx.lineage));
-    this.prompts.push(...clone(fx.prompts ?? []));
     this.eventLog.push(...(fx.events ?? []));
     if (Array.isArray(fx.leaderboard)) {
       const sid = seasons[0]?.season_id;
       if (sid !== undefined) this.leaderboards.set(sid, clone(fx.leaderboard));
     } else for (const [k, v] of Object.entries(fx.leaderboard)) this.leaderboards.set(Number(k), clone(v));
-    const first = seasons[0];
-    this.config = {
-      owner: this.contractId.split('.').slice(1).join('.') || this.contractId,
-      outlayer_account: 'outlayer.testnet',
-      wasm_url: first?.wasm.url ?? '',
-      wasm_hash: first?.wasm.hash ?? '',
-      secrets_owner: this.contractId.split('.').slice(1).join('.') || this.contractId,
-      secrets_profile: 'osd',
-      nearai_signer: '229a641c3631caba413136011c5fa3777cea72664ca9538aadb6c40708fb6413', // TEST-ONLY
-      current_season_id: seasons.length ? Math.max(...seasons.map((s) => s.season_id)) : null,
-      ...fx.config,
-    };
-    for (const s of this.seasons.values()) if (s.status === 'settled') this.#creditSettled(s);
+    const pp = fx.publishedPrompts ?? [];
+    if (Array.isArray(pp)) {
+      const sid = seasons[0]?.season_id;
+      if (sid !== undefined && pp.length) this.prompts.set(sid, clone(pp));
+    } else for (const [k, v] of Object.entries(pp)) this.prompts.set(Number(k), clone(v));
+    this.config = clone(fx.config);
+    for (const s of this.seasons.values()) {
+      if (s.status === 'settled') for (const [id, amt] of this.computeClaimable(s.season_id)) this.#claimable.set(`${s.season_id}:${id}`, amt);
+    }
+    for (const c of fx.claimable ?? []) this.#claimable.set(`${c.season_id}:${c.agent_id}`, BigInt(c.claimable_yocto));
   }
 
   // ---------- views ----------
@@ -146,6 +156,8 @@ export class MockChain implements ViewProvider {
         return this.lineage.filter((l) => l.agent_id === a.agent_id).sort((x, y) => x.season_id - y.season_id);
       case 'get_claimable':
         return String(this.#claimable.get(`${sid}:${a.agent_id as string}`) ?? 0n);
+      case 'get_published_prompts':
+        return page(this.prompts.get(sid) ?? [], from, limit);
       default:
         return fail(`MethodNotFound: ${method}`);
     }
@@ -239,8 +251,14 @@ export class MockChain implements ViewProvider {
       }));
   }
 
-  /** Claimable for a settled fixture season: excess stake + payoffs + void refunds + prize + bond (unless forfeited). */
-  #creditSettled(s: Season): void {
+  /**
+   * INTERFACE.md §6.1 claimable formula for a settled season, per agent:
+   * unused stake + payoffs + 3 units per void match + prize + bond (withheld if the agent forfeited a match).
+   * Matches `fixtures/claimable.json`.
+   */
+  computeClaimable(seasonId: number): Map<string, bigint> {
+    const s = this.#season(seasonId);
+    const res = new Map<string, bigint>();
     const unit = BigInt(s.params.unit_yocto);
     const bond = BigInt(s.params.bond_yocto);
     const excess = BigInt(s.entry_deposit_yocto) - bond - BigInt(s.stake_per_agent_yocto ?? 0);
@@ -257,8 +275,9 @@ export class MockChain implements ViewProvider {
         } else if (m.status === 'void' || m.status === 'refunded') units += BigInt(STAKE_UNITS_PER_MATCH);
       }
       const prize = BigInt(board.find((r) => r.agent_id === id)?.prize_yocto ?? 0);
-      this.#claimable.set(`${s.season_id}:${id}`, excess + units * unit + prize + (forfeited ? 0n : bond));
+      res.set(id, excess + units * unit + prize + (forfeited ? 0n : bond));
     }
+    return res;
   }
 
   #agent(id: string): Agent {
@@ -389,10 +408,12 @@ export class MockChain implements ViewProvider {
         if (this.#season(season_id).status !== 'settled') fail('season not settled');
         const e = this.entries.find((x) => x.season_id === season_id && x.agent_id === agent_id) ?? fail('no entry');
         if (!/^[0-9a-f]{64}$/.test(salt) || !verifyCommitment(prompt, salt, agent_id, e.commitment)) fail('commitment mismatch');
-        const i = this.prompts.findIndex((p) => p.season_id === season_id && p.agent_id === agent_id);
-        const rec = { season_id, agent_id, family: e.family, prompt, salt, published: true };
-        if (i >= 0) this.prompts[i] = rec;
-        else this.prompts.push(rec);
+        const list = this.prompts.get(season_id) ?? [];
+        const rec: PublishedPrompt = { agent_id, prompt, salt, commitment: e.commitment };
+        const i = list.findIndex((p) => p.agent_id === agent_id);
+        if (i >= 0) list[i] = rec;
+        else list.push(rec);
+        this.prompts.set(season_id, list);
         this.#emit('prompt_published', { season_id, agent_id, commitment: e.commitment });
         return null;
       }

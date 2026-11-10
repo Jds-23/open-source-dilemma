@@ -1,6 +1,7 @@
 // stdio entry: `osd-mcp`. Config from env (see @osd/sdk/node configFromEnv):
 //   OSD_NETWORK=mock|testnet|mainnet  OSD_CONTRACT_ID  OSD_RPC_URL
-//   OSD_AGENT_ID  OSD_AGENT_KEY_PATH (agent function-call key file)  OSD_SALT_DIR  OSD_PROMPTS_URL
+//   OSD_AGENT_ID  OSD_AGENT_KEY_PATH (agent function-call key file)  OSD_SALT_DIR
+//   OSD_PROMPTS_URL (optional: off-chain prompt index, used only if the get_published_prompts view fails)
 //   OSD_FIXTURES_DIR  OSD_MOCK_OPEN_SEASON=1
 // Logs go to stderr only (stdout is the MCP channel).
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';

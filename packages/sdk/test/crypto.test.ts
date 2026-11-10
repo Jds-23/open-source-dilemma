@@ -13,7 +13,7 @@ import {
   sealPrompt,
   verifyCommitment,
   type Entry,
-  type PublishedPrompt,
+  type PromptRecord,
 } from '../src/index.js';
 import { DEFAULT_FIXTURES_DIR } from '../src/node.js';
 
@@ -21,7 +21,7 @@ const fx = (n: string) => JSON.parse(readFileSync(join(DEFAULT_FIXTURES_DIR, n),
 // TEST-ONLY key vector (derived from a public string; never a real season key).
 const vec = fx('test-key-vector.json');
 const entries: Entry[] = fx('entries.json');
-const prompts: PublishedPrompt[] = fx('prompts.json');
+const prompts: PromptRecord[] = fx('prompts.json');
 const dec = (ctHex: string) => decodePlaintext(decrypt(vec.secret_key_hex, Buffer.from(ctHex, 'hex')));
 
 describe('season key (TEST-ONLY vector)', () => {
