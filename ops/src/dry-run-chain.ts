@@ -1,4 +1,4 @@
-import type { CallOptions, Chain, TxResult } from './chain.ts';
+import { gasFor, type CallOptions, type Chain, type TxResult } from './chain.ts';
 
 export interface PlannedCall {
   method: string;
@@ -37,7 +37,7 @@ export class DryRunChain implements Chain {
   }
 
   async call(method: string, args: Record<string, unknown>, opts: CallOptions = {}): Promise<TxResult> {
-    this.planned.push({ method, args, depositYocto: String(opts.depositYocto ?? 0n), gas: String(opts.gas ?? 0n) });
+    this.planned.push({ method, args, depositYocto: String(opts.depositYocto ?? 0n), gas: String(opts.gas ?? gasFor(method)) });
     const { height } = await this.inner.head();
     return { txHash: `dryrun-${String(this.planned.length).padStart(6, '0')}`, block: height };
   }

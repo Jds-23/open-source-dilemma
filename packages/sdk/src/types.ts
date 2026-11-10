@@ -1,4 +1,4 @@
-// Types mirroring interfaces/contract-abi.json `$defs` (interfaces-v2).
+// Types mirroring interfaces/contract-abi.json `$defs` (interfaces-v4).
 
 /** yoctoNEAR as a decimal string. */
 export type U128 = string;
@@ -53,7 +53,9 @@ export interface Season {
   season_id: number;
   status: SeasonStatus;
   params: SeasonParams;
+  /** Pinned referee for this season (config default or the `open_season` override). */
   wasm: { url: string; hash: string };
+  secrets_profile: string;
   pubkey: string | null;
   entry_deposit_yocto: U128;
   stake_per_agent_yocto: U128 | null;
@@ -63,7 +65,12 @@ export interface Season {
   n_matches: number;
   n_settled: number;
   n_void: number;
+  /** Includes `carry_in_yocto`. */
   pool_yocto: U128;
+  /** Carry-over from earlier seasons added to this pool at `open_season`. */
+  carry_in_yocto: U128;
+  /** Unpaid pool (rounding dust + unfilled prize slots) handed to the next season at settlement. */
+  carry_over_yocto: U128;
   opened_at_ns: U64;
   closed_at_ns: U64 | null;
   settled_at_ns: U64 | null;
@@ -147,6 +154,8 @@ export interface Config {
   secrets_profile: string;
   nearai_signer: Hex64;
   current_season_id: number | null;
+  /** Pending carry-over, added to the next season's pool at `open_season`. */
+  carry_over_yocto: U128;
 }
 
 /** A prompt revealed via `publish_prompt`, as stored on chain (`get_published_prompts`; `fixtures/published-prompts.json`). */
@@ -217,7 +226,8 @@ export interface CallArgs {
   register_agent: { name: string; agent_public_key: string };
   fund_agent: { agent_id: AccountId };
   withdraw: { agent_id: AccountId; amount_yocto: U128 };
-  open_season: { params: SeasonParams };
+  /** `wasm_url` and `wasm_hash` only together; all default to `get_config`. */
+  open_season: { params: SeasonParams; wasm_url?: string; wasm_hash?: string; secrets_profile?: string };
   commit: CommitArgs;
   close_commits: { season_id: number };
   schedule_round: { season_id: number };
@@ -238,6 +248,7 @@ export interface CallReturns {
   schedule_round: MatchKey[];
   play_match: string;
   refund_void: U128;
+  /** `[]` while unfinished matches are still being voided in batches (call again), then the ranking. */
   settle_season: LeaderboardRow[];
   claim: U128;
   publish_prompt: null;

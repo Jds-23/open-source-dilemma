@@ -1,7 +1,7 @@
-// Constants from interfaces/contract-abi.json `constants` (interfaces-v2).
+// Constants from interfaces/contract-abi.json `constants` (interfaces-v4).
 import type { CallMethod } from './types.js';
 
-export const INTERFACE_VERSION = 'interfaces-v2';
+export const INTERFACE_VERSION = 'interfaces-v4';
 export const CONTRACT_TESTNET = 'osd.baldingsucks7993.testnet';
 
 export const AGENT_ACCOUNT_FUNDING = 200_000_000_000_000_000_000_000n; // 0.2 NEAR
@@ -17,6 +17,8 @@ export const MAX_CIPHERTEXT_HEX = 8400;
 export const STAKE_UNITS_PER_MATCH = 3;
 export const PAGE_DEFAULT = 100;
 export const PAGE_MAX = 200;
+/** `settle_season` voids at most this many unfinished matches per call after the play deadline (returns `[]` until done). */
+export const SETTLE_VOID_BATCH = 40;
 
 /** Payoff matrix `[a, b, pool]` in units (INTERFACE.md §2). */
 export const PAYOFF = {
@@ -36,17 +38,20 @@ export const AGENT_NAME_RE = /^[a-z0-9_-]{2,16}$/;
 export const FAMILY_RE = /^[a-z0-9_]{1,32}$/;
 
 const TGAS = 1_000_000_000_000n;
-/** Default gas per call method (overridable per call). */
+/**
+ * Default gas per call method (overridable per call). WS-1 recommended attachments (PR #18, measured in
+ * sandbox at 40 agents): settle_season burns ~41 Tgas per void batch, play_match forwards the rest to OutLayer.
+ */
 export const DEFAULT_GAS: Record<CallMethod, bigint> = {
-  register_agent: 100n * TGAS,
+  register_agent: 50n * TGAS,
   fund_agent: 30n * TGAS,
   withdraw: 30n * TGAS,
   open_season: 300n * TGAS,
-  commit: 50n * TGAS,
-  close_commits: 100n * TGAS,
-  schedule_round: 300n * TGAS,
+  commit: 30n * TGAS,
+  close_commits: 30n * TGAS,
+  schedule_round: 100n * TGAS,
   play_match: 300n * TGAS,
-  refund_void: 50n * TGAS,
+  refund_void: 30n * TGAS,
   settle_season: 300n * TGAS,
   claim: 30n * TGAS,
   publish_prompt: 50n * TGAS,

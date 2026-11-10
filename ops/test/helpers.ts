@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CallOptions, Chain, TxResult } from '../src/chain.ts';
 import { DEFAULT_KEEPER_OPTIONS, type KeeperOptions } from '../src/keeper.ts';
-import { nearToYocto, TGAS } from '../src/types.ts';
+import { nearToYocto } from '../src/types.ts';
 
 export const FIXTURES = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', 'interfaces', 'fixtures');
 export const OPS_FIXTURES = join(fileURLToPath(new URL('.', import.meta.url)), 'fixtures');
@@ -12,7 +12,6 @@ export function opts(over: Partial<KeeperOptions> = {}): KeeperOptions {
     ...DEFAULT_KEEPER_OPTIONS,
     openDepositYocto: nearToYocto('0.05'),
     playDepositYocto: nearToYocto('0.05'),
-    gas: 300n * TGAS,
     random: () => 0.5,
     maxIterations: 10_000,
     ...over,

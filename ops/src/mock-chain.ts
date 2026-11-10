@@ -7,7 +7,9 @@ import { ChainError, type CallOptions, type Chain, type TxResult } from './chain
 import {
   matchKeyString,
   nearToYocto,
+  SETTLE_VOID_BATCH,
   STALE_PENDING_BLOCKS,
+  type OpenOverrides,
   type ContractConfig,
   type Entry,
   type LeaderboardRow,
@@ -64,6 +66,9 @@ export interface MockOptions {
   keyBlocks?: number;
   resolver?: Resolver;
   keyFails?: boolean;
+  wasmUrl?: string;
+  wasmHash?: string;
+  secretsProfile?: string;
 }
 
 interface Pending {
@@ -93,6 +98,15 @@ export class MockChain implements Chain {
   private keyDue: { season: number; dueBlock: number } | null = null;
   private currentSeason: number | null = null;
   private txN = 0;
+  /** Contract-level pending carry-over (get_config.carry_over_yocto). */
+  carryOverYocto = 0n;
+  /** Contract config defaults (shape of interfaces/fixtures/config.json). */
+  readonly wasmUrl: string;
+  readonly wasmHash: string;
+  readonly secretsProfile: string;
+  /** Settle calls that returned `[]` (a void batch ran), for tests. */
+  settleBatches = 0;
+  private readonly prizes = new Map<number, Map<string, bigint>>();
 
   constructor(o: MockOptions = {}) {
     this.contractId = o.contractId ?? 'osd.baldingsucks7993.testnet';
@@ -104,6 +118,9 @@ export class MockChain implements Chain {
     this.keyBlocks = o.keyBlocks ?? 12;
     this.keyFails = o.keyFails ?? false;
     this.resolver = o.resolver ?? familyResolver;
+    this.wasmUrl = o.wasmUrl ?? 'https://test.fastfs.io/baldingsucks7993.testnet/outlayer.testnet/osd-referee/v1/mock.wasm';
+    this.wasmHash = o.wasmHash ?? 'mock';
+    this.secretsProfile = o.secretsProfile ?? 'osd';
   }
 
   // ── test helpers ──────────────────────────────────────────────────────
@@ -146,12 +163,13 @@ export class MockChain implements Chain {
         const c: ContractConfig = {
           owner: this.owner,
           outlayer_account: 'outlayer.testnet',
-          wasm_url: 'https://test.fastfs.io/x/outlayer.testnet/osd/referee/v1/h.wasm',
-          wasm_hash: 'h',
+          wasm_url: this.wasmUrl,
+          wasm_hash: this.wasmHash,
           secrets_owner: this.owner,
-          secrets_profile: 'osd',
+          secrets_profile: this.secretsProfile,
           nearai_signer: '00'.repeat(32),
           current_season_id: this.currentSeason,
+          carry_over_yocto: String(this.carryOverYocto),
         };
         return c as T;
       }
@@ -179,8 +197,9 @@ export class MockChain implements Chain {
 
     const hash = `mocktx${String(++this.txN).padStart(5, '0')}`;
     const sentAt = this.block;
+    let value: unknown;
     try {
-      this.apply(method, args, opts.depositYocto ?? 0n);
+      value = this.apply(method, args, opts.depositYocto ?? 0n);
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
       this.refused.push({ method, reason });
@@ -192,7 +211,7 @@ export class MockChain implements Chain {
     }
     this.sent.push({ method, args, hash });
     if (fault?.mode === 'ambiguous') throw new ChainError('transient', fault.message ?? 'TimeoutError: transaction not confirmed in time');
-    return { txHash: hash, block: sentAt };
+    return { txHash: hash, block: sentAt, value };
   }
 
   // ── contract model ────────────────────────────────────────────────────
@@ -202,14 +221,17 @@ export class MockChain implements Chain {
     return structuredClone(xs.slice(from, from + limit));
   }
 
-  private openSeasonInternal(params: SeasonParams): number {
+  private openSeasonInternal(params: SeasonParams, o: OpenOverrides = {}): number {
     const id = (this.currentSeason ?? 0) + 1;
     const unit = BigInt(params.unit_yocto);
+    const carryIn = this.carryOverYocto;
+    this.carryOverYocto = 0n;
     this.seasons.set(id, {
       season_id: id,
       status: 'pending_key',
       params: structuredClone(params),
-      wasm: { url: 'mock', hash: 'mock' },
+      wasm: { url: o.wasm_url ?? this.wasmUrl, hash: o.wasm_hash ?? this.wasmHash },
+      secrets_profile: o.secrets_profile ?? this.secretsProfile,
       pubkey: null,
       entry_deposit_yocto: String(BigInt(params.bond_yocto) + 3n * unit * BigInt(params.max_agents - 1)),
       stake_per_agent_yocto: null,
@@ -219,7 +241,9 @@ export class MockChain implements Chain {
       n_matches: 0,
       n_settled: 0,
       n_void: 0,
-      pool_yocto: '0',
+      pool_yocto: String(carryIn),
+      carry_in_yocto: String(carryIn),
+      carry_over_yocto: '0',
       opened_at_ns: String(this.nowNs),
       closed_at_ns: null,
       settled_at_ns: null,
@@ -242,7 +266,7 @@ export class MockChain implements Chain {
     return m;
   }
 
-  private apply(method: string, args: Record<string, unknown>, deposit: bigint): void {
+  private apply(method: string, args: Record<string, unknown>, deposit: bigint): unknown {
     const min = nearToYocto('0.02');
     switch (method) {
       case 'open_season': {
@@ -252,9 +276,10 @@ export class MockChain implements Chain {
         if (cur && cur.status !== 'settled' && cur.status !== 'cancelled' && cur.status !== 'key_failed') {
           throw new Error('previous season not finished');
         }
-        const id = this.openSeasonInternal(args.params as SeasonParams);
+        if ((args.wasm_url === undefined) !== (args.wasm_hash === undefined)) throw new Error('wasm_url and wasm_hash must be overridden together');
+        const id = this.openSeasonInternal(args.params as SeasonParams, args as OpenOverrides);
         this.keyDue = { season: id, dueBlock: this.block + this.keyBlocks };
-        return;
+        return id;
       }
       case 'close_commits': {
         const s = this.season(args.season_id);
@@ -317,16 +342,33 @@ export class MockChain implements Chain {
         if ((unfinished.length > 0 || s.rounds_scheduled < s.total_rounds) && this.nowNs < BigInt(s.params.play_deadline_ns)) {
           throw new Error('unfinished matches before play deadline');
         }
-        for (const m of ms) {
-          if (m.status === 'scheduled' || m.status === 'pending') {
+        // interfaces-v4: ≤ SETTLE_VOID_BATCH unfinished matches voided per call (receipt log limit); [] until done.
+        if (unfinished.length > 0) {
+          for (const m of unfinished.slice(0, SETTLE_VOID_BATCH)) {
             m.status = 'refunded';
             m.void_reason = 'deadline';
             s.n_void += 1;
-          } else if (m.status === 'void') m.status = 'refunded';
+          }
+          if (unfinished.length > SETTLE_VOID_BATCH) {
+            this.settleBatches += 1;
+            return [];
+          }
         }
+        for (const m of ms) if (m.status === 'void') m.status = 'refunded';
         s.status = 'settled';
         s.settled_at_ns = String(this.nowNs);
-        return;
+        // Prizes floor(pool × bps / 10000) to ranked agents; the rest carries over to the next season.
+        const pool = BigInt(s.pool_yocto);
+        const ranked = this.leaderboard(s.season_id).filter((r) => r.rank !== null);
+        const prizes = new Map<string, bigint>();
+        s.params.prize_split_bps.forEach((bps, i) => {
+          if (ranked[i]) prizes.set(ranked[i].agent_id, (pool * BigInt(bps)) / 10_000n);
+        });
+        this.prizes.set(s.season_id, prizes);
+        const paid = [...prizes.values()].reduce((x, y) => x + y, 0n);
+        s.carry_over_yocto = String(pool - paid);
+        this.carryOverYocto += pool - paid;
+        return this.leaderboard(s.season_id);
       }
       default:
         throw new Error(`MethodNotFound: ${method}`);
@@ -382,7 +424,8 @@ export class MockChain implements Chain {
         n += 1;
         tot += m.a === e.agent_id ? m.a_payoff : m.b_payoff;
       }
-      return { idx, row: { agent_id: e.agent_id, owner: e.owner, family: e.family, matches_counted: n, total_payoff_counted: tot, avg_payoff_milli: n ? Math.floor((1000 * tot) / n) : 0, rank: null as number | null, prize_yocto: '0' } };
+      const prize = this.prizes.get(sid)?.get(e.agent_id) ?? 0n;
+      return { idx, row: { agent_id: e.agent_id, owner: e.owner, family: e.family, matches_counted: n, total_payoff_counted: tot, avg_payoff_milli: n ? Math.floor((1000 * tot) / n) : 0, rank: null as number | null, prize_yocto: String(prize) } };
     });
     const ranked = rows.filter((r) => r.row.matches_counted > 0).sort((x, y) => y.row.avg_payoff_milli - x.row.avg_payoff_milli || y.row.total_payoff_counted - x.row.total_payoff_counted || x.idx - y.idx);
     ranked.forEach((r, i) => (r.row.rank = i + 1));

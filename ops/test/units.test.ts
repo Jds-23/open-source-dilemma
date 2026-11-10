@@ -349,3 +349,15 @@ describe('house agents', () => {
     assert.ok(s.ciphertext_hex.length > 0 && s.ciphertext_hex.length <= 8400);
   });
 });
+
+describe('near-chain', () => {
+  test('successValue decodes the call return (settle_season [] vs ranking)', async () => {
+    const { successValue } = await import('../src/near-chain.ts');
+    const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64');
+    assert.deepEqual(successValue({ status: { SuccessValue: b64([]) } }), []);
+    assert.deepEqual(successValue({ status: { SuccessValue: b64([{ rank: 1 }]) } }), [{ rank: 1 }]);
+    assert.equal(successValue({ status: { SuccessValue: '' } }), undefined);
+    assert.equal(successValue({ status: { Failure: {} } }), undefined);
+    assert.equal(successValue(null), undefined);
+  });
+});

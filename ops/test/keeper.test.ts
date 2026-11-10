@@ -5,7 +5,7 @@ import { Keeper } from '../src/keeper.ts';
 import { MockChain } from '../src/mock-chain.ts';
 import { loadFixtures, mockFromFixtures, mockParams } from '../src/mock-fixtures.ts';
 import { MemoryTxLog } from '../src/txlog.ts';
-import { STALE_PENDING_BLOCKS } from '../src/types.ts';
+import { STALE_PENDING_BLOCKS, TGAS, type Entry } from '../src/types.ts';
 import { FIXTURES, opts, SlowCalls } from './helpers.ts';
 
 const txs = (log: MemoryTxLog, method?: string, outcome = 'ok') =>
@@ -264,5 +264,87 @@ describe('keeper: dry run', () => {
     const res = await new Keeper(chain, log, opts()).run();
     assert.equal(res.status, 'settled');
     assert.equal(chain.playAccepted.size, 15);
+  });
+});
+
+describe('keeper: interfaces-v4', () => {
+  function recordGas(chain: MockChain): Map<string, bigint> {
+    const gas = new Map<string, bigint>();
+    const call = chain.call.bind(chain);
+    chain.call = (async (m: string, a: Record<string, unknown>, o?: { gas?: bigint; depositYocto?: bigint }) => {
+      gas.set(m, o?.gas ?? 0n);
+      return call(m, a, o);
+    }) as typeof chain.call;
+    return gas;
+  }
+
+  test('40 agents past the play deadline: settle_season is repeated while it returns [] (20 calls), 300 Tgas each', async () => {
+    const fx = loadFixtures(FIXTURES);
+    const chain = new MockChain();
+    const entries: Omit<Entry, 'season_id'>[] = Array.from({ length: 40 }, (_, i) => ({
+      ...fx.entries[0],
+      agent_id: `a${String(i).padStart(2, '0')}.osd.baldingsucks7993.testnet`,
+      owner: `h${String(i).padStart(2, '0')}.baldingsucks7993.testnet`,
+    }));
+    const sid = chain.seedSeason(mockParams(fx, chain.nowNs, 60, 3600), entries);
+    chain.advance(120_000);
+    await chain.call('close_commits', { season_id: sid });
+    for (let r = 0; r < 39; r++) await chain.call('schedule_round', { season_id: sid });
+    chain.advance(2 * 3600_000); // past the play deadline: nothing was played
+    const gas = recordGas(chain);
+    const log = new MemoryTxLog();
+    const res = await new Keeper(chain, log, opts()).run();
+    assert.equal(res.status, 'settled');
+    assert.equal(chain.matches.get(sid)!.length, 780);
+    assert.equal(txs(log, 'play_match').length, 0);
+    assert.equal(txs(log, 'settle_season').length, 20); // ceil(780 / 40)
+    assert.equal(res.settleCalls, 20);
+    assert.equal(chain.settleBatches, 19);
+    assert.ok(chain.matches.get(sid)!.every((m) => m.status === 'refunded' && m.void_reason === 'deadline'));
+    assert.equal(gas.get('settle_season'), 300n * TGAS);
+    assert.ok(log.records().some((r) => r.kind === 'phase' && String(r.msg).includes('returned []')));
+  });
+
+  test('per-method gas defaults (WS-1 recommendations)', async () => {
+    const { chain } = mockFromFixtures(FIXTURES);
+    const gas = recordGas(chain);
+    await new Keeper(chain, new MemoryTxLog(), opts()).run();
+    assert.deepEqual(Object.fromEntries([...gas].map(([m, g]) => [m, Number(g / TGAS)])), {
+      close_commits: 30,
+      schedule_round: 100,
+      play_match: 300,
+      refund_void: 30,
+      settle_season: 300,
+    });
+  });
+
+  test('open_season carries the per-season referee override; prize dust carries over to the next season', async () => {
+    const fx = loadFixtures(FIXTURES);
+    const { chain, seasonId } = mockFromFixtures(FIXTURES);
+    await new Keeper(chain, new MemoryTxLog(), opts()).run();
+    const s1 = chain.seasons.get(seasonId)!;
+    assert.equal(s1.status, 'settled');
+    const paid = (await chain.view<{ prize_yocto: string }[]>('get_leaderboard', { season_id: seasonId })).reduce((x, r) => x + BigInt(r.prize_yocto), 0n);
+    assert.equal(BigInt(s1.carry_over_yocto), BigInt(s1.pool_yocto) - paid);
+    const cfg = await chain.view<{ carry_over_yocto: string }>('get_config', {});
+    assert.equal(cfg.carry_over_yocto, s1.carry_over_yocto);
+
+    const over = { wasm_url: 'https://test.fastfs.io/x/outlayer.testnet/osd-referee/v2/' + 'ab'.repeat(32) + '.wasm', wasm_hash: 'ab'.repeat(32), secrets_profile: 'osd-abababababab' };
+    const log = new MemoryTxLog();
+    await new Keeper(chain, log, opts({ openParams: mockParams(fx, chain.nowNs), openOverrides: over, maxIterations: 3 })).run();
+    const open = txs(log, 'open_season')[0];
+    assert.deepEqual({ wasm_url: open.args?.wasm_url, wasm_hash: open.args?.wasm_hash, secrets_profile: open.args?.secrets_profile }, over);
+    const s2 = chain.seasons.get(seasonId + 1)!;
+    assert.deepEqual(s2.wasm, { url: over.wasm_url, hash: over.wasm_hash });
+    assert.equal(s2.secrets_profile, over.secrets_profile);
+    assert.equal(s2.carry_in_yocto, s1.carry_over_yocto);
+    assert.equal(s2.pool_yocto, s1.carry_over_yocto);
+  });
+
+  test('open overrides: wasm_url without wasm_hash is rejected before sending', async () => {
+    const fx = loadFixtures(FIXTURES);
+    const chain = new MockChain();
+    await assert.rejects(new Keeper(chain, new MemoryTxLog(), opts({ openParams: mockParams(fx, chain.nowNs), openOverrides: { wasm_url: 'https://x/y.wasm' } })).run(), /together/);
+    assert.equal(chain.sent.length, 0);
   });
 });

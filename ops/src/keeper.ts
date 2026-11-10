@@ -5,10 +5,11 @@
 //   open_season → (wait key) → wait commit deadline → close_commits →
 //   schedule_round × total_rounds → play_match for every `scheduled` pair
 //   (concurrency limit, backoff) → refund_void for void / stale pending →
-//   settle_season
+//   settle_season, repeated while it returns [] (interfaces-v4: after the play
+//   deadline it voids ≤ 40 unfinished matches per call before ranking)
 
-import type { Chain, ChainError } from './chain.ts';
-import { mapLimit, withRetry } from './retry.ts';
+import { gasFor, type Chain, type ChainError, type TxResult } from './chain.ts';
+import { backoffDelay, mapLimit, withRetry } from './retry.ts';
 import type { LogRecord, TxLog } from './txlog.ts';
 import {
   PAGE_LIMIT,
@@ -16,6 +17,7 @@ import {
   type ContractConfig,
   type LeaderboardRow,
   type Match,
+  type OpenOverrides,
   type Season,
   type SeasonParams,
 } from './types.ts';
@@ -25,9 +27,14 @@ export interface KeeperOptions {
   seasonId?: number;
   /** Open a new season with these params if no season is active. */
   openParams?: SeasonParams;
+  /** Per-season referee pin passed to open_season (wasm_url + wasm_hash together, secrets_profile). */
+  openOverrides?: OpenOverrides;
   openDepositYocto: bigint;
   playDepositYocto: bigint;
-  gas: bigint;
+  /** Gas for every call; default: per-method recommendation (`gasFor`). */
+  gas?: bigint;
+  /** Cap on settle_season calls in one settle phase (40 agents worst case: 20 void batches + the ranking call). */
+  maxSettleCalls: number;
   concurrency: number;
   maxAttempts: number;
   baseDelayMs: number;
@@ -47,7 +54,8 @@ export interface KeeperOptions {
   random?: () => number;
 }
 
-export const DEFAULT_KEEPER_OPTIONS: Omit<KeeperOptions, 'openDepositYocto' | 'playDepositYocto' | 'gas'> = {
+export const DEFAULT_KEEPER_OPTIONS: Omit<KeeperOptions, 'openDepositYocto' | 'playDepositYocto'> = {
+  maxSettleCalls: 32,
   concurrency: 4,
   maxAttempts: 5,
   baseDelayMs: 1_000,
@@ -65,6 +73,7 @@ export interface KeeperResult {
   status: Season['status'] | 'none';
   playSent: number;
   refundSent: number;
+  settleCalls: number;
   skipped: number;
   failed: number;
   leaderboard?: LeaderboardRow[];
@@ -78,7 +87,7 @@ export class Keeper {
   private readonly o: KeeperOptions;
   private readonly seenFinal = new Set<string>();
   private readonly exhaustedWarned = new Set<string>();
-  private result: KeeperResult = { seasonId: null, status: 'none', playSent: 0, refundSent: 0, skipped: 0, failed: 0 };
+  private result: KeeperResult = { seasonId: null, status: 'none', playSent: 0, refundSent: 0, settleCalls: 0, skipped: 0, failed: 0 };
 
   constructor(chain: Chain, log: TxLog, o: KeeperOptions) {
     this.chain = chain;
@@ -160,7 +169,9 @@ export class Keeper {
 
   private async openSeason(): Promise<number | null> {
     const before = (await this.chain.view<ContractConfig>('get_config', {})).current_season_id;
-    const ok = await this.send(null, 'open_season', { params: this.o.openParams }, this.o.openDepositYocto, async () => {
+    const ov = this.o.openOverrides ?? {};
+    if ((ov.wasm_url === undefined) !== (ov.wasm_hash === undefined)) throw new Error('open overrides: wasm_url and wasm_hash go together');
+    const ok = await this.send(null, 'open_season', { params: this.o.openParams, ...ov }, this.o.openDepositYocto, async () => {
       const now = (await this.chain.view<ContractConfig>('get_config', {})).current_season_id;
       return now === before; // retry only if the open did not land
     });
@@ -234,11 +245,9 @@ export class Keeper {
 
     const finished = matches.every((m) => FINAL.has(m.status)) && toRefund.length === 0;
     if ((finished || pastDeadline) && this.o.settle) {
-      if (pastDeadline && !finished) this.note('warn', sid, 'play deadline passed: settle_season voids unfinished matches');
-      const ok = await this.send(sid, 'settle_season', { season_id: sid }, 0n, () => this.statusIs(sid, 'play'));
-      if (this.o.once) return true;
-      if (!ok) await this.chain.sleep(this.o.pollMs);
-      return false;
+      if (pastDeadline && !finished) this.note('warn', sid, 'play deadline passed: settle_season voids unfinished matches (≤ 40 per call)');
+      await this.settle(sid);
+      return this.o.once;
     }
     if (finished && !this.o.settle) {
       this.note('phase', sid, 'all matches final; --no-settle given, stopping');
@@ -247,6 +256,28 @@ export class Keeper {
     if (this.o.once) return true;
     await this.chain.sleep(this.o.pollMs);
     return false;
+  }
+
+  /**
+   * interfaces-v4: settle_season returns `[]` while it is still voiding unfinished matches in batches,
+   * so call it until it returns the ranking (or the view says `settled`), backing off between calls.
+   */
+  private async settle(sid: number): Promise<void> {
+    for (let i = 1; i <= this.o.maxSettleCalls; i++) {
+      const tx = await this.send(sid, 'settle_season', { season_id: sid }, 0n, () => this.statusIs(sid, 'play'));
+      if (this.o.once) return;
+      if (!tx) {
+        await this.chain.sleep(this.o.pollMs);
+        return; // refused / failed: the main loop re-reads the season
+      }
+      this.result.settleCalls += 1;
+      if (Array.isArray(tx.value) && tx.value.length > 0) return;
+      if (!(await this.statusIs(sid, 'play'))) return; // settled (possibly with an empty ranking)
+      const wait = backoffDelay(i, this.o);
+      this.note('phase', sid, `settle_season call ${i} voided a batch (returned []); calling again in ${wait} ms`);
+      await this.chain.sleep(wait);
+    }
+    this.note('warn', sid, `settle_season still not final after ${this.o.maxSettleCalls} calls; will retry on the next pass`);
   }
 
   private async playOne(m: Match): Promise<void> {
@@ -318,10 +349,10 @@ export class Keeper {
    * Send one tx with backoff. Before each retry `stillNeeded` re-reads chain
    * state; if the earlier attempt actually landed, we stop instead of re-sending.
    */
-  private async send(sid: number | null, method: string, args: Record<string, unknown>, depositYocto: bigint, stillNeeded: () => Promise<boolean>): Promise<boolean> {
+  private async send(sid: number | null, method: string, args: Record<string, unknown>, depositYocto: bigint, stillNeeded: () => Promise<boolean>): Promise<TxResult | null> {
     const res = await withRetry(
       async (attempt) => {
-        const tx = await this.chain.call(method, args, { depositYocto, gas: this.o.gas });
+        const tx = await this.chain.call(method, args, { depositYocto, gas: this.o.gas ?? gasFor(method) });
         this.log.write({ kind: 'tx', season_id: sid, method, args, tx_hash: tx.txHash, outcome: this.o.okOutcome, attempt, block: tx.block, deposit_yocto: String(depositYocto), signer: this.chain.signerId });
         return tx;
       },
@@ -340,13 +371,13 @@ export class Keeper {
         return needed;
       },
     );
-    if (res.ok) return true;
+    if (res.ok) return res.value;
     if (res.stopped) {
       this.result.skipped += 1;
-      return false;
+      return null;
     }
     this.failure(sid, method, args, res.error, res.attempts);
-    return false;
+    return null;
   }
 
   private failure(sid: number | null, method: string, args: Record<string, unknown>, err: ChainError, attempts: number): void {

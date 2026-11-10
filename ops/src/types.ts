@@ -1,4 +1,4 @@
-// Types mirrored from interfaces/contract-abi.json (interfaces-v2). Do not edit
+// Types mirrored from interfaces/contract-abi.json (interfaces-v4). Do not edit
 // semantics here; change the frozen interface first.
 
 export type SeasonStatus = 'pending_key' | 'key_failed' | 'commit' | 'play' | 'settled' | 'cancelled';
@@ -22,6 +22,7 @@ export interface Season {
   status: SeasonStatus;
   params: SeasonParams;
   wasm: { url: string; hash: string };
+  secrets_profile: string;
   pubkey: string | null;
   entry_deposit_yocto: string;
   stake_per_agent_yocto: string | null;
@@ -31,7 +32,10 @@ export interface Season {
   n_matches: number;
   n_settled: number;
   n_void: number;
+  /** Includes carry_in_yocto. */
   pool_yocto: string;
+  carry_in_yocto: string;
+  carry_over_yocto: string;
   opened_at_ns: string;
   closed_at_ns: string | null;
   settled_at_ns: string | null;
@@ -101,7 +105,18 @@ export interface ContractConfig {
   secrets_profile: string;
   nearai_signer: string;
   current_season_id: number | null;
+  carry_over_yocto: string;
 }
+
+/** Optional per-season referee pin for `open_season` (interfaces-v4); wasm_url + wasm_hash only together. */
+export interface OpenOverrides {
+  wasm_url?: string;
+  wasm_hash?: string;
+  secrets_profile?: string;
+}
+
+/** `settle_season` voids at most this many unfinished matches per call after the play deadline. */
+export const SETTLE_VOID_BATCH = 40;
 
 /** `"<season_id>:<a>:<b>"` (INTERFACE.md §1). */
 export function matchKeyString(k: MatchKey): string {

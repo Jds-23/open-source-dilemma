@@ -1,4 +1,4 @@
-// @osd/sdk: typed client for the Open Source Dilemma contract (interfaces-v3).
+// @osd/sdk: typed client for the Open Source Dilemma contract (interfaces-v4).
 // Isomorphic entry; Node-only helpers (fixtures from disk, key files, env config) are in `@osd/sdk/node`.
 export * from './types.js';
 export * from './constants.js';
