@@ -144,12 +144,6 @@ impl Http for MockHttp {
     }
 }
 
-/// Input with the compiled-in template hash (fixtures still carry the placeholder hash).
-pub fn with_real_template(mut v: Value) -> Value {
-    v["referee_template_hash"] = json!(referee::template::hash_hex());
-    v
-}
-
 pub fn run(v: &Value, http: &mut MockHttp) -> Value {
     run_env(v, &env(), http)
 }

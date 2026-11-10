@@ -35,17 +35,16 @@ check() { # name output expected-substring
 }
 
 IN0=$(python3 -I -c 'import json,sys;print(json.dumps(json.load(open(sys.argv[1]))[0]))' "$FX/wasm-inputs.json")
-FIXED0=$(edit "$IN0" "v['referee_template_hash']='$TEMPLATE_HASH'")
 DUP=$(python3 -I -c 'import json,sys;print(json.dumps(json.load(open(sys.argv[1]))["input"]))' "$FX/wasm-duplicate-example.json")
 
 echo "== production build, no network =="
 check derive_pubkey "$(run $PROD $CONTRACT '{"action":"derive_pubkey","season":1}')" '"pubkey":"0360e153bf8c4758cda4f312a2cc3da490d6593ee843475888337ee944b3ec8cf4"'
-check predecessor "$(run $PROD evil.testnet "$FIXED0")" '"error":"predecessor_not_allowed"'
-check template_mismatch "$(run $PROD $CONTRACT "$IN0")" '"error":"template_mismatch"'
-check duplicate "$(run $PROD $CONTRACT "$(edit "$DUP" "v['referee_template_hash']='$TEMPLATE_HASH'")")" '"error":"duplicate_prompt"'
-check forfeit_hash_mismatch "$(run $PROD $CONTRACT "$(edit "$FIXED0" "v['hash_a']=v['hash_b']")")" '"a_move":"F","b_move":"C"'
-check forfeit_bad_ct "$(run $PROD $CONTRACT "$(edit "$FIXED0" "v['ct_b']=v['ct_b'][:-2]+'00'")")" '"a_move":"C","b_move":"F"'
-check no_api_key "$(run $PROD $CONTRACT "$FIXED0")" '"error":"no_api_key"'
+check predecessor "$(run $PROD evil.testnet "$IN0")" '"error":"predecessor_not_allowed"'
+check template_mismatch "$(run $PROD $CONTRACT "$(edit "$IN0" "v['referee_template_hash']='00'*32")")" '"error":"template_mismatch"'
+check duplicate "$(run $PROD $CONTRACT "$DUP")" '"error":"duplicate_prompt"'
+check forfeit_hash_mismatch "$(run $PROD $CONTRACT "$(edit "$IN0" "v['hash_a']=v['hash_b']")")" '"a_move":"F","b_move":"C"'
+check forfeit_bad_ct "$(run $PROD $CONTRACT "$(edit "$IN0" "v['ct_b']=v['ct_b'][:-2]+'00'")")" '"a_move":"C","b_move":"F"'
+check no_api_key "$(run $PROD $CONTRACT "$IN0")" '"error":"no_api_key"'
 
 echo "== mock build, NEARAI_BASE_URL -> local mock, 15 fixture matches =="
 python3 -I scripts/mock_nearai.py "$PORT" & MOCK_PID=$!
@@ -54,7 +53,7 @@ python3 -I -c 'import json,sys
 for i in json.load(open(sys.argv[1])): print(json.dumps(i))' "$FX/wasm-inputs.json" > "$TMP/inputs.jsonl"
 max=0
 while IFS= read -r line; do
-  out=$(run $MOCK $CONTRACT "$(edit "$line" "v['referee_template_hash']='$TEMPLATE_HASH'")" \
+  out=$(run $MOCK $CONTRACT "$line" \
         --env NEARAI_API_KEY=mock-key --env NEARAI_BASE_URL="http://127.0.0.1:$PORT/v1")
   check match "$out" '"a_sig":"'
   (( ${#out} > max )) && max=${#out}
