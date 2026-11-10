@@ -1,0 +1,11 @@
+{
+  "_note": "Shape of EXPERIMENTAL_tx_status for one play_match; numbers from the spike run (spike-outlayer/runs/D_play_match1.log), ids shortened.",
+  "final_execution_status": "FINAL",
+  "transaction": { "hash": "Cc1r2sbFCbmQCJKdc4Wbgya5MprTuFBnKs6YBLKpmosc", "signer_id": "baldingsucks7993.testnet", "receiver_id": "osd.baldingsucks7993.testnet" },
+  "transaction_outcome": { "id": "t", "outcome": { "logs": [], "gas_burnt": 2428000000000, "tokens_burnt": "242800000000000000000", "executor_id": "baldingsucks7993.testnet", "status": {} } },
+  "receipts_outcome": [
+    { "id": "r1", "outcome": { "logs": [], "gas_burnt": 5000000000000, "tokens_burnt": "500000000000000000000", "executor_id": "osd.baldingsucks7993.testnet", "status": {} } },
+    { "id": "r2", "outcome": { "logs": ["EVENT_JSON:{\"standard\":\"near-outlayer\",\"version\":\"1.0.0\",\"event\":\"execution_completed\",\"data\":[{\"sender_id\":\"osd.baldingsucks7993.testnet\",\"resources_used\":{\"instructions\":13969583,\"time_ms\":2650,\"compile_time_ms\":null},\"success\":true,\"error_message\":null,\"payment_charged\":\"1265001300000000000000\",\"payment_refunded\":\"48734998700000000000000\"}]}"], "gas_burnt": 4000000000000, "tokens_burnt": "400000000000000000000", "executor_id": "outlayer.testnet", "status": {} } },
+    { "id": "r3", "outcome": { "logs": ["EVENT_JSON:{\"standard\":\"osd\",\"version\":\"1.0.0\",\"event\":\"match_played\",\"data\":[{\"season_id\":1,\"a\":\"alwaysd.osd.baldingsucks7993.testnet\",\"b\":\"tft.osd.baldingsucks7993.testnet\",\"a_move\":\"D\",\"b_move\":\"D\",\"a_payoff\":1,\"b_payoff\":1,\"pool_delta\":4,\"sig_a_ok\":true,\"sig_b_ok\":true}]}"], "gas_burnt": 2772000000000, "tokens_burnt": "157231419097300000000", "executor_id": "osd.baldingsucks7993.testnet", "status": {} } }
+  ]
+}

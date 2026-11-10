@@ -1,0 +1,95 @@
+name: wasm-release
+
+# Reproducible referee WASM build (ops/scripts/build-wasm.sh, digest-pinned
+# rust:1.96.0 container). Built twice in fresh containers; the job fails if
+# the hashes differ. The sha256 printed here is the one pinned at the P2
+# freeze (contract WasmUrl.hash + secret WasmHash accessor).
+#
+# Manual: Actions → wasm-release → Run workflow (optionally with a release tag).
+# Also runs on PRs that touch the build inputs, to keep the pipeline honest.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Also publish a GitHub release with this tag (e.g. referee-wasm-v1). Empty = artifact only."
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - ".github/workflows/wasm-release.yml"
+      - "ops/scripts/build-wasm.sh"
+      - "wasm/referee/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wasm-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: reproducible referee wasm
+    runs-on: ubuntu-24.04
+    outputs:
+      sha256: ${{ steps.hash.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (1st, fresh container)
+        run: ops/scripts/build-wasm.sh dist/a
+      - name: Build (2nd, fresh container)
+        run: ops/scripts/build-wasm.sh dist/b
+      - name: Compare hashes
+        id: hash
+        run: |
+          a=$(cut -d' ' -f1 dist/a/referee-wasm.wasm.sha256)
+          b=$(cut -d' ' -f1 dist/b/referee-wasm.wasm.sha256)
+          echo "build 1: $a"; echo "build 2: $b"
+          if [ "$a" != "$b" ]; then echo "::error::non-reproducible build: $a != $b"; exit 1; fi
+          echo "sha256=$a" >> "$GITHUB_OUTPUT"
+          {
+            echo "### referee-wasm.wasm"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| sha256 | \`$a\` |"
+            echo "| size | $(wc -c < dist/a/referee-wasm.wasm) bytes |"
+            echo "| commit | \`${GITHUB_SHA}\` |"
+            echo "| toolchain | $(tr '\n' ' ' < dist/a/rustc.txt) |"
+            echo
+            echo "Next (P2 gate): fastfs-upload --expect-sha256 $a, store-secret.sh --wasm-hash $a, deploy.sh --wasm-hash $a"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: referee-wasm-${{ steps.hash.outputs.sha256 }}
+          path: |
+            dist/a/referee-wasm.wasm
+            dist/a/referee-wasm.wasm.sha256
+            dist/a/build-info.json
+          if-no-files-found: error
+          retention-days: 90
+
+  release:
+    name: publish release
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: referee-wasm-${{ needs.build.outputs.sha256 }}
+          path: dist
+      - name: Verify artifact hash
+        run: echo "${{ needs.build.outputs.sha256 }}  dist/referee-wasm.wasm" | sha256sum -c -
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          gh release create "$TAG" dist/referee-wasm.wasm dist/referee-wasm.wasm.sha256 dist/build-info.json \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$TAG" \
+            --notes "Referee WASM (wasm32-wasip2), reproducible build. sha256 \`$SHA256\`. Rebuild: ops/scripts/build-wasm.sh"

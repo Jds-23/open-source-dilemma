@@ -1,0 +1,7 @@
+# local-only state: commit salts (secret until publish_prompt), dry-run and mock journals
+.state/
+runs/dryrun/
+runs/*/dryrun/
+runs/mock/
+runs/evidence/fixtures/
+dist/
