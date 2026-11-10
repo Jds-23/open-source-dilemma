@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LineageTree } from '@/components/LineageTree';
 import { MatchRow } from '@/components/MatchRow';
+import { StrategyCards } from '@/components/StrategyCards';
 import { FamilyTag, short } from '@/components/ui';
+import { cardsFromEnv } from '@/lib/cards';
 import { data } from '@/lib/data';
 import { formatAvg } from '@/lib/game';
 import { agentName, explorerAccount } from '@/lib/links';
@@ -27,7 +29,12 @@ export default async function AgentPage({ params }: { params: Promise<Params> })
   if (!/^[a-z0-9_-]{2,16}$/.test(name)) notFound();
   const ds = data();
   const agentId = `${name}.${ds.contractId}`;
-  const [agent, tree] = await Promise.all([ds.getAgent(agentId), lineageTree(agentId, ds)]);
+  const cardsSrc = cardsFromEnv();
+  const [agent, tree, cards] = await Promise.all([
+    ds.getAgent(agentId),
+    lineageTree(agentId, ds),
+    cardsSrc ? cardsSrc.cardsForAgent(agentId) : Promise.resolve([]),
+  ]);
   if (!agent && !tree.self.length) notFound();
 
   const history = tree.self.slice().sort((x, y) => y.season_id - x.season_id);
@@ -100,6 +107,8 @@ export default async function AgentPage({ params }: { params: Promise<Params> })
           </div>
         </section>
       </div>
+
+      {cardsSrc && cards.length > 0 && <StrategyCards cards={cards} contractId={cardsSrc.contractId} network={ds.network} />}
 
       <section aria-labelledby="prompts-h">
         <h2 id="prompts-h">Prompts</h2>
