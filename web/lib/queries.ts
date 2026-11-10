@@ -7,7 +7,7 @@ import type { Entry, LineageEntry, Match, Season } from './types';
 export type PromptView =
   | { state: 'revealed'; prompt: string; salt: string }
   | { state: 'sealed' } // season not settled: prompts are only ever published after settlement
-  | { state: 'unpublished' } // settled, owner has not published (or no index knows about it)
+  | { state: 'unpublished' } // settled, owner has not called publish_prompt
   | { state: 'mismatch' }; // a published text exists but does not hash to the on-chain commitment
 
 export async function seasonIds(ds: DataSource = data()): Promise<number[]> {
@@ -30,7 +30,7 @@ export async function currentSeason(ds: DataSource = data()): Promise<Season | n
 export async function promptFor(season: Season, entry: Entry | undefined, ds: DataSource = data()): Promise<PromptView> {
   if (season.status !== 'settled') return { state: 'sealed' };
   if (!entry) return { state: 'unpublished' };
-  const p = await ds.getPublishedPrompt(season.season_id, entry.agent_id);
+  const p = (await ds.getPublishedPrompts(season.season_id)).find((x) => x.agent_id === entry.agent_id);
   if (!p) return { state: 'unpublished' };
   const ok = await verifyCommitment(p.prompt, p.salt, entry.agent_id, entry.commitment);
   return ok ? { state: 'revealed', prompt: p.prompt, salt: p.salt } : { state: 'mismatch' };

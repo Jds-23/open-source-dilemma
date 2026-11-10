@@ -140,7 +140,7 @@ export interface DemoSeason {
   prompts: PublishedPrompt[];
 }
 
-export async function buildDemoSeason(sid: number, opened: bigint, live: boolean): Promise<DemoSeason> {
+export async function buildDemoSeason(sid: number, opened: bigint, live: boolean, templateHash: string): Promise<DemoSeason> {
   const roster = ROSTERS[sid];
   const enc = new TextEncoder();
   const entries: Entry[] = [];
@@ -160,7 +160,7 @@ export async function buildDemoSeason(sid: number, opened: bigint, live: boolean
       ciphertext_hex: `04${fnvHex(`ct:${sid}:${s.name}`, 128)}`,
       committed_at_ns: hoursNs(opened, 1 + i * 0.25),
     });
-    if (!s.unpublished) prompts.push({ season_id: sid, agent_id, prompt, salt });
+    if (!s.unpublished) prompts.push({ agent_id, prompt, salt, commitment: entries[i].commitment });
   }
 
   const pairs = roundRobin(entries.length);
@@ -249,7 +249,7 @@ export async function buildDemoSeason(sid: number, opened: bigint, live: boolean
       bond_yocto: (5n * unit).toString(),
       max_agents: 40,
       max_entries_per_owner: 3,
-      referee_template_hash: '645b0cff071367cc7b0df7aa38a348e7eb9fcb0e955a47ac879f6076533180f0',
+      referee_template_hash: templateHash,
       model: MODEL,
       prize_split_bps: split,
     },
@@ -272,11 +272,11 @@ export async function buildDemoSeason(sid: number, opened: bigint, live: boolean
 }
 
 /** Seasons 2..4; season 4 is mid-play. Anchored after the frozen season 1 fixture. */
-export async function buildDemoSeasons(season1SettledNs: string): Promise<DemoSeason[]> {
+export async function buildDemoSeasons(season1SettledNs: string, templateHash: string): Promise<DemoSeason[]> {
   let opened = BigInt(season1SettledNs) + NS_PER_H;
   const out: DemoSeason[] = [];
   for (const sid of [2, 3, 4]) {
-    out.push(await buildDemoSeason(sid, opened, sid === 4));
+    out.push(await buildDemoSeason(sid, opened, sid === 4, templateHash));
     opened += 30n * NS_PER_H;
   }
   return out;

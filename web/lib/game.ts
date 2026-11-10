@@ -12,13 +12,10 @@ export function payoff(a: Move, b: Move): [number, number, number] {
   return [1, 1, 4];
 }
 
-/** Strict referee reply parser (INTERFACE.md §8): first C/D after trim+uppercase, else D. */
+/** Strict referee reply parser (INTERFACE.md §8/§9.2 ii): first char of the trimmed, uppercased reply must be C/D, else D. */
 export function parseMove(reply: string | null | undefined): 'C' | 'D' {
-  const t = (reply ?? '').trim().toUpperCase();
-  for (const ch of t) {
-    if (ch === 'C' || ch === 'D') return ch;
-  }
-  return 'D';
+  const ch = (reply ?? '').trim().toUpperCase()[0];
+  return ch === 'C' ? 'C' : 'D';
 }
 
 export function outcomeLabel(a: Move | null, b: Move | null): string {

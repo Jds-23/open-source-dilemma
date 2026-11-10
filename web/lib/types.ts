@@ -122,10 +122,10 @@ export interface LineageEntry {
   avg_payoff_milli: number;
 }
 
-/** A prompt the owner published after settlement (`publish_prompt`). Not a contract view: comes from an index. */
+/** Stored by `publish_prompt` after settlement; read with `get_published_prompts` (interfaces-v3). */
 export interface PublishedPrompt {
-  season_id: number;
   agent_id: AccountId;
   prompt: string;
   salt: string;
+  commitment: string;
 }

@@ -1,14 +1,15 @@
 // Small read-only data layer. Two sources behind one interface:
 //  - "fixtures": interfaces/fixtures (season 1, frozen) + synthetic demo seasons 2–4 (web/fixtures/demo.ts)
 //  - "rpc": contract views from contract-abi.json over NEAR JSON-RPC, enabled by NEXT_PUBLIC_CONTRACT_ID
-// Published prompts and tx hashes are not contract views; in rpc mode they come from an optional JSON index
-// (NEXT_PUBLIC_INDEX_URL), and every prompt is re-checked against the on-chain commitment before display.
+// Published prompts come from `get_published_prompts` (and are still re-checked against the entry commitment
+// before display). Tx hashes are not a view: optional JSON index (NEXT_PUBLIC_INDEX_URL), e.g. keeper output.
 import agentsFx from '../../interfaces/fixtures/agents.json';
 import entriesFx from '../../interfaces/fixtures/entries.json';
 import leaderboardFx from '../../interfaces/fixtures/leaderboard.json';
 import lineageFx from '../../interfaces/fixtures/lineage.json';
 import matchesFx from '../../interfaces/fixtures/matches.json';
-import promptsFx from '../../interfaces/fixtures/prompts.json';
+import configFx from '../../interfaces/fixtures/config.json';
+import publishedFx from '../../interfaces/fixtures/published-prompts.json';
 import seasonFx from '../../interfaces/fixtures/season.json';
 import abi from '../../interfaces/contract-abi.json';
 import { buildDemoSeasons, DEMO_CONTRACT, type DemoSeason } from '@/fixtures/demo';
@@ -27,15 +28,15 @@ export interface DataSource {
   getLeaderboard(seasonId: number): Promise<LeaderboardRow[]>;
   getAgent(agentId: string): Promise<Agent | null>;
   getLineage(agentId: string): Promise<LineageEntry[]>;
-  /** Unverified candidate; callers must check it against the entry commitment. */
-  getPublishedPrompt(seasonId: number, agentId: string): Promise<PublishedPrompt | null>;
+  /** Prompts revealed via publish_prompt. Callers still verify them against the entry commitment. */
+  getPublishedPrompts(seasonId: number): Promise<PublishedPrompt[]>;
   getMatchTx(matchKey: string): Promise<string | null>;
 }
 
 // ---------------------------------------------------------------- fixtures
 
 let demoCache: Promise<DemoSeason[]> | null = null;
-const demo = () => (demoCache ??= buildDemoSeasons(seasonFx.settled_at_ns));
+const demo = () => (demoCache ??= buildDemoSeasons(seasonFx.settled_at_ns, seasonFx.params.referee_template_hash));
 
 async function fixtureSeason(id: number) {
   if (id === 1) {
@@ -44,7 +45,7 @@ async function fixtureSeason(id: number) {
       entries: entriesFx as Entry[],
       matches: matchesFx as Match[],
       leaderboard: leaderboardFx as LeaderboardRow[],
-      prompts: (promptsFx as Array<PublishedPrompt & { published: boolean }>).filter((p) => p.published),
+      prompts: publishedFx as PublishedPrompt[],
     };
   }
   return (await demo()).find((d) => d.season.season_id === id) ?? null;
@@ -57,17 +58,7 @@ export function createFixtureSource(): DataSource {
     network: 'testnet',
     async getConfig() {
       const seasons = await demo();
-      const deployer = DEMO_CONTRACT.split('.').slice(1).join('.'); // contract parent account
-      return {
-        owner: deployer,
-        outlayer_account: 'outlayer.testnet',
-        wasm_url: seasonFx.wasm.url,
-        wasm_hash: seasonFx.wasm.hash,
-        secrets_owner: deployer,
-        secrets_profile: 'osd',
-        nearai_signer: '',
-        current_season_id: seasons.at(-1)!.season.season_id,
-      };
+      return { ...(configFx as Config), current_season_id: seasons.at(-1)!.season.season_id };
     },
     getSeason: async (id) => (await fixtureSeason(id))?.season ?? null,
     getEntries: async (id) => (await fixtureSeason(id))?.entries ?? [],
@@ -112,9 +103,7 @@ export function createFixtureSource(): DataSource {
       }
       return out;
     },
-    async getPublishedPrompt(seasonId, agentId) {
-      return (await fixtureSeason(seasonId))?.prompts.find((p) => p.agent_id === agentId) ?? null;
-    },
+    getPublishedPrompts: async (id) => (await fixtureSeason(id))?.prompts ?? [],
     getMatchTx: async () => null,
   };
 }
@@ -123,7 +112,6 @@ export function createFixtureSource(): DataSource {
 
 interface IndexFile {
   tx?: Record<string, string>;
-  prompts?: PublishedPrompt[];
 }
 
 export function createRpcSource(opts: { contractId: string; rpcUrl: string; network: 'testnet' | 'mainnet'; indexUrl?: string }): DataSource {
@@ -182,9 +170,7 @@ export function createRpcSource(opts: { contractId: string; rpcUrl: string; netw
     getLeaderboard: (season_id) => view<LeaderboardRow[]>('get_leaderboard', { season_id }),
     getAgent: (agent_id) => view<Agent | null>('get_agent', { agent_id }),
     getLineage: (agent_id) => view<LineageEntry[]>('get_lineage', { agent_id }),
-    async getPublishedPrompt(seasonId, agentId) {
-      return (await index()).prompts?.find((p) => p.season_id === seasonId && p.agent_id === agentId) ?? null;
-    },
+    getPublishedPrompts: (id) => paged<PublishedPrompt>('get_published_prompts', id),
     async getMatchTx(matchKey) {
       return (await index()).tx?.[matchKey] ?? null;
     },

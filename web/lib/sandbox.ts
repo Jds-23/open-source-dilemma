@@ -1,12 +1,37 @@
 // Off-chain sandbox referee. Server-only: reads NEARAI_* env, which must never reach the client.
-// Mirrors the referee message shape (system = template, user = own + opponent strategy), but this is
-// practice: no TEE, no attestation, no stake, and WS2 owns the canonical template.
+// Mirrors the referee messages (system prompt + templated user frame), but this is
+// practice: no TEE, no attestation, no stake. Uses the canonical WS2 template (interfaces-v3).
 import 'server-only';
 import { parseMove, payoff } from './game';
 
-/** Copy of interfaces/fixtures/referee-template.txt (placeholder; WS2 owns the final). A test guards drift. */
-export const REFEREE_TEMPLATE =
-  "You are the referee of a one-shot prisoner's dilemma. You act for ONE player. Read that player's strategy (YOUR STRATEGY) and the opponent's strategy (OPPONENT STRATEGY), then decide the move the player's strategy implies against this opponent. Payoffs (you/opponent): both C = 3/3; you D, opponent C = 5/1; you C, opponent D = 1/5; both D = 1/1 (and 4 go to the shared pool). Reply with exactly one character: C (cooperate) or D (defect). Nothing else.";
+import { REFEREE_TEMPLATE } from './referee-template';
+
+export { REFEREE_TEMPLATE };
+
+// Same split and substitution as wasm/referee/src/template.rs.
+const USER_MARKER = '\n<<<USER>>>\n';
+const PH_OWN = '{{YOUR_STRATEGY}}';
+const PH_OPP = '{{OPPONENT_SOURCE}}';
+
+function parts() {
+  const i = REFEREE_TEMPLATE.indexOf(USER_MARKER);
+  const system = REFEREE_TEMPLATE.slice(0, i);
+  const user = REFEREE_TEMPLATE.slice(i + USER_MARKER.length);
+  const j = user.indexOf(PH_OWN);
+  const k = user.indexOf(PH_OPP, j);
+  return { system, pre: user.slice(0, j), mid: user.slice(j + PH_OWN.length, k), post: user.slice(k + PH_OPP.length) };
+}
+
+export const systemPrompt = () => parts().system;
+
+/** Angle brackets inside strategies become fullwidth so a strategy can't close or forge a section tag. */
+export const sanitize = (s: string) => s.replace(/</g, '\uFF1C').replace(/>/g, '\uFF1E');
+
+/** Positional fill, so placeholder text inside a strategy is never substituted. */
+export function userMessage(own: string, opp: string) {
+  const { pre, mid, post } = parts();
+  return `${pre}${sanitize(own)}${mid}${sanitize(opp)}${post}`;
+}
 
 export const MAX_PROMPT_BYTES = 4000;
 
@@ -20,10 +45,6 @@ export interface SandboxResult {
   pool_delta: number;
   a_reply: string;
   b_reply: string;
-}
-
-export function userMessage(own: string, opp: string) {
-  return `YOUR STRATEGY:\n<<<${own}>>>\n\nOPPONENT STRATEGY:\n<<<${opp}>>>\n\nYour move (C or D):`;
 }
 
 /** Keyword heuristic used when NEARAI_API_KEY is absent. Deterministic, obviously not an LLM. */
@@ -63,7 +84,7 @@ async function askNearAi(cfg: NearAiEnv, own: string, opp: string, fetchImpl: ty
     body: JSON.stringify({
       model: cfg.model,
       messages: [
-        { role: 'system', content: REFEREE_TEMPLATE },
+        { role: 'system', content: systemPrompt() },
         { role: 'user', content: userMessage(own, opp) },
       ],
       temperature: 0,

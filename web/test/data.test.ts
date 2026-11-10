@@ -43,6 +43,15 @@ describe('rpc source', () => {
     expect(await ds.getMatches(1)).toHaveLength(235);
     expect(calls).toEqual([0, 200]);
   });
+  it('reads published prompts from get_published_prompts', async () => {
+    const pp = [{ agent_id: 'x.c.testnet', prompt: 'p', salt: '00'.repeat(32), commitment: 'ab' }];
+    vi.stubGlobal('fetch', async (_u: string, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body)).params.method_name).toBe('get_published_prompts');
+      return new Response(JSON.stringify({ result: { result: [...Buffer.from(JSON.stringify(pp))] } }));
+    });
+    const ds = createRpcSource({ contractId: 'c.testnet', rpcUrl: 'http://rpc', network: 'testnet' });
+    expect(await ds.getPublishedPrompts(1)).toEqual(pp);
+  });
   it('surfaces contract errors', async () => {
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ result: { error: 'MethodNotFound' } })));
     const ds = createRpcSource({ contractId: 'c.testnet', rpcUrl: 'http://rpc', network: 'testnet' });
