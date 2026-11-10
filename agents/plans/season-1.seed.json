@@ -103,7 +103,7 @@
       "family": "injector",
       "parent": null,
       "prompt_file": "agents/strategies/injector/inj-delimiter.md",
-      "prompt_bytes": 338,
+      "prompt_bytes": 483,
       "role": "seed"
     },
     {
