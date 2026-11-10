@@ -1,15 +1,44 @@
 {
   "name": "@osd/sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "WS3: TS SDK (eciesjs encrypt, register, commit, read). Spike baseline: encrypt only.",
-  "main": "src/index.mjs",
-  "bin": { "osd-encrypt": "src/encrypt.mjs" },
-  "dependencies": { "eciesjs": "0.4.16" },
+  "description": "WS3: typed TS SDK for the Open Source Dilemma contract (seal, register, commit, claim, views, events, fixture mock).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "bin": {
+    "osd": "./bin/osd.mjs",
+    "osd-encrypt": "./bin/osd-encrypt.mjs"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
   "scripts": {
-    "lint": "node --check src/index.mjs && node --check src/encrypt.mjs",
-    "test": "node --test test/*.test.mjs"
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "lint": "tsc -p tsconfig.json --noEmit && node --check bin/osd.mjs && node --check bin/osd-encrypt.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/hashes": "1.8.0",
+    "eciesjs": "0.4.16",
+    "near-api-js": "7.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
   }
 }
