@@ -93,7 +93,7 @@ if [ "$FUND_ONLY" = 0 ]; then
   is_hex64 "$NEARAI_SIGNER" || die "--nearai-signer (or NEARAI_SIGNER_PUBKEY) must be 64 lowercase hex"
 fi
 
-[[ "$MAX_AGENTS" =~ ^[0-9]+$ ]] && [ "$MAX_AGENTS" -ge 2 ] && [ "$MAX_AGENTS" -le 40 ] || die "--max-agents must be 2..40"
+if ! [[ "$MAX_AGENTS" =~ ^[0-9]+$ ]] || [ "$MAX_AGENTS" -lt 2 ] || [ "$MAX_AGENTS" -gt 40 ]; then die "--max-agents must be 2..40"; fi
 [[ "$SEASONS" =~ ^[1-9][0-9]*$ ]] || die "--seasons must be a positive integer"
 
 banner
