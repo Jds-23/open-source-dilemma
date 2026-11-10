@@ -22,6 +22,9 @@ fn fx(name: &str) -> Value {
         "prompts" => include_str!("../../../interfaces/fixtures/prompts.json"),
         "signer" => include_str!("../../../interfaces/fixtures/test-nearai-signer.json"),
         "dup" => include_str!("../../../interfaces/fixtures/wasm-duplicate-example.json"),
+        "claimable" => include_str!("../../../interfaces/fixtures/claimable.json"),
+        "published" => include_str!("../../../interfaces/fixtures/published-prompts.json"),
+        "config" => include_str!("../../../interfaces/fixtures/config.json"),
         _ => unreachable!(),
     };
     serde_json::from_str(s).unwrap()
@@ -259,6 +262,12 @@ fn fixture_season_replay_matches_fixture_views() {
     let per_side = c.refund_void(sid, void[0].a.clone(), void[0].b.clone());
     assert_eq!(per_side.0, 3 * 10u128.pow(22));
 
+    // get_claimable equals fixtures/claimable.json (INTERFACE.md §6.1 formula) for every agent.
+    for row in fx("claimable").as_array().unwrap() {
+        let got = c.get_claimable(sid, acc(row["agent_id"].as_str().unwrap()));
+        assert_eq!(serde_json::to_value(got).unwrap(), row["claimable_yocto"], "{}", row["agent_id"]);
+    }
+
     // Money is conserved: every yocto of the 6 entry deposits is claimable (pool paid out fully).
     let entry_deposit = c.get_season(sid).unwrap().entry_deposit_yocto.0;
     let total: u128 = fx("agents")
@@ -286,13 +295,7 @@ fn fixture_season_replay_matches_fixture_views() {
         c.publish_prompt(sid, id, p["prompt"].as_str().unwrap().into(), p["salt"].as_str().unwrap().into());
         assert_eq!(event_names(), vec!["prompt_published"]);
     }
-    let published = c.get_published_prompts(sid, None, None);
-    assert_eq!(published.len(), fx("prompts").as_array().unwrap().len());
-    for p in fx("prompts").as_array().unwrap() {
-        let got = published.iter().find(|x| x.agent_id.as_str() == p["agent_id"].as_str().unwrap()).unwrap();
-        assert_eq!(got.prompt, p["prompt"].as_str().unwrap());
-        assert_eq!(got.salt, p["salt"].as_str().unwrap());
-    }
+    assert_eq!(serde_json::to_value(c.get_published_prompts(sid, None, None)).unwrap(), fx("published"));
     assert_eq!(c.get_published_prompts(sid, Some(1), Some(1)).len(), 1);
 }
 
@@ -686,6 +689,12 @@ fn parse_output_variants() {
     let long = json!({"match_key": mk, "a_move": "C", "b_move": "C", "a_chat_id": "x".repeat(65), "b_chat_id": "",
         "a_signed_text": "", "b_signed_text": "", "a_sig": "", "b_sig": ""});
     assert_eq!(parse_match_result(Some(long.to_string().as_bytes()), mk), Err("bad_output".into()));
+    // WS-2 §9.2 (vi): proof fields dropped to fit 900 B still settle (flags false).
+    let trimmed = json!({"match_key": mk, "a_move": "D", "b_move": "C", "a_chat_id": "x"});
+    let p = parse_match_result(Some(trimmed.to_string().as_bytes()), mk).unwrap();
+    assert_eq!((p.a_move, p.b_move, p.b_chat_id.as_str(), p.a_sig.as_str()), (Move::D, Move::C, "", ""));
+    let wrong_type = json!({"match_key": mk, "a_move": "D", "b_move": "C", "a_sig": 5});
+    assert_eq!(parse_match_result(Some(wrong_type.to_string().as_bytes()), mk), Err("bad_output".into()));
 }
 
 #[test]

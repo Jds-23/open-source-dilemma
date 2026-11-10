@@ -2,6 +2,16 @@
 name = "dilemma-contract"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/Jds-23/open-source-dilemma"
+
+# `cargo near build reproducible-wasm` (needs Docker and a clean, pushed git tree).
+# Image pinned to the same rustc as rust-toolchain.toml (1.85.0). Unverified in CI; WS-6 may
+# keep using `cargo near build non-reproducible-wasm`.
+[package.metadata.near.reproducible_build]
+image = "sourcescan/cargo-near:0.13.4-rust-1.85.0"
+image_digest = "sha256:a9d8bee7b134856cc8baa142494a177f2ba9ecfededfcdd38f634e14cca8aae2"
+passed_env = []
+container_build_command = ["cargo", "near", "build", "non-reproducible-wasm", "--locked"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

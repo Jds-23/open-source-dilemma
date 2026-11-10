@@ -321,9 +321,12 @@ pub fn parse_match_result(result: Option<&[u8]>, match_key: &str) -> Result<Play
     if o.get("match_key").is_none() {
         return Err("match_key_mismatch".into());
     }
+    // Proof fields are flag-only; the referee may drop them to stay <= 900 B (INTERFACE.md §9.2 vi),
+    // so a missing field reads as "". A present field must be a string within the schema length.
     let field = |k: &str, max: usize| -> Result<String, String> {
-        match o.get(k).and_then(|x| x.as_str()) {
-            Some(s) if s.len() <= max => Ok(s.to_string()),
+        match o.get(k) {
+            None | Some(Value::Null) => Ok(String::new()),
+            Some(Value::String(s)) if s.len() <= max => Ok(s.clone()),
             _ => Err("bad_output".into()),
         }
     };
@@ -406,6 +409,8 @@ pub struct Dilemma {
     match_order: LookupMap<(u32, u32), (AccountId, AccountId)>,
     claimable: LookupMap<(u32, AccountId), u128>,
     published: LookupMap<(u32, AccountId), PublishedPrompt>,
+    published_order: LookupMap<(u32, u32), AccountId>,
+    published_count: LookupMap<u32, u32>,
 }
 
 #[near]
@@ -441,6 +446,8 @@ impl Dilemma {
             match_order: LookupMap::new(b"o"),
             claimable: LookupMap::new(b"c"),
             published: LookupMap::new(b"r"),
+            published_order: LookupMap::new(b"q"),
+            published_count: LookupMap::new(b"n"),
         }
     }
 
@@ -672,6 +679,7 @@ impl Dilemma {
         );
         require!(is_hex64(&commitment), "bad commitment");
         require!(valid_family(&family), "bad family");
+        require!(parent.as_ref().is_none_or(|p| p.season_id >= 1), "parent.season_id must be >= 1");
         let ciphertext = hex::decode(&ciphertext_hex).unwrap();
 
         agent.budget_yocto -= s.entry_deposit_yocto;
@@ -1029,8 +1037,14 @@ impl Dilemma {
         require!(h == e.commitment, "commitment mismatch");
         let commitment = e.commitment.clone();
         emit("prompt_published", json!({"season_id": season_id, "agent_id": agent_id, "commitment": commitment}));
+        let pkey = (season_id, agent_id.clone());
+        if !self.published.contains_key(&pkey) {
+            let n = self.published_count.get(&season_id).copied().unwrap_or(0);
+            self.published_order.insert((season_id, n), agent_id.clone());
+            self.published_count.insert(season_id, n + 1);
+        }
         self.published.insert(
-            (season_id, agent_id.clone()),
+            pkey,
             PublishedPrompt { agent_id, prompt, salt, commitment },
         );
     }
@@ -1182,20 +1196,20 @@ impl Dilemma {
             .collect()
     }
 
-    /// Prompts revealed via `publish_prompt`, in commit order.
+    /// Prompts revealed via `publish_prompt`, in publish order (first publish; re-publishing is idempotent).
     pub fn get_published_prompts(
         &self,
         season_id: u32,
         from_index: Option<u32>,
         limit: Option<u32>,
     ) -> Vec<PublishedPrompt> {
-        let Some(s) = self.seasons.get(&season_id) else { return vec![] };
+        let n = self.published_count.get(&season_id).copied().unwrap_or(0);
         let (from, limit) = page(from_index, limit);
-        self.entry_ids(season_id, s.n_entries)
-            .into_iter()
-            .filter_map(|id| self.published.get(&(season_id, id)).cloned())
-            .skip(from as usize)
-            .take(limit as usize)
+        (from..n.min(from.saturating_add(limit)))
+            .map(|i| {
+                let id = self.published_order.get(&(season_id, i)).unwrap().clone();
+                self.published.get(&(season_id, id)).unwrap().clone()
+            })
             .collect()
     }
 
