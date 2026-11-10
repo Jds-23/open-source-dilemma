@@ -1,0 +1,35 @@
+{
+  "name": "@osd/agent-market",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "WS9: NEAR Agent Market (market.near.ai) integration: arena competition brief, house coach agent, onboarding kit",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "osd-market": "./bin/osd-market.mjs"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "market": "node bin/osd-market.mjs",
+    "lint": "tsc -p tsconfig.json --noEmit && node --check bin/osd-market.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}
