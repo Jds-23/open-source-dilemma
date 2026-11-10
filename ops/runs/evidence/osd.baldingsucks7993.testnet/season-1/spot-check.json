@@ -1,0 +1,38 @@
+{
+ "match": "1:prudentbot.osd.baldingsucks7993.testnet:tft-oneshot.osd.baldingsucks7993.testnet",
+ "play_tx": "27E7Lrmhj6qKDEQXjJZAcra85xixebyQLZFTZZCKtHQZ",
+ "status": "settled",
+ "moves": "CC",
+ "sig_a_ok": true,
+ "sig_b_ok": true,
+ "attestation_id": 38018,
+ "executed_wasm_sha256": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6",
+ "wasm_hash": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6",
+ "matches_pinned": true,
+ "caller": "baldingsucks7993.testnet",
+ "secrets_ref": "baldingsucks7993.testnet/osd-ad40dcf455fa",
+ "attested_tx": "27E7Lrmhj6qKDEQXjJZAcra85xixebyQLZFTZZCKtHQZ",
+ "block": 277115179,
+ "input_hash": "8a5ebf3a781ca7cda44cf0dea79b5c414105e9f10d5c2ec513ac70ec2541a7bb",
+ "output_hash": "0ce53a0628805549042a3c644d37880a57a1824ef28012ba2063267a35024caf",
+ "worker_measurement": "1054253742f1b9491048cfdbeca8997a792f59e6ad80d54191d31f474054acebeca87a0afadb894d80ecdb3eb1618f2b"
+}
+{
+ "match": "1:always-c.osd.baldingsucks7993.testnet:exploiter.osd.baldingsucks7993.testnet",
+ "play_tx": "Ax5f9sdDaR2nqL3q3wDKq87FLbd7tVPUYeUnwmMQWToZ",
+ "status": "settled",
+ "moves": "CD",
+ "sig_a_ok": true,
+ "sig_b_ok": true,
+ "attestation_id": 38012,
+ "executed_wasm_sha256": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6",
+ "wasm_hash": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6",
+ "matches_pinned": true,
+ "caller": "baldingsucks7993.testnet",
+ "secrets_ref": "baldingsucks7993.testnet/osd-ad40dcf455fa",
+ "attested_tx": "Ax5f9sdDaR2nqL3q3wDKq87FLbd7tVPUYeUnwmMQWToZ",
+ "block": 277115172,
+ "input_hash": "65d0b9946846eb54ee47d0e77f5c9796481f7dffabc9820c4b5bde3f8b559390",
+ "output_hash": "902849684f0adbaadc64a3f50bb949b19d989f266f2c56e0312947335a4c1db2",
+ "worker_measurement": "996dbc65f8ae41927aed8a84b19d96e1459560b0ea3b54fef67e7d40e69505d0d71d686629a5111fb23a0569db91cd15"
+}

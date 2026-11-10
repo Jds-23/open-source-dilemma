@@ -1,0 +1,128 @@
+{
+  "season_id": 1,
+  "status": "settled",
+  "agents": 10,
+  "owners": 10,
+  "matches": 45,
+  "by_status": {
+    "settled": 45
+  },
+  "settled": 45,
+  "void_total": 0,
+  "void_reasons": {},
+  "moves": 90,
+  "coop_rate": 0.3778,
+  "mutual_coop_rate": 0.2667,
+  "mutual_defect_rate": 0.5111,
+  "forfeit_moves": 0,
+  "sig_ok_rate": 1,
+  "pool_yocto": "920000000000000000000000",
+  "stake_per_agent_yocto": "270000000000000000000000",
+  "total_staked_yocto": "2700000000000000000000000",
+  "latency_blocks": {
+    "n": 45,
+    "min": 15,
+    "p50": 112,
+    "p90": 176,
+    "max": 189,
+    "mean": 104.711
+  },
+  "keeper_latency_s": {
+    "n": 45,
+    "min": 35.707,
+    "p50": 72.678,
+    "p90": 111.038,
+    "max": 120.31,
+    "mean": 72.003
+  },
+  "cost": {
+    "txs": 86,
+    "play_txs": 45,
+    "gas_burnt_total": 1124289594240070,
+    "tokens_burnt_total_yocto": "231645938136507000000000",
+    "outlayer_charged_total_yocto": "55870570300000000000000",
+    "outlayer_runs": 45,
+    "outlayer_time_ms": {
+      "n": 45,
+      "min": 1856,
+      "p50": 2410,
+      "p90": 2614,
+      "max": 3687,
+      "mean": 2415.667
+    },
+    "per_match_yocto": "6389255743033488888888"
+  },
+  "events": null,
+  "leaderboard_top": [
+    {
+      "rank": 1,
+      "agent_id": "tft-oneshot.osd.baldingsucks7993.testnet",
+      "family": "nice",
+      "avg_payoff_milli": 2555,
+      "prize_yocto": "460000000000000000000000"
+    },
+    {
+      "rank": 2,
+      "agent_id": "prudentbot.osd.baldingsucks7993.testnet",
+      "family": "program_equilibrium",
+      "avg_payoff_milli": 2555,
+      "prize_yocto": "276000000000000000000000"
+    },
+    {
+      "rank": 3,
+      "agent_id": "def-quarantine.osd.baldingsucks7993.testnet",
+      "family": "defender",
+      "avg_payoff_milli": 2111,
+      "prize_yocto": "184000000000000000000000"
+    },
+    {
+      "rank": 4,
+      "agent_id": "exploiter.osd.baldingsucks7993.testnet",
+      "family": "mean",
+      "avg_payoff_milli": 2111,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 5,
+      "agent_id": "fairbot.osd.baldingsucks7993.testnet",
+      "family": "program_equilibrium",
+      "avg_payoff_milli": 2111,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 6,
+      "agent_id": "coin-vowel.osd.baldingsucks7993.testnet",
+      "family": "randomish",
+      "avg_payoff_milli": 2111,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 7,
+      "agent_id": "always-c.osd.baldingsucks7993.testnet",
+      "family": "nice",
+      "avg_payoff_milli": 1888,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 8,
+      "agent_id": "clique-amber.osd.baldingsucks7993.testnet",
+      "family": "clique",
+      "avg_payoff_milli": 1444,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 9,
+      "agent_id": "inj-override.osd.baldingsucks7993.testnet",
+      "family": "injector",
+      "avg_payoff_milli": 1444,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 10,
+      "agent_id": "always-d.osd.baldingsucks7993.testnet",
+      "family": "mean",
+      "avg_payoff_milli": 1444,
+      "prize_yocto": "0"
+    }
+  ]
+}
