@@ -1,0 +1,238 @@
+{
+  "plan_version": 1,
+  "season_id": 1,
+  "contract": "osd.baldingsucks7993.testnet",
+  "from_season": null,
+  "source": "agents/strategies",
+  "llm": null,
+  "family_ranking": [],
+  "entries": [
+    {
+      "agent_id": "clique-amber.osd.baldingsucks7993.testnet",
+      "name": "clique-amber",
+      "family": "clique",
+      "parent": null,
+      "prompt_file": "agents/strategies/clique/clique-amber.md",
+      "prompt_bytes": 412,
+      "role": "seed"
+    },
+    {
+      "agent_id": "clique-cobalt.osd.baldingsucks7993.testnet",
+      "name": "clique-cobalt",
+      "family": "clique",
+      "parent": null,
+      "prompt_file": "agents/strategies/clique/clique-cobalt.md",
+      "prompt_bytes": 391,
+      "role": "seed"
+    },
+    {
+      "agent_id": "clique-viridian.osd.baldingsucks7993.testnet",
+      "name": "clique-viridian",
+      "family": "clique",
+      "parent": null,
+      "prompt_file": "agents/strategies/clique/clique-viridian.md",
+      "prompt_bytes": 406,
+      "role": "seed"
+    },
+    {
+      "agent_id": "anti-clique.osd.baldingsucks7993.testnet",
+      "name": "anti-clique",
+      "family": "conditional",
+      "parent": null,
+      "prompt_file": "agents/strategies/conditional/anti-clique.md",
+      "prompt_bytes": 409,
+      "role": "seed"
+    },
+    {
+      "agent_id": "brevity-trust.osd.baldingsucks7993.testnet",
+      "name": "brevity-trust",
+      "family": "conditional",
+      "parent": null,
+      "prompt_file": "agents/strategies/conditional/brevity-trust.md",
+      "prompt_bytes": 410,
+      "role": "seed"
+    },
+    {
+      "agent_id": "pool-guardian.osd.baldingsucks7993.testnet",
+      "name": "pool-guardian",
+      "family": "conditional",
+      "parent": null,
+      "prompt_file": "agents/strategies/conditional/pool-guardian.md",
+      "prompt_bytes": 388,
+      "role": "seed"
+    },
+    {
+      "agent_id": "def-fairbot.osd.baldingsucks7993.testnet",
+      "name": "def-fairbot",
+      "family": "defender",
+      "parent": null,
+      "prompt_file": "agents/strategies/defender/def-fairbot.md",
+      "prompt_bytes": 642,
+      "role": "seed"
+    },
+    {
+      "agent_id": "def-quarantine.osd.baldingsucks7993.testnet",
+      "name": "def-quarantine",
+      "family": "defender",
+      "parent": null,
+      "prompt_file": "agents/strategies/defender/def-quarantine.md",
+      "prompt_bytes": 566,
+      "role": "seed"
+    },
+    {
+      "agent_id": "def-tft.osd.baldingsucks7993.testnet",
+      "name": "def-tft",
+      "family": "defender",
+      "parent": null,
+      "prompt_file": "agents/strategies/defender/def-tft.md",
+      "prompt_bytes": 465,
+      "role": "seed"
+    },
+    {
+      "agent_id": "inj-charm.osd.baldingsucks7993.testnet",
+      "name": "inj-charm",
+      "family": "injector",
+      "parent": null,
+      "prompt_file": "agents/strategies/injector/inj-charm.md",
+      "prompt_bytes": 442,
+      "role": "seed"
+    },
+    {
+      "agent_id": "inj-delimiter.osd.baldingsucks7993.testnet",
+      "name": "inj-delimiter",
+      "family": "injector",
+      "parent": null,
+      "prompt_file": "agents/strategies/injector/inj-delimiter.md",
+      "prompt_bytes": 338,
+      "role": "seed"
+    },
+    {
+      "agent_id": "inj-override.osd.baldingsucks7993.testnet",
+      "name": "inj-override",
+      "family": "injector",
+      "parent": null,
+      "prompt_file": "agents/strategies/injector/inj-override.md",
+      "prompt_bytes": 431,
+      "role": "seed"
+    },
+    {
+      "agent_id": "always-d.osd.baldingsucks7993.testnet",
+      "name": "always-d",
+      "family": "mean",
+      "parent": null,
+      "prompt_file": "agents/strategies/mean/always-d.md",
+      "prompt_bytes": 201,
+      "role": "seed"
+    },
+    {
+      "agent_id": "exploiter.osd.baldingsucks7993.testnet",
+      "name": "exploiter",
+      "family": "mean",
+      "parent": null,
+      "prompt_file": "agents/strategies/mean/exploiter.md",
+      "prompt_bytes": 542,
+      "role": "seed"
+    },
+    {
+      "agent_id": "sucker-hunter.osd.baldingsucks7993.testnet",
+      "name": "sucker-hunter",
+      "family": "mean",
+      "parent": null,
+      "prompt_file": "agents/strategies/mean/sucker-hunter.md",
+      "prompt_bytes": 381,
+      "role": "seed"
+    },
+    {
+      "agent_id": "always-c.osd.baldingsucks7993.testnet",
+      "name": "always-c",
+      "family": "nice",
+      "parent": null,
+      "prompt_file": "agents/strategies/nice/always-c.md",
+      "prompt_bytes": 184,
+      "role": "seed"
+    },
+    {
+      "agent_id": "generous.osd.baldingsucks7993.testnet",
+      "name": "generous",
+      "family": "nice",
+      "parent": null,
+      "prompt_file": "agents/strategies/nice/generous.md",
+      "prompt_bytes": 472,
+      "role": "seed"
+    },
+    {
+      "agent_id": "grim.osd.baldingsucks7993.testnet",
+      "name": "grim",
+      "family": "nice",
+      "parent": null,
+      "prompt_file": "agents/strategies/nice/grim.md",
+      "prompt_bytes": 533,
+      "role": "seed"
+    },
+    {
+      "agent_id": "tft-oneshot.osd.baldingsucks7993.testnet",
+      "name": "tft-oneshot",
+      "family": "nice",
+      "parent": null,
+      "prompt_file": "agents/strategies/nice/tft-oneshot.md",
+      "prompt_bytes": 634,
+      "role": "seed"
+    },
+    {
+      "agent_id": "fairbot.osd.baldingsucks7993.testnet",
+      "name": "fairbot",
+      "family": "program_equilibrium",
+      "parent": null,
+      "prompt_file": "agents/strategies/program_equilibrium/fairbot.md",
+      "prompt_bytes": 777,
+      "role": "seed"
+    },
+    {
+      "agent_id": "mirror.osd.baldingsucks7993.testnet",
+      "name": "mirror",
+      "family": "program_equilibrium",
+      "parent": null,
+      "prompt_file": "agents/strategies/program_equilibrium/mirror.md",
+      "prompt_bytes": 617,
+      "role": "seed"
+    },
+    {
+      "agent_id": "prudentbot.osd.baldingsucks7993.testnet",
+      "name": "prudentbot",
+      "family": "program_equilibrium",
+      "parent": null,
+      "prompt_file": "agents/strategies/program_equilibrium/prudentbot.md",
+      "prompt_bytes": 965,
+      "role": "seed"
+    },
+    {
+      "agent_id": "reciprocity.osd.baldingsucks7993.testnet",
+      "name": "reciprocity",
+      "family": "program_equilibrium",
+      "parent": null,
+      "prompt_file": "agents/strategies/program_equilibrium/reciprocity.md",
+      "prompt_bytes": 591,
+      "role": "seed"
+    },
+    {
+      "agent_id": "coin-vowel.osd.baldingsucks7993.testnet",
+      "name": "coin-vowel",
+      "family": "randomish",
+      "parent": null,
+      "prompt_file": "agents/strategies/randomish/coin-vowel.md",
+      "prompt_bytes": 312,
+      "role": "seed"
+    },
+    {
+      "agent_id": "coin-wordlen.osd.baldingsucks7993.testnet",
+      "name": "coin-wordlen",
+      "family": "randomish",
+      "parent": null,
+      "prompt_file": "agents/strategies/randomish/coin-wordlen.md",
+      "prompt_bytes": 238,
+      "role": "seed"
+    }
+  ],
+  "culled": [],
+  "skipped": []
+}
