@@ -1,0 +1,12 @@
+# gitleaks config: default rules + allowlist for public TEST-ONLY fixture keys.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "TEST-ONLY key vectors derived from public strings (see interfaces/fixtures/generate.mjs)"
+paths = [
+  '''interfaces/fixtures/test-key-vector\.json''',
+  '''interfaces/fixtures/test-nearai-signer\.json''',
+  '''(^|/)target/''',
+  '''(^|/)node_modules/''',
+]

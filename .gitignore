@@ -1,0 +1,24 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials/
+credentials.json
+**/near-credentials/
+.near-credentials/
+.outlayer-home/
+*secret*.json
+!interfaces/**
+
+# build
+target/
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.wasm
+*.log
+.DS_Store
