@@ -1,0 +1,258 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`osd MCP server > tool list snapshot 1`] = `
+[
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "Network, contract and the agent identity this server plays as. Never returns keys.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {},
+      "type": "object",
+    },
+    "name": "whoami",
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "Season state: status (pending_key|key_failed|commit|play|settled|cancelled), params (deadlines in ns, unit/bond yocto, model, prize split), entry deposit, counts, pool.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "season_id": {
+          "description": "Season id; defaults to the current season",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "type": "object",
+    },
+    "name": "get_season",
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "Ranking of a season: avg payoff (milli-units) vs distinct owners, rank (null = no counted matches), prize.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "season_id": {
+          "description": "Season id; defaults to the current season",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "type": "object",
+    },
+    "name": "get_leaderboard",
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "Match results of a season (moves C/D/F, payoffs in units, status, void reason). Filter by agent and/or status.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "agent_id": {
+          "description": "Only matches involving this agent",
+          "type": "string",
+        },
+        "season_id": {
+          "description": "Season id; defaults to the current season",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "status": {
+          "enum": [
+            "scheduled",
+            "pending",
+            "settled",
+            "void",
+            "refunded",
+          ],
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "name": "get_matches",
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "Agent record: owner, budget (yocto) held in the contract, seasons entered.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "agent_id": {
+          "description": "Agent account id (<name>.<contract>); defaults to the configured agent",
+          "maxLength": 64,
+          "minLength": 2,
+          "type": "string",
+        },
+      },
+      "type": "object",
+    },
+    "name": "get_agent",
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "An agent's entries across seasons (commitment, family, parent, rank). With season_id, walks parent links from that entry back to the root.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "agent_id": {
+          "description": "Agent account id (<name>.<contract>); defaults to the configured agent",
+          "maxLength": 64,
+          "minLength": 2,
+          "type": "string",
+        },
+        "season_id": {
+          "description": "Walk ancestry from this season",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "type": "object",
+    },
+    "name": "get_lineage",
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "Yocto the agent can claim from a season (payoffs, refunds, excess stake, prize, bond).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "agent_id": {
+          "description": "Agent account id (<name>.<contract>); defaults to the configured agent",
+          "maxLength": 64,
+          "minLength": 2,
+          "type": "string",
+        },
+        "season_id": {
+          "description": "Season id; defaults to the current season",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "type": "object",
+    },
+    "name": "get_claimable",
+  },
+  {
+    "annotations": {
+      "readOnlyHint": true,
+    },
+    "description": "Prompts voluntarily published after settlement (on-chain get_published_prompts), each verified against its on-chain commitment and joined with its final rank. Use these to learn which strategies did well.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "agent_id": {
+          "type": "string",
+        },
+        "family": {
+          "type": "string",
+        },
+        "limit": {
+          "description": "Max prompts (default 50)",
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "season_id": {
+          "description": "Only this season (default: all)",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "type": "object",
+    },
+    "name": "list_past_prompts",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+    },
+    "description": "Encrypt your strategy prompt to the season key with a fresh random salt and commit it (one entry per agent per season; stake + bond are debited from the agent budget). Prompt ≤ 4000 bytes. The salt is saved to a private local file (needed for publish_prompt after settlement) and is NOT returned.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "family": {
+          "description": "Strategy family tag, ^[a-z0-9_]{1,32}$",
+          "pattern": "^[a-z0-9_]{1,32}$",
+          "type": "string",
+        },
+        "parent_agent_id": {
+          "description": "Lineage: agent of the parent entry",
+          "type": "string",
+        },
+        "parent_season_id": {
+          "description": "Lineage: season of the parent entry",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+        "prompt": {
+          "description": "Strategy prompt text (the referee LLM reads it next to the opponent prompt)",
+          "minLength": 1,
+          "type": "string",
+        },
+        "season_id": {
+          "description": "Season id; defaults to the current season",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "prompt",
+        "family",
+      ],
+      "type": "object",
+    },
+    "name": "seal_and_commit",
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+    },
+    "description": "Move the agent's claimable winnings for a season into its budget (usable for the next commit).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "season_id": {
+          "description": "Settled season to claim from",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "season_id",
+      ],
+      "type": "object",
+    },
+    "name": "claim",
+  },
+]
+`;
