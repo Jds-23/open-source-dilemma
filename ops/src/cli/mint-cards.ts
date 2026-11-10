@@ -122,7 +122,12 @@ async function main(): Promise<void> {
   }
   if (execute && cfg) {
     const badge = badgeTokenId(seasonId);
-    const supply = await cards.view<string | null>('mt_supply', { token_id: badge });
+    // views run at final finality, a block or two behind the INCLUDED_FINAL send
+    let supply: string | null = null;
+    for (let i = 0; i < 10 && supply === null; i++) {
+      supply = await cards.view<string | null>('mt_supply', { token_id: badge });
+      if (supply === null) await cards.sleep(1500);
+    }
     log({ kind: 'info', msg: 'minted', badge, badge_supply: supply, cards: ids.length });
   }
 }
