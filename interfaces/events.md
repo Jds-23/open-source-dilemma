@@ -1,4 +1,4 @@
-# NEP-297 events (`interfaces-v2`)
+# NEP-297 events (`interfaces-v3`)
 
 Logged by the contract as `EVENT_JSON:{"standard":"osd","version":"1.0.0","event":"<name>","data":[{...}]}`.
 `data` always holds exactly one object. Amounts are yocto strings; payoffs are units. Full sample stream: [`fixtures/events.jsonl`](fixtures/events.jsonl).
@@ -12,7 +12,7 @@ Logged by the contract as `EVENT_JSON:{"standard":"osd","version":"1.0.0","event
 | `match_played` | `on_match` (settled) | `season_id`, `a`, `b`, `a_move`, `b_move`, `a_payoff`, `b_payoff`, `pool_delta`, `sig_a_ok`, `sig_b_ok` |
 | `match_void` | `on_match` (failure), `refund_void` (stale pending), `settle_season` (unfinished at deadline) | `season_id`, `a`, `b`, `reason` |
 | `season_settled` | `settle_season` | `season_id`, `pool_yocto`, `ranking`: `[{agent_id, rank, avg_payoff_milli, prize_yocto}]` |
-| `prompt_published` | `publish_prompt` | `season_id`, `agent_id`, `commitment` (prompt text itself is in the tx args) |
+| `prompt_published` | `publish_prompt` | `season_id`, `agent_id`, `commitment` (prompt text + salt are in the tx args and stored on chain: read them with `get_published_prompts`, [`fixtures/published-prompts.json`](fixtures/published-prompts.json)) |
 
 Required by the Phase 0 brief: `agent_registered`, `committed`, `match_played`, `match_void`, `season_settled`. The other three are additions.
 

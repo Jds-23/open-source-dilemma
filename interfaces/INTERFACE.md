@@ -1,9 +1,9 @@
-# Open Source Dilemma: frozen interfaces (`interfaces-v2`)
+# Open Source Dilemma: frozen interfaces (`interfaces-v3`)
 
 Owner: integrator. Changes only through an `interface-change` PR (see `docs/BUILD_PLAN.md` §0).
 Machine-readable copies: [`contract-abi.json`](contract-abi.json), [`wasm-io.schema.json`](wasm-io.schema.json), [`events.md`](events.md). Mock data: [`fixtures/`](fixtures/).
 
-The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2).
+The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2, §9.2: v2 → v3).
 
 ---
 
@@ -97,9 +97,12 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `refund_void` | anyone | 0 | `{season_id, a, b}` | `U128` refunded per side | match not `void`, and not `pending` for > 250 blocks |
 | `settle_season` | anyone | 0 | `{season_id}` | `LeaderboardRow[]` | status ≠ `play`; unfinished matches and `now < play_deadline_ns` (after the deadline, unfinished matches are voided and refunded) |
 | `claim` | agent account or its owner | 0 | `{season_id, agent_id}` | `U128` moved to budget | nothing claimable |
-| `publish_prompt` | agent's owner | 0 | `{season_id, agent_id, prompt, salt}` (`salt` 64 hex) | `null` | season not `settled`; `sha256(utf8(prompt) ‖ salt ‖ utf8(agent_id)) ≠ commitment` |
+| `publish_prompt` | agent's owner | 0 | `{season_id, agent_id, prompt, salt}` (`salt` 64 hex) | `null` (stores `prompt` + `salt`, see `get_published_prompts`) | season not `settled`; `sha256(utf8(prompt) ‖ salt ‖ utf8(agent_id)) ≠ commitment` |
 
 `commit` debits `entry_deposit_yocto = bond + 3 × unit × (max_agents − 1)` from the budget. `close_commits` fixes `stake_per_agent_yocto = 3 × unit × (N − 1)` and credits the excess to `claimable`. `on_match` credits payoffs to `claimable` and the pool delta to the season pool. `settle_season` ranks, splits the pool by `prize_split_bps`, and credits prizes and non-forfeited bonds to `claimable`.
+
+**Claimable formula** (per agent per season, after `settle_season`; **WS-1 to confirm**):
+`claimable = unused stake + match payoffs + 3 units per void match + prize share + bond`, where unused stake = `entry_deposit_yocto − bond − stake_per_agent_yocto`, payoffs/void refunds are in units × `unit_yocto`, and the bond is withheld (→ pool) if the agent forfeited (`F`) any match. Summed over all agents it equals the total entry deposits. Example per agent with breakdown: [`fixtures/claimable.json`](fixtures/claimable.json).
 
 `commit` does **not** check for duplicate prompts (commitments are salted, so they never collide); see §5.
 
@@ -109,7 +112,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 
 | View | Args | Returns |
 |---|---|---|
-| `get_config` | `{}` | `{owner, outlayer_account, wasm_url, wasm_hash, secrets_owner, secrets_profile, nearai_signer, current_season_id}` |
+| `get_config` | `{}` | `{owner, outlayer_account, wasm_url, wasm_hash, secrets_owner, secrets_profile, nearai_signer, current_season_id}` ([fixture](fixtures/config.json)) |
 | `get_season` | `{season_id}` | `Season \| null` |
 | `get_season_pubkey` | `{season_id}` | `String \| null` (66 hex) |
 | `get_entries` | `{season_id, from_index?, limit?}` | `Entry[]` (commit order) |
@@ -117,7 +120,8 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `get_leaderboard` | `{season_id}` | `LeaderboardRow[]` (live while playing; final after settle) |
 | `get_agent` | `{agent_id}` | `Agent \| null` |
 | `get_lineage` | `{agent_id}` | `LineageEntry[]` (one per season entered; follow `parent` to walk ancestors) |
-| `get_claimable` | `{season_id, agent_id}` | `U128` |
+| `get_claimable` | `{season_id, agent_id}` | `U128` (formula §6.1; [fixture](fixtures/claimable.json)) |
+| `get_published_prompts` | `{season_id, from_index?, limit?}` | `PublishedPrompt[]` = `[{agent_id, prompt, salt, commitment}]` (publish order; only prompts revealed via `publish_prompt`; [fixture](fixtures/published-prompts.json)) |
 
 Pagination defaults: `from_index = 0`, `limit = 100`, max 200.
 
@@ -131,6 +135,7 @@ Pagination defaults: `from_index = 0`, `limit = 100`, max 200.
 - `Match` `{season_id, a, b, round, match_key, status, a_move, b_move, a_payoff, b_payoff, pool_delta, sig_a_ok, sig_b_ok, a_chat_id, b_chat_id, a_signed_text, b_signed_text, a_sig, b_sig, void_reason, requested_at_block, settled_at_block}` ([fixture](fixtures/matches.json))
 - `LeaderboardRow` `{agent_id, owner, family, matches_counted, total_payoff_counted, avg_payoff_milli, rank, prize_yocto}` ([fixture](fixtures/leaderboard.json))
 - `LineageEntry` `{season_id, agent_id, commitment, family, parent, rank, avg_payoff_milli}` ([fixture](fixtures/lineage.json))
+- `PublishedPrompt` `{agent_id, prompt, salt, commitment}` ([fixture](fixtures/published-prompts.json))
 
 ## 7. Scheduling and ranking
 
@@ -148,7 +153,7 @@ Play output, **≤ 900 bytes, never any prompt text**:
 `{match_key, a_move, b_move, a_chat_id, b_chat_id, a_signed_text, b_signed_text, a_sig, b_sig}`
 or error `{match_key, error}` (contract voids the match; `error` ∈ `error_code` in the schema: `bad_input`, `unknown_action`, `predecessor_not_allowed`, `template_mismatch`, `no_seed`, `bad_seed`, `key_derivation`, `no_api_key`, `duplicate_prompt`, `llm_send`, `llm_timeout`, `llm_json`, `llm_status_<3 digits>`).
 
-WASM rules: refuse unless `NEAR_PREDECESSOR_ID` = the contract; error if `referee_template_hash` ≠ the compiled-in template hash; per side: decrypt `ct_*`, parse the §5 plaintext (`0x01 || salt || prompt`), recompute `sha256(prompt ‖ salt ‖ utf8(a or b))`; the side gets `F` if decryption fails, the plaintext is shorter than 33 bytes, byte 0 ≠ `0x01`, the prompt is not valid UTF-8 or exceeds `max_prompt_bytes`, or the commitment ≠ `hash_*` (no LLM calls if any side is `F`; chat/sig fields `""`); if both sides are valid and `prompt_a == prompt_b` byte-exact → error `duplicate_prompt` (checked before any LLM call); LLM reply parsed strictly (first `C`/`D` after trim+uppercase, else `D`); signed text format `<model>:<sha256(request_body)>:<sha256(response_body)>`. Fixtures: [`wasm-inputs.json`](fixtures/wasm-inputs.json), [`wasm-outputs.json`](fixtures/wasm-outputs.json), [`wasm-duplicate-example.json`](fixtures/wasm-duplicate-example.json) (max 820 B; signed with the TEST-ONLY key in [`test-nearai-signer.json`](fixtures/test-nearai-signer.json)).
+WASM rules: refuse unless `NEAR_PREDECESSOR_ID` = the contract; error if `referee_template_hash` ≠ the compiled-in template hash; per side: decrypt `ct_*`, parse the §5 plaintext (`0x01 || salt || prompt`), recompute `sha256(prompt ‖ salt ‖ utf8(a or b))`; the side gets `F` if decryption fails, the plaintext is shorter than 33 bytes, byte 0 ≠ `0x01`, the prompt is not valid UTF-8 or exceeds `max_prompt_bytes`, or the commitment ≠ `hash_*` (no LLM calls if any side is `F`; the valid side's move is recorded as `C`, payoff unaffected; chat/sig fields `""`); if both sides are valid and `prompt_a == prompt_b` byte-exact → error `duplicate_prompt` (checked before any LLM call); LLM reply parsed strictly (first character of the trimmed, uppercased reply must be `C`/`D`, else `D` + `nonstrict` log flag); signed text format `<model>:<sha256(request_body)>:<sha256(response_body)>`. Fixtures: [`wasm-inputs.json`](fixtures/wasm-inputs.json), [`wasm-outputs.json`](fixtures/wasm-outputs.json), [`wasm-duplicate-example.json`](fixtures/wasm-duplicate-example.json) (max 820 B; signed with the TEST-ONLY key in [`test-nearai-signer.json`](fixtures/test-nearai-signer.json)).
 
 ## 9. Deltas from the spike baseline
 
@@ -185,10 +190,33 @@ WASM rules: refuse unless `NEAR_PREDECESSOR_ID` = the contract; error if `refere
 | Referee placeholder text | D vs C = 5/0 | CC 3/3, DC 5/1, CD 1/5, DD 1/1 (+4 pool); `referee_template_hash` changed (still a placeholder, WS2 owns the final template) |
 | Fixtures | – | per-agent TEST-ONLY salts in `prompts.json`; `test-key-vector.json` sample has `salt_hex`, `plaintext_hex`, `commitment`; new `wasm-duplicate-example.json` |
 
-Additions beyond the Phase 0 brief (so other workstreams don't block): `fund_agent`, `withdraw`, `publish_prompt`, `get_config`, `get_entries`, `get_claimable`, events `season_opened`, `commits_closed`, `prompt_published`, move `F`, WASM inputs `hash_a`/`hash_b`/`action`.
+### 9.2 `interfaces-v2` → `interfaces-v3` (WS2 referee accepted)
+
+Canonical referee template = [`wasm/referee/referee-template.txt`](../wasm/referee/referee-template.txt) (compiled in byte-exact); `referee_template_hash` = `556bce7073d6cd3d62a798e36b36b1eda1c61c3b448be58fc928b0e2b614f865`. `fixtures/referee-template.txt` is a byte-identical copy written by `pnpm fixtures`; all fixtures carry this hash. WS2 decisions accepted by the integrator:
+
+| # | Area | Decision |
+|---|---|---|
+| i | Forfeit | If one side is `F`, no LLM call is made; the valid side's move is recorded as `C` (its payoff is unaffected: `F` scoring is fixed by §2). |
+| ii | Parser | Strict: the first character of the trimmed (uppercased) reply must be `C` or `D`; anything else → `D` and a `nonstrict` flag in the log. A reply longer than one letter (other than `C.`/`D.`) is also flagged. |
+| iii | Model | Model comes from on-chain `params.model` only; `NEARAI_MODEL` env is ignored. |
+| iv | Base URL | Production build accepts `NEARAI_BASE_URL` only if it is `https://*.near.ai` (else the compiled-in default). Cargo feature `insecure-base-url` lifts this for local mock runs only; it changes the WASM hash and is never deployed. |
+| v | Sanitising | `<` / `>` inside both strategies are replaced with fullwidth `＜` / `＞` before templating, so only referee-written section tags exist. |
+| vi | Output size | If the play output exceeds 900 bytes, proof fields are dropped in order: `b_signed_text`+`b_sig`, then `a_signed_text`+`a_sig`, then `b_chat_id`, then `a_chat_id` (contract treats them as flag-only). |
+
+Integrator additions in v3:
+
+| Area | `interfaces-v2` | `interfaces-v3` |
+|---|---|---|
+| Published prompts | `publish_prompt` only emits `prompt_published` (text only in tx args) | contract stores `{prompt, salt}`; new view `get_published_prompts({season_id, from_index?, limit?}) → PublishedPrompt[]`; fixture `published-prompts.json` |
+| Claimable | undocumented sum | formula in §6.1 (WS-1 to confirm); fixture `claimable.json` with breakdown |
+| Config | no fixture | fixture `config.json` (`get_config` shape) |
+| Lineage fixture | `grim.parent.season_id = 0` | `1` (season ids start at 1); `Parent.season_id` minimum 1 |
+
+Additions beyond the Phase 0 brief (so other workstreams don't block): `fund_agent`, `withdraw`, `publish_prompt`, `get_config`, `get_entries`, `get_claimable`, `get_published_prompts`, events `season_opened`, `commits_closed`, `prompt_published`, move `F`, WASM inputs `hash_a`/`hash_b`/`action`.
 
 ## 10. Fixture notes
 
 - `fixtures/generate.mjs` (`pnpm fixtures`) regenerates everything from fixed TEST-ONLY seeds and salts (`sha256("osd TEST-ONLY salt v1:<name>")`; real clients use random salts); only ECIES ciphertext bytes change between runs.
-- `fixtures/referee-template.txt` is a placeholder (the spike's inline text with the payoffs corrected to §2), used only so `referee_template_hash` has a real value. WS2 defines the canonical template; its hash is frozen in the P2 gate.
+- `fixtures/referee-template.txt` is a byte-identical copy of the canonical WS2 template `wasm/referee/referee-template.txt` (sha256 `556bce70…f865`, §9.2); the generator reads the WASM copy, so editing the template means re-running `pnpm fixtures` (and it changes the hash).
 - Season 1 fixture: 6 agents / 5 owners (`tft` and `grim` share `alice.testnet`, so that match is excluded from ranking), 15 matches, 1 void (`fairbot` vs `injector`), pool 20 units.
+- `grim.parent` = `{season_id: 1, agent_id: tft…}` (a same-season parent, a fixture simplification so the lineage link resolves within the fixtures). `config.json` wasm url/hash are placeholders until the P2 freeze; `secrets_profile` `osd` is illustrative. `claimable.json` adds a `breakdown` and `forfeited` flag for readability; the view returns only the `U128` total.

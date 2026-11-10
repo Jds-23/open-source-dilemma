@@ -1,0 +1,10 @@
+{
+  "owner": "baldingsucks7993.testnet",
+  "outlayer_account": "outlayer.testnet",
+  "wasm_url": "https://test.fastfs.io/baldingsucks7993.testnet/outlayer.testnet/<sha256>.wasm",
+  "wasm_hash": "<sha256 of referee wasm, frozen in P2>",
+  "secrets_owner": "baldingsucks7993.testnet",
+  "secrets_profile": "osd",
+  "nearai_signer": "229a641c3631caba413136011c5fa3777cea72664ca9538aadb6c40708fb6413",
+  "current_season_id": 1
+}
