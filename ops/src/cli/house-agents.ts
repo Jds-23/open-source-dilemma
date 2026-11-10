@@ -35,7 +35,7 @@ const USAGE = `usage: pnpm --filter @osd/ops house-agents --plan agents/plans/se
   --ops-account <id>       parent of the owner accounts and funder (default ${DEFAULTS.signer})
   --owner-prefix <p>       owner account label prefix (default h → h01, h02, …)
   --entry-deposit <NEAR>   used only if the season is not readable yet (default 1.22, fixture params)
-  --gas-margin <NEAR>      extra per owner for gas + storage (default 0.05)
+  --gas-margin <NEAR>      extra per owner for gas + storage (default 0.1: prepaid gas of register_agent 50 Tgas + commit 30 Tgas is reserved at ~0.08 NEAR)
   --only <name,...>        restrict to these agent names
   --repo-root <dir>        resolve plan prompt_file paths against this dir (default: repo root)
   --execute                sign and send (otherwise dry run)
@@ -82,7 +82,7 @@ async function main(): Promise<void> {
       'ops-account': { type: 'string', default: DEFAULTS.signer },
       'owner-prefix': { type: 'string', default: 'h' },
       'entry-deposit': { type: 'string', default: '1.22' },
-      'gas-margin': { type: 'string', default: '0.05' },
+      'gas-margin': { type: 'string', default: '0.1' },
       only: { type: 'string' },
       'repo-root': { type: 'string' },
       execute: { type: 'boolean', default: false },
