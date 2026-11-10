@@ -1,0 +1,27 @@
+{
+  "note": "Both entries decrypt and match their commitments, but prompt_a == prompt_b byte-exact -> error duplicate_prompt (match void, refund_void). Not part of the season 1 fixture set.",
+  "input": {
+    "action": "play_match",
+    "season": 1,
+    "match_key": "1:copycat1.osd.baldingsucks7993.testnet:copycat2.osd.baldingsucks7993.testnet",
+    "a": "copycat1.osd.baldingsucks7993.testnet",
+    "b": "copycat2.osd.baldingsucks7993.testnet",
+    "ct_a": "049da76d9a2af15693f053a01aabc990ed94afb20550be64f3850203a320c85611487aa969237958ec37f27e5c2efe1220d71a6bb4fae28b6d9cadb8387c184b62d40eaca3f32ca9520b1499d005bf95900085383e4e00eecdfd874894f34324111baee8a8d8aa3d3af71dee5aabec1c4050216666344269e34b392054ec10ea272b414dfe6b16e7458eab8bc5d96401aa926829d252d87e16c09da0da68639ef9fbc9b9a7",
+    "ct_b": "049aff40fb51bb851d61601a096e02894954c9baf4104d51cf4708c5cf1e6f24601c00adc0f79aa452fa94a9d0ecac28c00213f365609412f43f7e58c04281ad735d9e5fc25973314479eb1be005f931e8bf8e5718683136bb89b8810e69166bbe465cefa8e22ebf7aaa44b0f36df5ac18acee044affc852809baecb40ee0f328c18766d7f8c0e2f7d415c7e35712809e0dd431dd977b71fd72231555275547724878451d0",
+    "hash_a": "6ee8558a5951e25278dadad0dc43907d2765887e8123d162aa366a2852c77e93",
+    "hash_b": "6a213400d82fb476a1e8433b4193db3c962baf7a42786b323f332fb8a7a70e35",
+    "referee_template_hash": "645b0cff071367cc7b0df7aa38a348e7eb9fcb0e955a47ac879f6076533180f0",
+    "params": {
+      "model": "Qwen/Qwen3.8-27B",
+      "temperature": 0,
+      "seed": 42,
+      "max_tokens": 4,
+      "enable_thinking": false,
+      "max_prompt_bytes": 4000
+    }
+  },
+  "output": {
+    "match_key": "1:copycat1.osd.baldingsucks7993.testnet:copycat2.osd.baldingsucks7993.testnet",
+    "error": "duplicate_prompt"
+  }
+}

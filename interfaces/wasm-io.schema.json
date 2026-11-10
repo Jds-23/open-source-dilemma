@@ -1,13 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Jds-23/open-source-dilemma/interfaces/wasm-io.schema.json",
-  "title": "OSD referee WASM I/O (interfaces-v1)",
+  "title": "OSD referee WASM I/O (interfaces-v2)",
   "description": "stdin = OutLayer input_data; stdout = JSON result returned to on_pubkey/on_match. Play output must be <= 900 bytes and never contain prompt text.",
   "$defs": {
     "hex64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "account": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-z0-9._-]+$" },
     "match_key": { "type": "string", "pattern": "^[0-9]+:[a-z0-9._-]+:[a-z0-9._-]+$", "description": "<season_id>:<a>:<b>, a < b" },
-    "move": { "enum": ["C", "D", "F"] },
+    "move": { "enum": ["C", "D", "F"], "description": "F = forfeit: ciphertext undecryptable, malformed plaintext, prompt > max_prompt_bytes, or recomputed commitment != hash_*" },
+    "commitment": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "sha256(utf8(prompt) || salt[32] || utf8(agent_id)); the WASM recomputes it from the decrypted plaintext (0x01 || salt[32] || utf8(prompt)) and the side's account (a or b)" },
+    "error_code": {
+      "description": "Play/derive failure; the contract voids the match with this reason. duplicate_prompt = both sides valid and prompt_a == prompt_b byte-exact (refund via refund_void).",
+      "anyOf": [
+        { "enum": ["bad_input", "unknown_action", "predecessor_not_allowed", "template_mismatch", "no_seed", "bad_seed", "key_derivation", "no_api_key", "duplicate_prompt", "llm_send", "llm_timeout", "llm_json"] },
+        { "type": "string", "pattern": "^llm_status_[0-9]{3}$" }
+      ]
+    },
     "derive_pubkey_input": {
       "type": "object", "additionalProperties": false, "required": ["action", "season"],
       "properties": { "action": { "const": "derive_pubkey" }, "season": { "type": "integer", "minimum": 1 } }
@@ -23,8 +31,8 @@
         "b": { "$ref": "#/$defs/account" },
         "ct_a": { "type": "string", "pattern": "^([0-9a-f]{2})+$", "maxLength": 8400 },
         "ct_b": { "type": "string", "pattern": "^([0-9a-f]{2})+$", "maxLength": 8400 },
-        "hash_a": { "$ref": "#/$defs/hex64" },
-        "hash_b": { "$ref": "#/$defs/hex64" },
+        "hash_a": { "$ref": "#/$defs/commitment", "description": "Entry.commitment of a" },
+        "hash_b": { "$ref": "#/$defs/commitment", "description": "Entry.commitment of b" },
         "referee_template_hash": { "$ref": "#/$defs/hex64" },
         "params": {
           "type": "object", "additionalProperties": false,
@@ -61,7 +69,7 @@
     },
     "error_output": {
       "type": "object", "additionalProperties": false, "required": ["error"],
-      "properties": { "match_key": { "$ref": "#/$defs/match_key" }, "error": { "type": "string", "maxLength": 64 } }
+      "properties": { "match_key": { "$ref": "#/$defs/match_key" }, "error": { "$ref": "#/$defs/error_code" } }
     }
   },
   "input": { "oneOf": [{ "$ref": "#/$defs/derive_pubkey_input" }, { "$ref": "#/$defs/play_match_input" }] },

@@ -1,4 +1,4 @@
-# NEP-297 events (`interfaces-v1`)
+# NEP-297 events (`interfaces-v2`)
 
 Logged by the contract as `EVENT_JSON:{"standard":"osd","version":"1.0.0","event":"<name>","data":[{...}]}`.
 `data` always holds exactly one object. Amounts are yocto strings; payoffs are units. Full sample stream: [`fixtures/events.jsonl`](fixtures/events.jsonl).
@@ -7,16 +7,18 @@ Logged by the contract as `EVENT_JSON:{"standard":"osd","version":"1.0.0","event
 |---|---|---|
 | `agent_registered` | `register_agent` (after sub-account creation succeeds) | `agent_id`, `owner`, `name` |
 | `season_opened` | `on_pubkey` (key stored, status → `commit`) | `season_id`, `pubkey`, `referee_template_hash`, `commit_deadline_ns`, `entry_deposit_yocto` |
-| `committed` | `commit` | `season_id`, `agent_id`, `prompt_hash`, `family`, `parent` (`{season_id, agent_id}` or `null`) |
+| `committed` | `commit` | `season_id`, `agent_id`, `commitment` (salted, INTERFACE.md §5), `family`, `parent` (`{season_id, agent_id}` or `null`) |
 | `commits_closed` | `close_commits` | `season_id`, `n_entries`, `total_rounds`, `stake_per_agent_yocto` |
 | `match_played` | `on_match` (settled) | `season_id`, `a`, `b`, `a_move`, `b_move`, `a_payoff`, `b_payoff`, `pool_delta`, `sig_a_ok`, `sig_b_ok` |
 | `match_void` | `on_match` (failure), `refund_void` (stale pending), `settle_season` (unfinished at deadline) | `season_id`, `a`, `b`, `reason` |
 | `season_settled` | `settle_season` | `season_id`, `pool_yocto`, `ranking`: `[{agent_id, rank, avg_payoff_milli, prize_yocto}]` |
-| `prompt_published` | `publish_prompt` | `season_id`, `agent_id`, `prompt_hash` |
+| `prompt_published` | `publish_prompt` | `season_id`, `agent_id`, `commitment` (prompt text itself is in the tx args) |
 
 Required by the Phase 0 brief: `agent_registered`, `committed`, `match_played`, `match_void`, `season_settled`. The other three are additions.
 
-`reason` codes for `match_void`: the WASM `error` string (e.g. `llm_status_503`, `decrypt`, `template_mismatch`), or `callback_failed`, `bad_output`, `match_key_mismatch`, `stale_pending`, `deadline`.
+`reason` codes for `match_void` (`VoidReason` in `contract-abi.json`): the WASM `error` code (`wasm-io.schema.json` `error_code`, e.g. `llm_status_503`, `template_mismatch`, `duplicate_prompt`), or `callback_failed`, `bad_output`, `match_key_mismatch`, `stale_pending`, `deadline`. An undecryptable or commitment-mismatched entry is not a void: that side plays `F`.
+
+v2 renamed `prompt_hash` → `commitment` in `committed` and `prompt_published`; `version` stays `1.0.0` (nothing deployed yet).
 
 Examples:
 

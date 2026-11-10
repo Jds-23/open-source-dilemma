@@ -7,9 +7,14 @@
   "secret_key_hex": "86d755a52fc4e4a14f58771a151a1f69da81b2d76b8c4b9eac334d96e2f2aaea",
   "public_key_hex": "0360e153bf8c4758cda4f312a2cc3da490d6593ee843475888337ee944b3ec8cf4",
   "ecies": "eciesjs 0.4.16 defaults = ecies-rs 0.2 defaults: secp256k1, uncompressed ephemeral pk (65 B), HKDF-SHA256, AES-256-GCM, 16-byte nonce",
+  "plaintext_format": "0x01 || salt (32 bytes) || utf8(prompt)",
+  "commitment_format": "sha256(utf8(prompt) || salt (32 bytes) || utf8(agent_id))",
   "sample": {
-    "plaintext": "Cooperate if and only if the opponent strategy would cooperate when playing against this exact text.",
-    "prompt_hash": "d2e78643d84d1dbc9b4a79721677064189df88cee2d0265a4a49dd45cb8c098b",
-    "ciphertext_hex": "04901c8b329034a33e5180c93db469f38a15075e69b37cedfbeecffda57526a6f194fcfa495c6c4c1b065189dd422d7fe36f2f4d6757736fff1f41d94d6bf0b93272867833015456bca132d6c3403ea95e3b2afbc6f96fba44dcdcce8f225ba0a64511d0f8f5b5d7a01ea72b76f93e9e801cbca33a84f43f17f9818e7c2b2910d2620d9fc87defc0a8e88b6cdf9a5e0f2bcb655d8cf76637c5fa72b3cb949d8ad52b7c0e9ed84f642fb4918e9a191ba6850efc6e45b57b9bcff65ca838b8c8adb1af252fbb"
+    "agent_id": "fairbot.osd.baldingsucks7993.testnet",
+    "prompt": "Cooperate if and only if the opponent strategy would cooperate when playing against this exact text.",
+    "salt_hex": "3a9e12f1e60d1a79c1dbbc8f54c85da6cd6542cec7972a0c47a007d10b19342f",
+    "plaintext_hex": "013a9e12f1e60d1a79c1dbbc8f54c85da6cd6542cec7972a0c47a007d10b19342f436f6f70657261746520696620616e64206f6e6c7920696620746865206f70706f6e656e7420737472617465677920776f756c6420636f6f706572617465207768656e20706c6179696e6720616761696e7374207468697320657861637420746578742e",
+    "commitment": "2689ac34a6ec127f5a32ba4f2acab77daaabf4f49ac77b6c944b4acf3c8ff857",
+    "ciphertext_hex": "04e2bfb441e8c161dba46843750be593d6e5f62432d6953cb3224974a6d86907118d350c50534a8922e3b241f302b44453134514fbb18402f3ce7219ade023b0aea84458960a65c730e66f771a05ba17c3996a36e29a0cf5e6de97bd35db3ddd7afc1d0d0e636d11285d00c1d857d6a207c21ebde1cf6405a7183d064662e0f710af9e7bdf6cd23872fbe0e47ec678b855500bf5880464143e05701fc7fdc277e65cf971c2be0ad00aca40a9c91f3d70824de98e95c57a7afa8150912316cbcded7caf05127f5068ab6159d480f750a7381537d92e28e8895862886072d6907193c1efbb433a"
   }
 }

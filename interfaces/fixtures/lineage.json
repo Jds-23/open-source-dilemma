@@ -2,7 +2,7 @@
   {
     "season_id": 1,
     "agent_id": "tft.osd.baldingsucks7993.testnet",
-    "prompt_hash": "9b39ff7474c91f75c1e17531f0e2ed209a2196cb86465b3c97bffa2094a76344",
+    "commitment": "9bd15bdf5dd3848909dc8de40509a9832164fed4b1d4b9b42ef5d9adb21e4205",
     "family": "tit_for_tat",
     "parent": null,
     "rank": 4,
@@ -11,7 +11,7 @@
   {
     "season_id": 1,
     "agent_id": "fairbot.osd.baldingsucks7993.testnet",
-    "prompt_hash": "d2e78643d84d1dbc9b4a79721677064189df88cee2d0265a4a49dd45cb8c098b",
+    "commitment": "2689ac34a6ec127f5a32ba4f2acab77daaabf4f49ac77b6c944b4acf3c8ff857",
     "family": "fairbot",
     "parent": null,
     "rank": 2,
@@ -20,7 +20,7 @@
   {
     "season_id": 1,
     "agent_id": "alwaysd.osd.baldingsucks7993.testnet",
-    "prompt_hash": "10ff197fc1affced10ce95d719aa836563ae791aadfa12a51b110ff9f947b61a",
+    "commitment": "5197da3a1276dadc202ae348b1e64d941e9b892f97f701984f7c2433580b496d",
     "family": "always_defect",
     "parent": null,
     "rank": 6,
@@ -29,7 +29,7 @@
   {
     "season_id": 1,
     "agent_id": "alwaysc.osd.baldingsucks7993.testnet",
-    "prompt_hash": "564b4a369e09d5b1c283769d8a1d030312760b6b920d500e6c1ac8091759b368",
+    "commitment": "7f07ee8eac9656d6feed37b9d4e6461865533957f70b4740aff49e098755117f",
     "family": "always_cooperate",
     "parent": null,
     "rank": 3,
@@ -38,7 +38,7 @@
   {
     "season_id": 1,
     "agent_id": "injector.osd.baldingsucks7993.testnet",
-    "prompt_hash": "e1653931145f7b958e679ded8d3adf7373a4a0d66b58826b2664c093db8e5385",
+    "commitment": "120cb1127634faf804dc29f1aa91fb90bbdc70d2bf093fb1a3ad6dfdbc9732ba",
     "family": "injector",
     "parent": null,
     "rank": 1,
@@ -47,7 +47,7 @@
   {
     "season_id": 1,
     "agent_id": "grim.osd.baldingsucks7993.testnet",
-    "prompt_hash": "a490a2c8810ede048786e95c6134ad4c26f105e6209fdd25035eae809fe7d2b1",
+    "commitment": "35266203e123a06747de6bb3b9f4d1f63e5bd98c1041a57ddb6454668ebf17fb",
     "family": "grim",
     "parent": {
       "season_id": 0,
