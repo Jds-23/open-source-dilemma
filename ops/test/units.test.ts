@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { commitment, sealPrompt } from '@osd/sdk';
 import { ChainError, classifyError } from '../src/chain.ts';
-import { costSummary, familyRows, matchRows, moveRows, parseEventLines, seasonSummary, toCsv, type SeasonData } from '../src/evidence.ts';
+import { buildTxIndex, costSummary, familyRows, matchRows, moveRows, parseEventLines, seasonSummary, toCsv, type SeasonData } from '../src/evidence.ts';
 import { CHUNK_SIZE, encodeSimple, fastfsUrl, preparePayloads, sha256Hex, verifyUrl, versionedPath } from '../src/fastfs.ts';
 import { ownerIdFor, planSteps, promptFromStrategyFile, registerDeposit, validatePlan, type CommitPlan } from '../src/house.ts';
 import { roundRobinRound } from '../src/mock-chain.ts';
@@ -235,6 +235,23 @@ describe('evidence', () => {
     // pool from matches = Σ pool_delta × unit
     const pool = d.matches.reduce((a, m) => a + m.pool_delta, 0);
     assert.equal(BigInt(pool) * BigInt(d.season.params.unit_yocto), BigInt(d.season.pool_yocto));
+  });
+
+  test('tx index keeps the last ok play_match per match and ignores everything else', () => {
+    const ts = '2026-11-11T00:00:00.000Z';
+    const play = (a: string, b: string, tx_hash: string, outcome: 'ok' | 'error' | 'dry_run' = 'ok') =>
+      ({ ts, kind: 'tx' as const, season_id: 1, method: 'play_match', args: { season_id: 1, a, b }, tx_hash, outcome });
+    const idx = buildTxIndex([
+      play('y.t', 'z.t', 'H2'),
+      play('a.t', 'b.t', 'H1'),
+      play('a.t', 'b.t', 'H1b'),
+      play('a.t', 'c.t', 'HX', 'error'),
+      play('a.t', 'd.t', 'HD', 'dry_run'),
+      { ts, kind: 'tx', season_id: 1, method: 'close_commits', args: { season_id: 1 }, tx_hash: 'HC', outcome: 'ok' },
+      { ts, kind: 'info', msg: 'match_final', match_key: '1:a.t:b.t' },
+    ]);
+    assert.deepEqual(idx, { version: 1, tx: { '1:a.t:b.t': 'H1b', '1:y.t:z.t': 'H2' } });
+    assert.deepEqual(Object.keys(idx.tx), ['1:a.t:b.t', '1:y.t:z.t']);
   });
 
   test('match rows flag same-owner pairs and families', () => {

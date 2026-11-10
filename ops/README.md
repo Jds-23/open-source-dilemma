@@ -82,6 +82,10 @@ Output per season (`season-<n>/`):
 
 Across seasons: `seasons.csv`, `families.csv`. `export-evidence --fixtures` runs the same pipeline on `interfaces/fixtures`.
 
+## Web tx index (`src/cli/export-tx-index.ts`)
+
+`pnpm --filter @osd/ops export-tx-index [--runs-dir ops/runs] [--out tx-index.json]` reads the top-level keeper journals (not `dryrun/`/`mock/`) and writes `{"version":1,"tx":{"<season_id>:<a>:<b>":"<play_match tx hash>"}}` (last `outcome: ok` send per match wins). Host it and point the web's `NEXT_PUBLIC_INDEX_URL` at it; the web also accepts a raw `<season>.jsonl` journal directly.
+
 ## Other pieces
 
 - `fastfs/`: the spike's Python payload tools (reference). `src/fastfs.ts` is the TS port; a test checks the payload layout byte for byte, and its output matches `fastfs_payload.py` exactly on the referee WASM.

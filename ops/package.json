@@ -15,7 +15,8 @@
     "house-agents": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/house-agents.ts",
     "fastfs-upload": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/fastfs-upload.ts",
     "verify-secret": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/verify-secret.ts",
-    "export-evidence": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/export-evidence.ts"
+    "export-evidence": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/export-evidence.ts",
+    "export-tx-index": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/export-tx-index.ts"
   },
   "dependencies": {
     "@osd/sdk": "workspace:*",

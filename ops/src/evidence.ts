@@ -142,7 +142,8 @@ function round(x: number, d: number): number {
   return Math.round(x * f) / f;
 }
 
-function playTxIndex(runlog: LogRecord[] = []): Map<string, string> {
+/** `"<season>:<a>:<b>"` → hash of the last successful play_match send (later re-sends win). */
+export function playTxIndex(runlog: LogRecord[] = []): Map<string, string> {
   const m = new Map<string, string>();
   for (const r of runlog) {
     if (r.kind === 'tx' && r.method === 'play_match' && r.outcome === 'ok' && r.tx_hash && r.args) {
@@ -150,6 +151,16 @@ function playTxIndex(runlog: LogRecord[] = []): Map<string, string> {
     }
   }
   return m;
+}
+
+/** The web's NEXT_PUBLIC_INDEX_URL file (`export-tx-index`): match key → play_match tx hash, keys sorted. */
+export interface TxIndexFile {
+  version: 1;
+  tx: Record<string, string>;
+}
+
+export function buildTxIndex(runlog: LogRecord[]): TxIndexFile {
+  return { version: 1, tx: Object.fromEntries([...playTxIndex(runlog)].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) };
 }
 
 export function matchRows(d: SeasonData): MatchRow[] {
