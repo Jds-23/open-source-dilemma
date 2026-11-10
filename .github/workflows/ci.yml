@@ -28,6 +28,21 @@ jobs:
           workspaces: contracts/dilemma
       - run: cargo test --locked
 
+  cards:
+    name: cards contract (cargo test, rustc 1.85)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/cards
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup toolchain install && rustc --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts/cards
+      - run: cargo test --locked
+
   wasm:
     name: wasm (wasm32-wasip2 release build)
     runs-on: ubuntu-latest
