@@ -1,0 +1,6 @@
+{
+  "WARNING": "TEST-ONLY ed25519 key standing in for the NEAR AI Cloud signer in fixtures. Real signer key is pinned at deploy.",
+  "seed_hex": "a4ff579d208e0990359ba55a01b022f59e8a508bbb2067540bd8139675f0d93b",
+  "public_key_hex": "229a641c3631caba413136011c5fa3777cea72664ca9538aadb6c40708fb6413",
+  "signed_text_format": "<model>:<sha256(request_body)>:<sha256(response_body)>"
+}

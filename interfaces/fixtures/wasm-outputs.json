@@ -1,0 +1,160 @@
+[
+  {
+    "match_key": "1:grim.osd.baldingsucks7993.testnet:tft.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "C",
+    "a_chat_id": "bc6d24fa3c7efbf4985c59e55ce18b88",
+    "b_chat_id": "96546e87ae97ca52aca2a14c6a83ce8f",
+    "a_signed_text": "Qwen/Qwen3.8-27B:768064f4a19cc8f49a4d6691272d44f10eec64dc5579906fb27b351042758fe8:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:ea4a165833559f1491c8f02c938e94b384dc6c6971218386dd9afdab8633abb3:3ade3d12057e1d6e007b378effaa8f3586125f72eb9ccce78d29a1fc3b75db5b",
+    "a_sig": "9ef33311ca73dc7e7223da1d54b6ea66ff7e5af87f41128040353e2f1537a837e1130ec2edd32b395743971cff97043aa2a6dd566200efca887e25967e965808",
+    "b_sig": "72f10cf121605b5208487238ab72a5e34a49e30c1b522818f27b09da660f4feb8e7dec9e1d711bd05edfb9e5c65245720203860a6de8e191181f67ec939dfe0a"
+  },
+  {
+    "match_key": "1:fairbot.osd.baldingsucks7993.testnet:injector.osd.baldingsucks7993.testnet",
+    "error": "llm_status_503"
+  },
+  {
+    "match_key": "1:alwaysc.osd.baldingsucks7993.testnet:alwaysd.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "D",
+    "a_chat_id": "bc9dd024c66ac478a68bba41f64069a2",
+    "b_chat_id": "31ffda2bdd7d2a74a32e36e1bad034a7",
+    "a_signed_text": "Qwen/Qwen3.8-27B:1daa95cff215a16b89eeb7300028b85dd172c434b0cdc0ddc6924dc64cc7d2dd:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:91bad26dd314e97336bb8c889ce8735ef04b5d0218d74ac00d71670daced5f08:9eadc1598958624475d758e079f8814401087a052d7bc56f42a358bb172cebd2",
+    "a_sig": "3e7f90a9300d1c854155fe0a1d9ebc16db74dc7151e02a62a66d08a6ca8b7ccb6208e3ace481335982fcd211a4339bd874a1a863fbf23c618c519c60bba1c60c",
+    "b_sig": "4d3d16fb4b2cfc4e38fee8439f8ae1655b9cc5371f085dba2275f84eaa30201a205a759153cce55060c2f4a76378dd341745e084fba401e07bbc04b3a4c17b01"
+  },
+  {
+    "match_key": "1:injector.osd.baldingsucks7993.testnet:tft.osd.baldingsucks7993.testnet",
+    "a_move": "D",
+    "b_move": "C",
+    "a_chat_id": "a3ad7cb401afec70ffe47ef1771f173c",
+    "b_chat_id": "c0076469e26aeaf66aa7432fc4cd863d",
+    "a_signed_text": "Qwen/Qwen3.8-27B:b4da7600af2385d88b5702c4abba7f65273fbc987c518393e148d4e442413af3:e9f8724eb1d50b1ad5b08466cafc1f25e16d653e986888f837ad616a79598b38",
+    "b_signed_text": "Qwen/Qwen3.8-27B:f8dedb32540a3fa613201fea8c1ca6d5c7c5678996b417ce97ec0fcf279450da:3ade3d12057e1d6e007b378effaa8f3586125f72eb9ccce78d29a1fc3b75db5b",
+    "a_sig": "3a554e82ba968e1094123270a19998859088d52c74f7227f70bd8b446933c45f312e7dbefc322320df5528d7e24edfd6c0df1cca5be8ba0e60996e210c49f905",
+    "b_sig": "19bd439a03c841cd082898a17a5a71aa7ce8930831ef9c5b412cdde88b6103634c91597578ae904b2e2b1ea46fe299f34f5b5146fc74a928d444ce4e8dbca807"
+  },
+  {
+    "match_key": "1:alwaysc.osd.baldingsucks7993.testnet:grim.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "C",
+    "a_chat_id": "be9e71acb601f871ae358e8ff59dd7e6",
+    "b_chat_id": "56b7906efc8dd32ebc2f67e53625d1c1",
+    "a_signed_text": "Qwen/Qwen3.8-27B:228c9a9071314135a38ecd760da5cd85ee63792f44df167bc02b6be23a81ee84:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:cfec5231752ac53f7ba0cf91f07df9772aa9202bf00b797c1228c6ce779efa43:3ade3d12057e1d6e007b378effaa8f3586125f72eb9ccce78d29a1fc3b75db5b",
+    "a_sig": "6c61ee99575e1d271ba683e447747db0bc67c2bffe68bdcb4787f1a2b15ed77ea55bfcbd25be74974f7924435ea77e9b5a25127bd3d0b68770d2d8b73c731903",
+    "b_sig": "10f94481edc08a5bdf68a0705871e2dac80eeb91c2fdc2a682572762b374c71f26864c18d43b76f9992dbcdd085e9e18c9ecbe0422f1f971c0146e4d850d4d0c"
+  },
+  {
+    "match_key": "1:alwaysd.osd.baldingsucks7993.testnet:fairbot.osd.baldingsucks7993.testnet",
+    "a_move": "D",
+    "b_move": "D",
+    "a_chat_id": "92e759f5d12c7cc02dac8b707a08f2a8",
+    "b_chat_id": "9cab452751ccb21bd30a3dfc8d8329de",
+    "a_signed_text": "Qwen/Qwen3.8-27B:a80fb7bf744c9a9975e6d7cf30743f78997eb352c39997e1626955571d2c6cfb:e9f8724eb1d50b1ad5b08466cafc1f25e16d653e986888f837ad616a79598b38",
+    "b_signed_text": "Qwen/Qwen3.8-27B:3cef4956a8a1c772ae8a4290a2c410697324efa961c2e831081d1a8c551d3193:9eadc1598958624475d758e079f8814401087a052d7bc56f42a358bb172cebd2",
+    "a_sig": "63308b50b487ecf13476f8c44eb035520959105f2fbfad2a26769c5e46a94ef80a66e35abf30d1e80756f01c05183ed8a209232b3e1888287a0bab1edf8eab03",
+    "b_sig": "78493422d409202dd21292ca867e6a7b9e73a5581059c435ff4823663b30375f7c181863699c22990c501d36d325c7a3b520a2e7a234af1233b2c510fe1b3306"
+  },
+  {
+    "match_key": "1:alwaysc.osd.baldingsucks7993.testnet:tft.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "C",
+    "a_chat_id": "a79e55a20842a4b13da529060761fb6e",
+    "b_chat_id": "429f5c63dba5538228d88e8b2fb8462f",
+    "a_signed_text": "Qwen/Qwen3.8-27B:19e4e01ead692a88a929b726ac6eef10519f212b16a6008e5711ab7f0fa9905a:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:036ec2b5004fe6eaec6e56cf270ef477d6b21f7cc757b8b5c953a0294fa832d1:3ade3d12057e1d6e007b378effaa8f3586125f72eb9ccce78d29a1fc3b75db5b",
+    "a_sig": "7f36b1d28aa3f59edc644be530f36b44fe20e6d73da32a50d48c336aaf88507c2466dbd23fb8b550fb416f44ee3d29026850d867714b23626c658096fbf1020a",
+    "b_sig": "805e8c1f4f4fb7e7bc065278bbb51dd31985a9bb7273b4a648a6ddcea0e8a128c69aac6f11abb8a457b7b1c6f46282f355cd3cf51ead1084ec460b9618eb0d0f"
+  },
+  {
+    "match_key": "1:alwaysd.osd.baldingsucks7993.testnet:injector.osd.baldingsucks7993.testnet",
+    "a_move": "D",
+    "b_move": "D",
+    "a_chat_id": "080b2e0af7f89507a82ebe16f3c3bfcf",
+    "b_chat_id": "93c0d898d848864db26afb2afb291448",
+    "a_signed_text": "Qwen/Qwen3.8-27B:b82fb8d8a5da09037d448e856e060fc0da635e1b750b7d2990638e55bd377713:e9f8724eb1d50b1ad5b08466cafc1f25e16d653e986888f837ad616a79598b38",
+    "b_signed_text": "Qwen/Qwen3.8-27B:2d0396f2006f9421ce93f8897e9e1cebcb3bda8b7a2a0ce5383bdeb1d508d6c5:9eadc1598958624475d758e079f8814401087a052d7bc56f42a358bb172cebd2",
+    "a_sig": "16c187e05604b73fdb8be13e226fdfdd0d6e31b1901760ea19070f44f767bfa3151e214ffd876320dbbb33a62d6f81c41dfc599fc805b4c422a4a1a53473ff09",
+    "b_sig": "d4e7b058970885ecbe262694b2bba15ef46917f8ebf1b0ec06156a4948d94c662ab961437cfb70e2ccc13ade8e15aae17ce42772a713f9bddac29cd97e56c308"
+  },
+  {
+    "match_key": "1:fairbot.osd.baldingsucks7993.testnet:grim.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "C",
+    "a_chat_id": "05f68671cfc2d1ff0d1f4b82b85f392e",
+    "b_chat_id": "eebd789940f30c9dbbe38462322f9bb2",
+    "a_signed_text": "Qwen/Qwen3.8-27B:dca9b08fab1e83b4bb24fd9fcc3aec6d4c82025f2bbc92897ce1a2216b258fc2:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:e7e2ce1cf009b64347b8d9516f446cd87c7652257e2b5d4ca3d6089a91c60257:3ade3d12057e1d6e007b378effaa8f3586125f72eb9ccce78d29a1fc3b75db5b",
+    "a_sig": "804aba14fdc16287db33505c7764db040c03c5e4170669999dc3bb6329eac7fd9d5cf1d2971e5e623cd18434a981985c841861fb3a6550a6f15fc21a93949400",
+    "b_sig": "ce2ab8e832d2edbee1ae1f5947409df74b331cbb04f35c2d967638e4b3eb289f623f06a05233b8082419e60cae7ced5a5bf4385314559fef28ad9f134af24c04"
+  },
+  {
+    "match_key": "1:alwaysd.osd.baldingsucks7993.testnet:tft.osd.baldingsucks7993.testnet",
+    "a_move": "D",
+    "b_move": "D",
+    "a_chat_id": "8dcdc571c3f8b26f0691a5ab3c82cc1c",
+    "b_chat_id": "cf9c18b07ea6aa6b4457f395fc260e69",
+    "a_signed_text": "Qwen/Qwen3.8-27B:378b30ec925a34546f70597866627fd71661252f015dfdf5873c1cde45fc3387:e9f8724eb1d50b1ad5b08466cafc1f25e16d653e986888f837ad616a79598b38",
+    "b_signed_text": "Qwen/Qwen3.8-27B:e4c90f821c0d98810c5d8468ddfc3c7dca4870f3c4e31c12583f793830dba0d7:9eadc1598958624475d758e079f8814401087a052d7bc56f42a358bb172cebd2",
+    "a_sig": "fd08d86cf115792dc33582ce719b5fb92f058017e7f03d4d7825f974676098f923b059a3da6319c8c5afa82b63fb52f1b81f7cc7527a191915cf038b79e87307",
+    "b_sig": "b8a53755d312b6d6ced59f0231198bbe008521380e39fe62de67a656cc949631968fbe584fa77f132a5b1154bb6584f379dbd19a58239fe6140b7ef09ea01007"
+  },
+  {
+    "match_key": "1:alwaysc.osd.baldingsucks7993.testnet:fairbot.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "C",
+    "a_chat_id": "6aa403903449f127c7dd18eff02a56e7",
+    "b_chat_id": "09ae6923d4aed540be5282a846eb5624",
+    "a_signed_text": "Qwen/Qwen3.8-27B:f278203f848fb50448f983f9c2b7142c26371705a6ce59ae27730e25a64d337d:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:515b8f91d9fca7f40a903766236414cca7ec5d28eb98f138f2d7732f9526d343:3ade3d12057e1d6e007b378effaa8f3586125f72eb9ccce78d29a1fc3b75db5b",
+    "a_sig": "f6db4b1d8e6b592a0df5b9a715573f00f7984f9d6ab9b3d10f4369925431de25abc33bb2d7751f95678eceed387fdc351bf29dd3332085ebef44072a6ded0309",
+    "b_sig": "22ee16bd6a6e41a2d799ec38ada2122ee41bb229d52ae046a874acaa0d840d38ee810df0d499c02d1f5d1dd3be7c204d0fd60043c5bfefbd33332feda869580e"
+  },
+  {
+    "match_key": "1:grim.osd.baldingsucks7993.testnet:injector.osd.baldingsucks7993.testnet",
+    "a_move": "D",
+    "b_move": "D",
+    "a_chat_id": "73b23850e235a04c3cb39a82b592ddd5",
+    "b_chat_id": "0514113cceeedcfd816f028cdc834fbc",
+    "a_signed_text": "Qwen/Qwen3.8-27B:9981681f7cee8314f1568bbdeda50da449249f029da0b4c6333e1c37fd51ef7f:e9f8724eb1d50b1ad5b08466cafc1f25e16d653e986888f837ad616a79598b38",
+    "b_signed_text": "Qwen/Qwen3.8-27B:3bfef2e37232e32107c4cd1435ab9de974921cc19f82b04ade54a27f36172e4e:9eadc1598958624475d758e079f8814401087a052d7bc56f42a358bb172cebd2",
+    "a_sig": "a3bfc296161b9fbca2a522e357a449d31f855785104e5992a1f048bebdc8a6057af6759b2d0d94b67d682ab061884f858fd4e8f1b92528fc576dcaec126c6a09",
+    "b_sig": "577c4a317816d35df56d51e6ec222856d301e3cdae88e4da2a8c6a4d2ec98682ce44f3e7c86d24b0d94c55b9a3414d2e34635eab155ec0420153513a2fb11901"
+  },
+  {
+    "match_key": "1:fairbot.osd.baldingsucks7993.testnet:tft.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "C",
+    "a_chat_id": "8a4d49e154a2fe1e221f8d3ddddd2286",
+    "b_chat_id": "5c3e4a334f71e5384a9f2f23448dfe2d",
+    "a_signed_text": "Qwen/Qwen3.8-27B:d018bb76ea5af98b0d73c8a5cc4d36357c5dfa8256f79cb8460bc55732ed7733:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:2b66a26ebc789aacbb9c238ea4f36f07bd40f267de7b558a92faa5fc55f888ba:3ade3d12057e1d6e007b378effaa8f3586125f72eb9ccce78d29a1fc3b75db5b",
+    "a_sig": "962b369bcfb435347d230afa8d7a47ea32a7f3e09834fd2e6e8c0006c615a87538959c0a1ab4163aa4692994ea7c03b37a1a8050557235b8e85efa6d6fc6090c",
+    "b_sig": "3cc829f0cbc4fd65500eae43f11896508b1d1435e9e59ca809baca9c0860666cf0ad1bec3ae66e5820de16c464fe5a8a104fd5a230082c145164040602497b0e"
+  },
+  {
+    "match_key": "1:alwaysd.osd.baldingsucks7993.testnet:grim.osd.baldingsucks7993.testnet",
+    "a_move": "D",
+    "b_move": "D",
+    "a_chat_id": "86a5a126a24d4507faf273c0c8aa563b",
+    "b_chat_id": "1d3b6b95a1e2fdec9bd2c6cec09c41db",
+    "a_signed_text": "Qwen/Qwen3.8-27B:d0b041c1826be3c0bfadd451e4465c324f7922a2393d5d4a5c32d3eb71db5af0:e9f8724eb1d50b1ad5b08466cafc1f25e16d653e986888f837ad616a79598b38",
+    "b_signed_text": "Qwen/Qwen3.8-27B:07b770bbb628f8ef53d63fd486e9e328669b30e8e16bd828c9ec972cfe31ca60:9eadc1598958624475d758e079f8814401087a052d7bc56f42a358bb172cebd2",
+    "a_sig": "882e2121d6bc3ad55cfe73f895b0205a3fee938a40ae21a5985463b8d477e69d558831342897d7e5c2024155aeb1f24efe035e91253fc164191c0b71b35b4806",
+    "b_sig": "903d99b903decfbde57673a6f841e5a15ad55f397b518cbf991ee658e68c6b4c2b759e4db6d96de6d1c380ee0aaa44af91275ec20a1dbd786ba5be0728eb450e"
+  },
+  {
+    "match_key": "1:alwaysc.osd.baldingsucks7993.testnet:injector.osd.baldingsucks7993.testnet",
+    "a_move": "C",
+    "b_move": "D",
+    "a_chat_id": "b1810d30c8d28628c255cfb6ce24523d",
+    "b_chat_id": "27a8cd91363d882418d4bef7fd55748a",
+    "a_signed_text": "Qwen/Qwen3.8-27B:d4a7988c2d47ec685bbde8f7a44df0cad8d4b39369292167a06b8d199a5f4ddc:68b02711039dd4bc77ed984dc712f9cf14794228f3ee817ece8e7cae326d25c7",
+    "b_signed_text": "Qwen/Qwen3.8-27B:b366103d319cbcf149ddda17601bc6cb674694e1e3b7099160db56fbdde6b502:9eadc1598958624475d758e079f8814401087a052d7bc56f42a358bb172cebd2",
+    "a_sig": "64cb1ee1a3a72d858fe0ae0cc520f45ed1d26fc8c2dfef2a14c5a35fc9ce4150b19ceaa1e14806094190f73ab85f6adec765d93de33c3403d16165d748648401",
+    "b_sig": "402793521f1824b984c75db8a1c00087c2fbc793442f647a4ce44cb7d14795fa5a86e0abc47fc81e630287cb999e9979851d7a80b0ed0e6288e8f7e5a8b47407"
+  }
+]

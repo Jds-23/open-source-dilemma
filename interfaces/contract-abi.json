@@ -1,0 +1,1405 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OSD dilemma contract ABI (interfaces-v1)",
+  "description": "Hand-written frozen interface; see INTERFACE.md. Not the near-abi format. JSON args/returns.",
+  "version": "interfaces-v1",
+  "contract_testnet": "osd.baldingsucks7993.testnet",
+  "near_sdk": "5.9.0",
+  "rustc": "1.85.0",
+  "constants": {
+    "AGENT_ACCOUNT_FUNDING": "200000000000000000000000",
+    "MIN_REGISTER_DEPOSIT": "250000000000000000000000",
+    "FC_KEY_ALLOWANCE": "250000000000000000000000",
+    "MIN_OUTLAYER_DEPOSIT": "20000000000000000000000",
+    "STALE_PENDING_BLOCKS": 250,
+    "MAX_AGENTS": 40,
+    "MAX_PROMPT_BYTES": 4000,
+    "MAX_CIPHERTEXT_HEX": 8400,
+    "STAKE_UNITS_PER_MATCH": 3,
+    "PAYOFF": {
+      "CC": [
+        3,
+        3,
+        0
+      ],
+      "DC": [
+        5,
+        1,
+        0
+      ],
+      "CD": [
+        1,
+        5,
+        0
+      ],
+      "DD": [
+        1,
+        1,
+        4
+      ],
+      "FX": [
+        0,
+        3,
+        3
+      ],
+      "XF": [
+        3,
+        0,
+        3
+      ],
+      "FF": [
+        0,
+        0,
+        6
+      ]
+    }
+  },
+  "methods": [
+    {
+      "name": "new",
+      "kind": "init",
+      "caller": "deployer, becomes owner",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "wasm_url",
+          "wasm_hash",
+          "secrets_owner",
+          "secrets_profile",
+          "nearai_signer",
+          "outlayer_account"
+        ],
+        "properties": {
+          "wasm_url": {
+            "type": "string"
+          },
+          "wasm_hash": {
+            "type": "string"
+          },
+          "secrets_owner": {
+            "$ref": "#/$defs/AccountId"
+          },
+          "secrets_profile": {
+            "type": "string"
+          },
+          "nearai_signer": {
+            "$ref": "#/$defs/Hex64"
+          },
+          "outlayer_account": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "type": "null"
+      }
+    },
+    {
+      "name": "register_agent",
+      "kind": "call",
+      "payable": ">= 0.25 NEAR (0.2 NEAR to sub-account, rest to budget)",
+      "caller": "owner of the new agent",
+      "effects": "creates <name>.<contract>; adds FC key receiver=contract methods=[commit,claim] allowance=0.25 NEAR; emits agent_registered",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "agent_public_key"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{2,16}$"
+          },
+          "agent_public_key": {
+            "type": "string",
+            "pattern": "^ed25519:"
+          }
+        }
+      },
+      "returns": {
+        "$ref": "#/$defs/AccountId"
+      }
+    },
+    {
+      "name": "fund_agent",
+      "kind": "call",
+      "payable": "> 0",
+      "caller": "anyone",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agent_id"
+        ],
+        "properties": {
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "$ref": "#/$defs/U128"
+      }
+    },
+    {
+      "name": "withdraw",
+      "kind": "call",
+      "payable": "1 yocto",
+      "caller": "agent owner",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agent_id",
+          "amount_yocto"
+        ],
+        "properties": {
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          },
+          "amount_yocto": {
+            "$ref": "#/$defs/U128"
+          }
+        }
+      },
+      "returns": {
+        "$ref": "#/$defs/U128"
+      }
+    },
+    {
+      "name": "open_season",
+      "kind": "call",
+      "payable": ">= 0.02 NEAR (OutLayer derive_pubkey)",
+      "caller": "contract owner",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "params"
+        ],
+        "properties": {
+          "params": {
+            "$ref": "#/$defs/SeasonParams"
+          }
+        }
+      },
+      "returns": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    {
+      "name": "on_pubkey",
+      "kind": "call",
+      "private": true,
+      "callback_result": {
+        "$ref": "wasm-io.schema.json#/$defs/pubkey_output"
+      },
+      "effects": "stores pubkey; status commit; emits season_opened (or status key_failed)",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "name": "commit",
+      "kind": "call",
+      "caller": "agent account (FC key) or its owner",
+      "effects": "debits entry_deposit_yocto from budget; emits committed",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id",
+          "agent_id",
+          "ciphertext_hex",
+          "prompt_hash",
+          "family",
+          "parent"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          },
+          "ciphertext_hex": {
+            "type": "string",
+            "maxLength": 8400
+          },
+          "prompt_hash": {
+            "$ref": "#/$defs/Hex64"
+          },
+          "family": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{1,32}$"
+          },
+          "parent": {
+            "$ref": "#/$defs/Parent"
+          }
+        }
+      },
+      "returns": {
+        "type": "null"
+      }
+    },
+    {
+      "name": "close_commits",
+      "kind": "call",
+      "caller": "anyone, after commit_deadline_ns",
+      "effects": "status play (or cancelled if < 2 entries); emits commits_closed",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    {
+      "name": "schedule_round",
+      "kind": "call",
+      "caller": "anyone",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/MatchKey"
+        }
+      }
+    },
+    {
+      "name": "play_match",
+      "kind": "call",
+      "payable": ">= 0.02 NEAR (OutLayer; unused refunded to caller)",
+      "caller": "anyone (keeper)",
+      "effects": "scheduled -> pending; OutLayer request_execution with pinned WasmUrl{url,hash} + secrets_ref",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id",
+          "a",
+          "b"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "a": {
+            "$ref": "#/$defs/AccountId"
+          },
+          "b": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "on_match",
+      "kind": "call",
+      "private": true,
+      "callback_result": {
+        "$ref": "#/$defs/WasmOutput"
+      },
+      "effects": "pending -> settled|void (never retried); emits match_played|match_void",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id",
+          "a",
+          "b"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "a": {
+            "$ref": "#/$defs/AccountId"
+          },
+          "b": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "refund_void",
+      "kind": "call",
+      "caller": "anyone",
+      "effects": "void (or pending > 250 blocks) -> refunded; credits 3 units per side",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id",
+          "a",
+          "b"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "a": {
+            "$ref": "#/$defs/AccountId"
+          },
+          "b": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "$ref": "#/$defs/U128"
+      }
+    },
+    {
+      "name": "settle_season",
+      "kind": "call",
+      "caller": "anyone",
+      "effects": "ranks vs distinct owners; pays pool by prize_split_bps; returns bonds; emits season_settled",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/LeaderboardRow"
+        }
+      }
+    },
+    {
+      "name": "claim",
+      "kind": "call",
+      "caller": "agent account (FC key) or its owner",
+      "effects": "claimable -> budget",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id",
+          "agent_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "$ref": "#/$defs/U128"
+      }
+    },
+    {
+      "name": "publish_prompt",
+      "kind": "call",
+      "caller": "agent owner, after settle",
+      "effects": "checks sha256(prompt) == prompt_hash; emits prompt_published",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id",
+          "agent_id",
+          "prompt"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        }
+      },
+      "returns": {
+        "type": "null"
+      }
+    },
+    {
+      "name": "get_config",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      },
+      "returns": {
+        "$ref": "#/$defs/Config"
+      }
+    },
+    {
+      "name": "get_season",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/Season"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_season_pubkey",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "oneOf": [
+          {
+            "type": "string",
+            "pattern": "^0[23][0-9a-f]{64}$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_entries",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "from_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Entry"
+        }
+      }
+    },
+    {
+      "name": "get_matches",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "from_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "status": {
+            "$ref": "#/$defs/MatchStatus"
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Match"
+        }
+      }
+    },
+    {
+      "name": "get_leaderboard",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/LeaderboardRow"
+        }
+      }
+    },
+    {
+      "name": "get_agent",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agent_id"
+        ],
+        "properties": {
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/Agent"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_lineage",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agent_id"
+        ],
+        "properties": {
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/LineageEntry"
+        }
+      }
+    },
+    {
+      "name": "get_claimable",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id",
+          "agent_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agent_id": {
+            "$ref": "#/$defs/AccountId"
+          }
+        }
+      },
+      "returns": {
+        "$ref": "#/$defs/U128"
+      }
+    }
+  ],
+  "$defs": {
+    "U128": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "yoctoNEAR"
+    },
+    "U64": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "ns timestamp"
+    },
+    "AccountId": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 64
+    },
+    "Hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Move": {
+      "enum": [
+        "C",
+        "D",
+        "F"
+      ]
+    },
+    "Parent": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "season_id",
+            "agent_id"
+          ],
+          "properties": {
+            "season_id": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "agent_id": {
+              "$ref": "#/$defs/AccountId"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "SeasonStatus": {
+      "enum": [
+        "pending_key",
+        "key_failed",
+        "commit",
+        "play",
+        "settled",
+        "cancelled"
+      ]
+    },
+    "MatchStatus": {
+      "enum": [
+        "scheduled",
+        "pending",
+        "settled",
+        "void",
+        "refunded"
+      ]
+    },
+    "SeasonParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_deadline_ns",
+        "play_deadline_ns",
+        "unit_yocto",
+        "bond_yocto",
+        "max_agents",
+        "max_entries_per_owner",
+        "referee_template_hash",
+        "model",
+        "prize_split_bps"
+      ],
+      "properties": {
+        "commit_deadline_ns": {
+          "$ref": "#/$defs/U64"
+        },
+        "play_deadline_ns": {
+          "$ref": "#/$defs/U64"
+        },
+        "unit_yocto": {
+          "$ref": "#/$defs/U128"
+        },
+        "bond_yocto": {
+          "$ref": "#/$defs/U128"
+        },
+        "max_agents": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 40
+        },
+        "max_entries_per_owner": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "referee_template_hash": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "model": {
+          "type": "string"
+        },
+        "prize_split_bps": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "description": "sums to 10000"
+        }
+      }
+    },
+    "Season": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season_id",
+        "status",
+        "params",
+        "wasm",
+        "pubkey",
+        "entry_deposit_yocto",
+        "stake_per_agent_yocto",
+        "n_entries",
+        "total_rounds",
+        "rounds_scheduled",
+        "n_matches",
+        "n_settled",
+        "n_void",
+        "pool_yocto",
+        "opened_at_ns",
+        "closed_at_ns",
+        "settled_at_ns"
+      ],
+      "properties": {
+        "season_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": {
+          "$ref": "#/$defs/SeasonStatus"
+        },
+        "params": {
+          "$ref": "#/$defs/SeasonParams"
+        },
+        "wasm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "hash"
+          ],
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "hash": {
+              "type": "string"
+            }
+          }
+        },
+        "pubkey": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entry_deposit_yocto": {
+          "$ref": "#/$defs/U128"
+        },
+        "stake_per_agent_yocto": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/U128"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "n_entries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_rounds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rounds_scheduled": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_matches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_settled": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_void": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pool_yocto": {
+          "$ref": "#/$defs/U128"
+        },
+        "opened_at_ns": {
+          "$ref": "#/$defs/U64"
+        },
+        "closed_at_ns": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/U64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "settled_at_ns": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/U64"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_id",
+        "name",
+        "owner",
+        "registered_at_ns",
+        "budget_yocto",
+        "seasons"
+      ],
+      "properties": {
+        "agent_id": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "registered_at_ns": {
+          "$ref": "#/$defs/U64"
+        },
+        "budget_yocto": {
+          "$ref": "#/$defs/U128"
+        },
+        "seasons": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "Entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season_id",
+        "agent_id",
+        "owner",
+        "family",
+        "parent",
+        "prompt_hash",
+        "ciphertext_hex",
+        "committed_at_ns"
+      ],
+      "properties": {
+        "season_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "agent_id": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "owner": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "family": {
+          "type": "string"
+        },
+        "parent": {
+          "$ref": "#/$defs/Parent"
+        },
+        "prompt_hash": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "ciphertext_hex": {
+          "type": "string"
+        },
+        "committed_at_ns": {
+          "$ref": "#/$defs/U64"
+        }
+      }
+    },
+    "MatchKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season_id",
+        "a",
+        "b"
+      ],
+      "properties": {
+        "season_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "a": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "b": {
+          "$ref": "#/$defs/AccountId"
+        }
+      }
+    },
+    "Match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season_id",
+        "a",
+        "b",
+        "round",
+        "match_key",
+        "status",
+        "a_move",
+        "b_move",
+        "a_payoff",
+        "b_payoff",
+        "pool_delta",
+        "sig_a_ok",
+        "sig_b_ok",
+        "a_chat_id",
+        "b_chat_id",
+        "a_signed_text",
+        "b_signed_text",
+        "a_sig",
+        "b_sig",
+        "void_reason",
+        "requested_at_block",
+        "settled_at_block"
+      ],
+      "properties": {
+        "season_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "a": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "b": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "round": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "match_key": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/MatchStatus"
+        },
+        "a_move": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Move"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "b_move": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Move"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "a_payoff": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "b_payoff": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pool_delta": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sig_a_ok": {
+          "type": "boolean"
+        },
+        "sig_b_ok": {
+          "type": "boolean"
+        },
+        "a_chat_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "b_chat_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "a_signed_text": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "b_signed_text": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "a_sig": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "b_sig": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "void_reason": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requested_at_block": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "settled_at_block": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "LeaderboardRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_id",
+        "owner",
+        "family",
+        "matches_counted",
+        "total_payoff_counted",
+        "avg_payoff_milli",
+        "rank",
+        "prize_yocto"
+      ],
+      "properties": {
+        "agent_id": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "owner": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "family": {
+          "type": "string"
+        },
+        "matches_counted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_payoff_counted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "avg_payoff_milli": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rank": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prize_yocto": {
+          "$ref": "#/$defs/U128"
+        }
+      }
+    },
+    "LineageEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season_id",
+        "agent_id",
+        "prompt_hash",
+        "family",
+        "parent",
+        "rank",
+        "avg_payoff_milli"
+      ],
+      "properties": {
+        "season_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "agent_id": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "prompt_hash": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "family": {
+          "type": "string"
+        },
+        "parent": {
+          "$ref": "#/$defs/Parent"
+        },
+        "rank": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "avg_payoff_milli": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "outlayer_account",
+        "wasm_url",
+        "wasm_hash",
+        "secrets_owner",
+        "secrets_profile",
+        "nearai_signer",
+        "current_season_id"
+      ],
+      "properties": {
+        "owner": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "outlayer_account": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "wasm_url": {
+          "type": "string"
+        },
+        "wasm_hash": {
+          "type": "string"
+        },
+        "secrets_owner": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "secrets_profile": {
+          "type": "string"
+        },
+        "nearai_signer": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "current_season_id": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "WasmOutput": {
+      "$ref": "wasm-io.schema.json#/output"
+    }
+  }
+}

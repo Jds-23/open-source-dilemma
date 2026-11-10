@@ -1,0 +1,62 @@
+[
+  {
+    "agent_id": "injector.osd.baldingsucks7993.testnet",
+    "owner": "erin.testnet",
+    "family": "injector",
+    "matches_counted": 4,
+    "total_payoff_counted": 12,
+    "avg_payoff_milli": 3000,
+    "rank": 1,
+    "prize_yocto": "100000000000000000000000"
+  },
+  {
+    "agent_id": "fairbot.osd.baldingsucks7993.testnet",
+    "owner": "bob.testnet",
+    "family": "fairbot",
+    "matches_counted": 4,
+    "total_payoff_counted": 10,
+    "avg_payoff_milli": 2500,
+    "rank": 2,
+    "prize_yocto": "60000000000000000000000"
+  },
+  {
+    "agent_id": "alwaysc.osd.baldingsucks7993.testnet",
+    "owner": "dave.testnet",
+    "family": "always_cooperate",
+    "matches_counted": 5,
+    "total_payoff_counted": 11,
+    "avg_payoff_milli": 2200,
+    "rank": 3,
+    "prize_yocto": "40000000000000000000000"
+  },
+  {
+    "agent_id": "tft.osd.baldingsucks7993.testnet",
+    "owner": "alice.testnet",
+    "family": "tit_for_tat",
+    "matches_counted": 4,
+    "total_payoff_counted": 8,
+    "avg_payoff_milli": 2000,
+    "rank": 4,
+    "prize_yocto": "0"
+  },
+  {
+    "agent_id": "grim.osd.baldingsucks7993.testnet",
+    "owner": "alice.testnet",
+    "family": "grim",
+    "matches_counted": 4,
+    "total_payoff_counted": 8,
+    "avg_payoff_milli": 2000,
+    "rank": 5,
+    "prize_yocto": "0"
+  },
+  {
+    "agent_id": "alwaysd.osd.baldingsucks7993.testnet",
+    "owner": "carol.testnet",
+    "family": "always_defect",
+    "matches_counted": 5,
+    "total_payoff_counted": 9,
+    "avg_payoff_milli": 1800,
+    "rank": 6,
+    "prize_yocto": "0"
+  }
+]

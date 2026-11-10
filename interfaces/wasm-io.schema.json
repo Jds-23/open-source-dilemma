@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Jds-23/open-source-dilemma/interfaces/wasm-io.schema.json",
+  "title": "OSD referee WASM I/O (interfaces-v1)",
+  "description": "stdin = OutLayer input_data; stdout = JSON result returned to on_pubkey/on_match. Play output must be <= 900 bytes and never contain prompt text.",
+  "$defs": {
+    "hex64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "account": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-z0-9._-]+$" },
+    "match_key": { "type": "string", "pattern": "^[0-9]+:[a-z0-9._-]+:[a-z0-9._-]+$", "description": "<season_id>:<a>:<b>, a < b" },
+    "move": { "enum": ["C", "D", "F"] },
+    "derive_pubkey_input": {
+      "type": "object", "additionalProperties": false, "required": ["action", "season"],
+      "properties": { "action": { "const": "derive_pubkey" }, "season": { "type": "integer", "minimum": 1 } }
+    },
+    "play_match_input": {
+      "type": "object", "additionalProperties": false,
+      "required": ["action", "season", "match_key", "a", "b", "ct_a", "ct_b", "hash_a", "hash_b", "referee_template_hash", "params"],
+      "properties": {
+        "action": { "const": "play_match" },
+        "season": { "type": "integer", "minimum": 1 },
+        "match_key": { "$ref": "#/$defs/match_key" },
+        "a": { "$ref": "#/$defs/account" },
+        "b": { "$ref": "#/$defs/account" },
+        "ct_a": { "type": "string", "pattern": "^([0-9a-f]{2})+$", "maxLength": 8400 },
+        "ct_b": { "type": "string", "pattern": "^([0-9a-f]{2})+$", "maxLength": 8400 },
+        "hash_a": { "$ref": "#/$defs/hex64" },
+        "hash_b": { "$ref": "#/$defs/hex64" },
+        "referee_template_hash": { "$ref": "#/$defs/hex64" },
+        "params": {
+          "type": "object", "additionalProperties": false,
+          "required": ["model", "temperature", "seed", "max_tokens", "enable_thinking", "max_prompt_bytes"],
+          "properties": {
+            "model": { "type": "string", "examples": ["Qwen/Qwen3.8-27B"] },
+            "temperature": { "type": "number", "const": 0 },
+            "seed": { "type": "integer" },
+            "max_tokens": { "type": "integer", "minimum": 1, "maximum": 16 },
+            "enable_thinking": { "const": false },
+            "max_prompt_bytes": { "type": "integer", "maximum": 4000 }
+          }
+        }
+      }
+    },
+    "pubkey_output": {
+      "type": "object", "additionalProperties": false, "required": ["pubkey"],
+      "properties": { "pubkey": { "type": "string", "pattern": "^0[23][0-9a-f]{64}$" } }
+    },
+    "play_match_output": {
+      "type": "object", "additionalProperties": false,
+      "required": ["match_key", "a_move", "b_move", "a_chat_id", "b_chat_id", "a_signed_text", "b_signed_text", "a_sig", "b_sig"],
+      "properties": {
+        "match_key": { "$ref": "#/$defs/match_key" },
+        "a_move": { "$ref": "#/$defs/move" },
+        "b_move": { "$ref": "#/$defs/move" },
+        "a_chat_id": { "type": "string", "maxLength": 64 },
+        "b_chat_id": { "type": "string", "maxLength": 64 },
+        "a_signed_text": { "type": "string", "maxLength": 200, "description": "<model>:<sha256(request_body)>:<sha256(response_body)>, '' if unavailable" },
+        "b_signed_text": { "type": "string", "maxLength": 200 },
+        "a_sig": { "type": "string", "pattern": "^([0-9a-f]{128})?$", "description": "ed25519 signature hex, '' if unavailable" },
+        "b_sig": { "type": "string", "pattern": "^([0-9a-f]{128})?$" }
+      }
+    },
+    "error_output": {
+      "type": "object", "additionalProperties": false, "required": ["error"],
+      "properties": { "match_key": { "$ref": "#/$defs/match_key" }, "error": { "type": "string", "maxLength": 64 } }
+    }
+  },
+  "input": { "oneOf": [{ "$ref": "#/$defs/derive_pubkey_input" }, { "$ref": "#/$defs/play_match_input" }] },
+  "output": { "oneOf": [{ "$ref": "#/$defs/pubkey_output" }, { "$ref": "#/$defs/play_match_output" }, { "$ref": "#/$defs/error_output" }] },
+  "x-limits": { "play_output_max_bytes": 900, "prompt_max_bytes": 4000 }
+}

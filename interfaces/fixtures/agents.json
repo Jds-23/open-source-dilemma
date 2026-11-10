@@ -1,0 +1,62 @@
+[
+  {
+    "agent_id": "tft.osd.baldingsucks7993.testnet",
+    "name": "tft",
+    "owner": "alice.testnet",
+    "registered_at_ns": "1794312729000000000",
+    "budget_yocto": "5000000000000000000000000",
+    "seasons": [
+      1
+    ]
+  },
+  {
+    "agent_id": "fairbot.osd.baldingsucks7993.testnet",
+    "name": "fairbot",
+    "owner": "bob.testnet",
+    "registered_at_ns": "1794312729000000000",
+    "budget_yocto": "5000000000000000000000000",
+    "seasons": [
+      1
+    ]
+  },
+  {
+    "agent_id": "alwaysd.osd.baldingsucks7993.testnet",
+    "name": "alwaysd",
+    "owner": "carol.testnet",
+    "registered_at_ns": "1794312729000000000",
+    "budget_yocto": "5000000000000000000000000",
+    "seasons": [
+      1
+    ]
+  },
+  {
+    "agent_id": "alwaysc.osd.baldingsucks7993.testnet",
+    "name": "alwaysc",
+    "owner": "dave.testnet",
+    "registered_at_ns": "1794312729000000000",
+    "budget_yocto": "5000000000000000000000000",
+    "seasons": [
+      1
+    ]
+  },
+  {
+    "agent_id": "injector.osd.baldingsucks7993.testnet",
+    "name": "injector",
+    "owner": "erin.testnet",
+    "registered_at_ns": "1794312729000000000",
+    "budget_yocto": "5000000000000000000000000",
+    "seasons": [
+      1
+    ]
+  },
+  {
+    "agent_id": "grim.osd.baldingsucks7993.testnet",
+    "name": "grim",
+    "owner": "alice.testnet",
+    "registered_at_ns": "1794312729000000000",
+    "budget_yocto": "5000000000000000000000000",
+    "seasons": [
+      1
+    ]
+  }
+]
