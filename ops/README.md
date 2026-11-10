@@ -12,13 +12,13 @@ Secrets are read only at runtime: signing keys from `~/.near-credentials/<networ
 | Verify secret (read-only) | `ops/scripts/store-secret.sh --verify-only --wasm-hash <hash> [--profile p]` |
 | Contract deploy + init | `ops/scripts/deploy.sh --wasm-url … --wasm-hash … --secrets-profile … --nearai-signer … [--max-agents 40 --seasons 1]` |
 | Top up contract storage | `ops/scripts/deploy.sh --fund-only [--max-agents 40 --seasons 1]` |
-| House agents (h01..h25) | `pnpm --filter @osd/ops house-agents --plan agents/plans/season-1.json` |
-| Keeper (season runner) | `pnpm --filter @osd/ops keeper [--open ops/season-params.example.json]` |
+| House agents (h01..h25) | `pnpm --filter @osd/ops house-agents --plan ../agents/plans/season-1.json` |
+| Keeper (season runner) | `pnpm --filter @osd/ops keeper [--open season-params.example.json]` |
 | Keeper on the mock contract | `pnpm --filter @osd/ops keeper --mock` / `--mock --plan --mock-at play` |
 | Evidence export | `pnpm --filter @osd/ops export-evidence --season 1,2,3 [--fetch-tx]` / `--fixtures` |
 | Tests / lint | `pnpm --filter @osd/ops test` / `lint` (tsc + shellcheck) |
 
-Add `--execute` to any of these to send transactions. The TypeScript runs directly on Node ≥ 22.6 (`--experimental-strip-types`), so there is no build step.
+Add `--execute` to any of these to send transactions. `pnpm --filter` runs each script inside `ops/`, so relative paths (`--plan`, `--open`, `--file`, `--runs-dir`) resolve from `ops/`: use `../agents/plans/…` for a WS-4 plan. The TypeScript runs directly on Node ≥ 22.6 (`--experimental-strip-types`), so there is no build step.
 
 ## P2 gate runbook (in order)
 
@@ -29,7 +29,7 @@ Every WASM rebuild produces a new hash. A new hash needs a new FastFS path, a ne
 3. **Secret:** `outlayer login testnet` (as the secrets owner), then `NEARAI_API_KEY=… store-secret.sh --wasm-hash <hash> --execute`. This stores profile `osd-<hash12>` with `PROTECTED_SEASON_SEED` (hex32, generated in the TEE), `NEARAI_API_KEY`, accessor `WasmHash(<hash>)` and access `Predecessor{Whitelist[osd.baldingsucks7993.testnet]}` (`--via`, which reproduces the spike's `season1` row). It then checks the row through `outlayer.testnet::list_user_secrets`.
 4. **Deploy:** `deploy.sh --wasm-url … --wasm-hash … --secrets-profile osd-<hash12> --nearai-signer <64 hex> --execute`. It builds the contract (`cargo near build non-reproducible-wasm --locked`), creates `osd.baldingsucks7993.testnet` under the parent, deploys, calls `new(...)` signed by `--owner` (default: the parent, which then opens seasons), and checks `get_config` field by field. It refuses to touch an initialised contract unless you pass `--redeploy`.
    **Storage:** the contract account pays for everything it stores (INTERFACE.md §6.1): ~4.3 KB per entry and ~0.7 KB per match, at 1 NEAR / 100 KB. A 40-agent season (40 entries, 780 matches) needs ≈ 7.2 NEAR, a 6-agent season < 0.4 NEAR; the code is ~3.5 NEAR. A new account is funded with code + `--seasons` × `--max-agents` + 1 NEAR margin (40 agents, 1 season: 11.68 NEAR). Past seasons' state stays, so before every new season run `deploy.sh --fund-only --max-agents N --execute`: it reads the free balance (`amount − storage_usage × 10¹⁹`) and sends only the shortfall from `--parent`.
-5. **Season:** `keeper --open ops/season-params.example.json --execute`. To pin a different referee for this season only (a rebuilt WASM, a new secret profile), add `--wasm-url … --wasm-hash …` (together) and/or `--secrets-profile …`; they go to `open_season` and are frozen in the season (`get_season.wasm`, `.secrets_profile`); the config defaults stay as deployed. Deadlines may be relative (`+2h`). The command opens the season and waits for `on_pubkey`. Run `house-agents --plan … --execute` during the commit window. The keeper then waits for the deadline, calls `close_commits` and `schedule_round` ×R, runs `play_match` for every pair, `refund_void`, and `settle_season`.
+5. **Season:** `keeper --open season-params.example.json --execute`. To pin a different referee for this season only (a rebuilt WASM, a new secret profile), add `--wasm-url … --wasm-hash …` (together) and/or `--secrets-profile …`; they go to `open_season` and are frozen in the season (`get_season.wasm`, `.secrets_profile`); the config defaults stay as deployed. Deadlines may be relative (`+2h`). The command opens the season and waits for `on_pubkey`. Run `house-agents --plan ../agents/plans/season-<n>.json --execute` during the commit window. The keeper then waits for the deadline, calls `close_commits` and `schedule_round` ×R, runs `play_match` for every pair, `refund_void`, and `settle_season`.
 6. **Evidence:** `export-evidence --season 1 --fetch-tx` writes `ops/runs/evidence/<contract>/` (see below).
 
 ## Reproducible WASM build (`scripts/build-wasm.sh`, `.github/workflows/wasm-release.yml`)
@@ -51,7 +51,7 @@ It is a state machine over `get_season.status` that re-reads chain state before 
 
 **Idempotency, in layers:**
 1. The contract is the source of truth: `play_match` is sent only for matches the view shows as `scheduled`. The contract also refuses anything else (one-shot rule).
-2. A journal (`ops/runs/<season_id>.jsonl`, append-only, loaded on start) records every tx hash. A `play_match` that was included stays *in flight* for `graceBlocks` (10), so a lagging view never triggers a re-send. If the match is still `scheduled` after that, the tx failed on execution. It is re-sent with a warning, at most `maxSendsPerMatch` (2) times across runs.
+2. A journal (`ops/runs/<season_id>.jsonl`, append-only, loaded on start) records every tx hash, including the `open_season` tx (written once the new season id is known; `keeper.jsonl` only holds season-less notes). A `play_match` that was included stays *in flight* for `graceBlocks` (10), so a lagging view never triggers a re-send. If the match is still `scheduled` after that, the tx failed on execution. It is re-sent with a warning, at most `maxSendsPerMatch` (2) times across runs.
 3. Retries: transient errors (network, 429/5xx, timeouts, nonce) back off exponentially with jitter (1 s → 30 s, 5 attempts). **Before each retry the keeper re-reads state.** If the earlier attempt actually landed (for example a timeout after broadcast), it logs `skipped` and does not re-send. Contract refusals (`Smart contract panicked`, …) are never retried.
 4. A void match is never re-played. It only gets `refund_void`.
 
