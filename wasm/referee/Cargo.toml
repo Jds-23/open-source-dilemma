@@ -1,18 +1,36 @@
 [package]
 name = "referee-wasm"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+description = "Open Source Dilemma referee: OutLayer WASI P2 job (interfaces-v2)"
+publish = false
+
+[lib]
+name = "referee"
+path = "src/lib.rs"
+
+[[bin]]
+name = "referee-wasm"
+path = "src/main.rs"
+
+[features]
+# Lets NEARAI_BASE_URL point anywhere (e.g. a local mock server for the wasmtime
+# fixture run). Never enable for the deployed build: it changes the WASM hash.
+insecure-base-url = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-wasi-http-client = "0.2"
 sha2 = "0.10"
 hkdf = "0.12"
 hex = "0.4"
-base64 = "0.21"
 ecies = { version = "0.2", default-features = false, features = ["pure"] }
 libsecp256k1 = "0.7"
+# ecies -> k256 needs a critical-section impl; std works on native and wasip2.
+critical-section = { version = "1", features = ["std"] }
+
+[target.'cfg(target_os = "wasi")'.dependencies]
+wasi-http-client = "0.2"
 
 [profile.release]
 opt-level = "z"
