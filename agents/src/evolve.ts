@@ -2,10 +2,11 @@
 //   node --experimental-strip-types src/evolve.ts --mock [--out DIR] [--plan FILE] [--top 3] [--bottom 3] [--no-write]
 //   node --experimental-strip-types src/evolve.ts --env ../.env          # real NEAR AI (NEARAI_* env)
 //   node --experimental-strip-types src/evolve.ts --seed-plan [--plan FILE]
-// Source: interfaces/fixtures (offline). Chain reads go through ChainSource once @osd/sdk exposes a ViewClient.
+//   ... --chain   read the season via @osd/sdk (OSD_NETWORK / OSD_CONTRACT_ID / OSD_RPC_URL; mock = SDK MockChain)
+// Source: interfaces/fixtures by default (FixtureSource); --chain uses ChainSource over @osd/sdk.
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { FixtureSource } from './adapter.ts';
+import { ChainSource, FixtureSource, sdkViewClient, type SeasonSource } from './adapter.ts';
 import { DEFAULT_CONTRACT, evolve, seedPlan, writePlan } from './evolver.ts';
 import { loadNearAiEnv, MockLlm, NearAiClient, type LlmClient } from './llm.ts';
 import { AGENTS_ROOT, STRATEGIES_DIR } from './strategy.ts';
@@ -24,6 +25,7 @@ if (process.argv[1]?.endsWith('evolve.ts')) {
   const { values } = parseArgs({
     options: {
       mock: { type: 'boolean', default: false },
+      chain: { type: 'boolean', default: false },
       env: { type: 'string' },
       fixtures: { type: 'string' },
       out: { type: 'string' },
@@ -47,7 +49,11 @@ if (process.argv[1]?.endsWith('evolve.ts')) {
       if (values.env) loadNearAiEnv(values.env);
       llm = NearAiClient.fromEnv();
     }
-    const source = new FixtureSource(values.fixtures);
+    let source: SeasonSource;
+    if (values.chain) {
+      const { buildClient, configFromEnv } = await import('@osd/sdk/node');
+      source = new ChainSource(sdkViewClient(buildClient(configFromEnv(), 'none').client));
+    } else source = new FixtureSource(values.fixtures);
     const { plan, offspring } = await evolve({
       source, llm, contract: values.contract, outDir: values.out, write: !values['no-write'],
       topK: Number(values.top), bottomK: Number(values.bottom), log: (m) => console.log(m),

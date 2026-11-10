@@ -12,7 +12,11 @@ importers:
         specifier: 0.4.16
         version: 0.4.16
 
-  agents: {}
+  agents:
+    dependencies:
+      '@osd/sdk':
+        specifier: workspace:*
+        version: link:../packages/sdk
 
   attacks: {}
 

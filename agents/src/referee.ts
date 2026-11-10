@@ -1,39 +1,77 @@
 // Local mirror of the referee request (wasm/referee, WS2) so strategies can be sanity-checked off chain.
-// Request shape follows the current referee WASM: system = template, user = delimited own/opponent prompts.
-// When WS2 freezes the canonical template, update REFEREE_TEMPLATE / buildRefereeMessages to match it.
-import { existsSync, readFileSync } from 'node:fs';
+// Mirrors wasm/referee/src/template.rs + llm.rs at interfaces-v3: the canonical template file is
+// `<system>\n<<<USER>>>\n<user frame>`; the user frame holds {{YOUR_STRATEGY}} and {{OPPONENT_SOURCE}}
+// (substituted positionally, after `<`/`>` in both strategies become fullwidth ＜/＞).
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { FIXTURES_DIR } from './adapter.ts';
+import { REPO_ROOT } from './strategy.ts';
 import type { ChatMessage, ChatRequest, LlmClient } from './llm.ts';
 
-const FALLBACK_TEMPLATE =
-  "You are the referee of a one-shot prisoner's dilemma. You act for ONE player. Read that player's strategy (YOUR STRATEGY) " +
-  "and the opponent's strategy (OPPONENT STRATEGY), then decide the move the player's strategy implies against this opponent. " +
-  'Payoffs (you/opponent): both C = 3/3; you D, opponent C = 5/1; you C, opponent D = 1/5; both D = 1/1 (and 4 go to the shared pool). ' +
-  'Reply with exactly one character: C (cooperate) or D (defect). Nothing else.';
+/** Canonical template (compiled into the WASM byte-exact). */
+export const REFEREE_TEMPLATE_PATH = join(REPO_ROOT, 'wasm', 'referee', 'referee-template.txt');
+/** `referee_template_hash` frozen in interfaces-v3 (INTERFACE.md §9.2). */
+export const REFEREE_TEMPLATE_HASH = '556bce7073d6cd3d62a798e36b36b1eda1c61c3b448be58fc928b0e2b614f865';
 
-export function loadRefereeTemplate(path: string = join(FIXTURES_DIR, 'referee-template.txt')): string {
-  return existsSync(path) ? readFileSync(path, 'utf8').trim() : FALLBACK_TEMPLATE;
+const USER_MARKER = '\n<<<USER>>>\n';
+const PH_OWN = '{{YOUR_STRATEGY}}';
+const PH_OPP = '{{OPPONENT_SOURCE}}';
+
+/** Read the template byte-exact (no trim: the hash covers the whole file). */
+export function loadRefereeTemplate(path: string = REFEREE_TEMPLATE_PATH): string {
+  return readFileSync(path, 'utf8');
+}
+
+export function templateHash(template: string): string {
+  return createHash('sha256').update(template, 'utf8').digest('hex');
+}
+
+function parts(template: string): { system: string; pre: string; mid: string; post: string } {
+  const i = template.indexOf(USER_MARKER);
+  if (i < 0) throw new Error('referee template: missing <<<USER>>> marker');
+  const system = template.slice(0, i);
+  const user = template.slice(i + USER_MARKER.length);
+  const j = user.indexOf(PH_OWN);
+  const k = user.indexOf(PH_OPP, j + PH_OWN.length);
+  if (j < 0 || k < 0) throw new Error('referee template: missing placeholders');
+  return { system, pre: user.slice(0, j), mid: user.slice(j + PH_OWN.length, k), post: user.slice(k + PH_OPP.length) };
+}
+
+/** Same as the WASM: angle brackets inside strategies become fullwidth so they cannot forge section tags. */
+export function sanitize(s: string): string {
+  return s.replaceAll('<', '\uFF1C').replaceAll('>', '\uFF1E');
 }
 
 export function buildRefereeMessages(template: string, own: string, opponent: string): ChatMessage[] {
+  const { system, pre, mid, post } = parts(template);
   return [
-    { role: 'system', content: template },
-    { role: 'user', content: `YOUR STRATEGY:\n<<<${own}>>>\n\nOPPONENT STRATEGY:\n<<<${opponent}>>>\n\nYour move (C or D):` },
+    { role: 'system', content: system },
+    { role: 'user', content: pre + sanitize(own) + mid + sanitize(opponent) + post },
   ];
 }
 
+/** Season params as in the fixtures (`wasm-inputs.json`): temperature 0, seed 42, max_tokens 4, thinking off. */
 export function refereeRequest(template: string, own: string, opponent: string): ChatRequest {
   return { messages: buildRefereeMessages(template, own, opponent), temperature: 0, seed: 42, max_tokens: 4, enable_thinking: false };
 }
 
-/** Same rule as the WASM: trim, uppercase, first 'C' or 'D' character wins; anything else is D. */
+/**
+ * Strict WASM parser (INTERFACE.md §8): trim + uppercase, the first character must be C or D,
+ * anything else is D. `flagged` (the WASM's `nonstrict` log flag) unless the reply is one letter
+ * (optionally followed by `.`). A leading empty `<think></think>` block is ignored.
+ */
+export function parseMoveStrict(reply: string): { move: 'C' | 'D'; flagged: boolean } {
+  let t = reply.trim();
+  const th = /^<think>([\s\S]*?)<\/think>/.exec(t);
+  if (th && th[1].trim() === '') t = t.slice(th[0].length).trim();
+  const up = t.toUpperCase();
+  const c = up[0];
+  if (c !== 'C' && c !== 'D') return { move: 'D', flagged: true };
+  return { move: c, flagged: !(up.length === 1 || up === 'C.' || up === 'D.') };
+}
+
 export function parseMove(reply: string): 'C' | 'D' {
-  for (const ch of reply.trim().toUpperCase()) {
-    if (ch === 'C') return 'C';
-    if (ch === 'D') return 'D';
-  }
-  return 'D';
+  return parseMoveStrict(reply).move;
 }
 
 export async function refereeMove(llm: LlmClient, template: string, own: string, opponent: string): Promise<{ move: 'C' | 'D'; reply: string }> {
@@ -41,10 +79,10 @@ export async function refereeMove(llm: LlmClient, template: string, own: string,
   return { move: parseMove(reply), reply };
 }
 
-/** Extract (own, opponent) prompts back out of a referee request (used by the heuristic mock). */
+/** Extract the (sanitised) own/opponent prompts back out of a referee request (used by the heuristic mock). */
 export function unpackRefereeRequest(req: ChatRequest): { own: string; opponent: string } | null {
   const user = req.messages.find((m) => m.role === 'user')?.content ?? '';
-  const m = /^YOUR STRATEGY:\n<<<([\s\S]*)>>>\n\nOPPONENT STRATEGY:\n<<<([\s\S]*)>>>\n\nYour move \(C or D\):$/.exec(user);
+  const m = /<YOUR_STRATEGY>\n([\s\S]*)\n<\/YOUR_STRATEGY>\n\n<OPPONENT_SOURCE>\n([\s\S]*)\n<\/OPPONENT_SOURCE>\n\nYour move \(C or D\):$/.exec(user);
   return m ? { own: m[1], opponent: m[2] } : null;
 }
 

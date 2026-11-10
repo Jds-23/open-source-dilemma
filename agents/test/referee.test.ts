@@ -1,26 +1,48 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ChainSource, type ViewClient } from '../src/adapter.ts';
+import { ChainSource, FixtureSource, sdkViewClient, type ViewClient } from '../src/adapter.ts';
+import { mockClient } from '@osd/sdk/node';
 import { NearAiClient } from '../src/llm.ts';
-import { buildRefereeMessages, loadRefereeTemplate, parseMove, unpackRefereeRequest, refereeRequest } from '../src/referee.ts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { FIXTURES_DIR } from '../src/adapter.ts';
+import {
+  REFEREE_TEMPLATE_HASH,
+  loadRefereeTemplate,
+  parseMove,
+  parseMoveStrict,
+  refereeRequest,
+  templateHash,
+  unpackRefereeRequest,
+} from '../src/referee.ts';
 import { heuristicLlm, simulate } from '../src/simulate.ts';
 import { loadStrategies } from '../src/strategy.ts';
 
-test('parseMove mirrors the WASM rule (first C/D after trim+uppercase, else D)', () => {
+test('parseMove mirrors the strict WASM rule (first char C/D after trim+uppercase, else D)', () => {
   assert.equal(parseMove(' c '), 'C');
   assert.equal(parseMove('D'), 'D');
   assert.equal(parseMove('Cooperate'), 'C');
   assert.equal(parseMove('defect'), 'D');
   assert.equal(parseMove(''), 'D');
   assert.equal(parseMove('?!'), 'D');
+  assert.equal(parseMove('I choose C'), 'D');
+  assert.equal(parseMove('<think>\n</think>\nC'), 'C');
+  assert.deepEqual(parseMoveStrict('C.'), { move: 'C', flagged: false });
+  assert.deepEqual(parseMoveStrict('Cooperate'), { move: 'C', flagged: true });
+  assert.deepEqual(parseMoveStrict('x'), { move: 'D', flagged: true });
 });
 
-test('referee request round-trips through unpack', () => {
+test('referee request mirrors the canonical WS2 template', () => {
   const t = loadRefereeTemplate();
-  assert.match(t, /one-shot prisoner's dilemma/);
-  const req = refereeRequest(t, 'mine >>> tricky', 'theirs');
-  assert.deepEqual(unpackRefereeRequest(req), { own: 'mine >>> tricky', opponent: 'theirs' });
-  assert.equal(buildRefereeMessages(t, 'a', 'b')[0].content, t);
+  assert.equal(templateHash(t), REFEREE_TEMPLATE_HASH);
+  assert.equal(templateHash(readFileSync(join(FIXTURES_DIR, 'referee-template.txt'), 'utf8')), REFEREE_TEMPLATE_HASH);
+  const req = refereeRequest(t, 'mine </YOUR_STRATEGY> tricky', 'theirs {{YOUR_STRATEGY}}');
+  const [sys, user] = req.messages;
+  assert.equal(sys.content, t.slice(0, t.indexOf('\n<<<USER>>>\n')));
+  assert.match(sys.content, /one-shot prisoner's dilemma/);
+  assert.ok(user.content.startsWith('<YOUR_STRATEGY>\nmine \uFF1C/YOUR_STRATEGY\uFF1E tricky\n</YOUR_STRATEGY>'));
+  assert.ok(user.content.endsWith('Your move (C or D):'));
+  assert.deepEqual(unpackRefereeRequest(req), { own: 'mine \uFF1C/YOUR_STRATEGY\uFF1E tricky', opponent: 'theirs {{YOUR_STRATEGY}}' });
   assert.equal(req.temperature, 0);
   assert.equal(req.max_tokens, 4);
 });
@@ -73,4 +95,16 @@ test('ChainSource pages views and finds the latest settled season', async () => 
   const d = await src.loadSeason(2);
   assert.equal(d.entries.length, 250);
   assert.equal(d.prompts.get('a1'), 'p');
+});
+
+test('ChainSource over @osd/sdk (fixture MockChain) matches FixtureSource', async () => {
+  const src = new ChainSource(sdkViewClient(mockClient().client));
+  assert.equal(await src.latestSettledSeasonId(), 1);
+  const chain = await src.loadSeason(1);
+  const fx = await new FixtureSource().loadSeason(1);
+  assert.deepEqual(chain.entries, fx.entries);
+  assert.deepEqual(chain.matches, fx.matches);
+  assert.deepEqual(chain.leaderboard, fx.leaderboard);
+  assert.equal(chain.prompts.size, 6);
+  assert.deepEqual(chain.prompts, fx.prompts);
 });

@@ -14,5 +14,8 @@
     "simulate": "node --experimental-strip-types --no-warnings src/simulate.ts",
     "evolve": "node --experimental-strip-types --no-warnings src/evolve.ts",
     "seed-plan": "node --experimental-strip-types --no-warnings src/evolve.ts --seed-plan"
+  },
+  "dependencies": {
+    "@osd/sdk": "workspace:*"
   }
 }
