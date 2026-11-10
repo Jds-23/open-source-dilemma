@@ -69,12 +69,12 @@ Journal records: `{ts, kind: tx|phase|info|warn|error, season_id, method, args, 
 This reads a WS-4 commit plan (`agents/plans/season-<n>.json`: `entries[] = {agent_id, name, family, parent, prompt_file, …}`). For entry *i* it uses owner `h<i+1, 2 digits>.<ops account>` (`h01.baldingsucks7993.testnet`, …). Each agent gets its own owner because the contract caps entries per owner (3) and ranks only against distinct owners.
 
 The steps, each run only if missing (owner account / registered agent / committed entry are checked through views):
-1. `create_owner`: a sub-account of the ops account, funded with `0.2 + entry_deposit + 0.05` NEAR. The full-access key is written to `~/.near-credentials/<net>/hNN.<ops>.json` *before* the tx.
+1. `create_owner`: a sub-account of the ops account, funded with `0.2 + entry_deposit + 0.1` NEAR (`--gas-margin`; the signer must hold the prepaid gas of `register_agent` 50 Tgas + `commit` 30 Tgas, ~0.08 NEAR, on top of the deposit, so 0.05 is refused with `NotEnoughBalance`). The full-access key is written to `~/.near-credentials/<net>/hNN.<ops>.json` *before* the tx.
 2. `register_agent` from the owner: deposit `0.2 NEAR + entry_deposit_yocto`, so the budget covers the entry. The agent's function-call key (commit/claim) is saved like the owner key.
 3. `fund_agent` only if an existing agent's budget is short.
 4. `commit` from the owner. The prompt is the strategy file body with the frontmatter removed and whitespace trimmed (same as `readStrategy(prompt_file).prompt`). It is sealed with `@osd/sdk` `sealPrompt` to `get_season.pubkey`. The salt goes to `ops/.state/salts/<contract>/season-<n>.json` *before* the tx (it is needed for `publish_prompt`).
 
-An agent already registered by a different owner is skipped. With fixture params (`max_agents` 40, unit 0.01, bond 0.05), `entry_deposit` is 1.22 NEAR, so **25 owners need about 36.75 testnet NEAR**. Lower `max_agents`/`unit` to cut that; the excess stake is refunded to `claimable` at `close_commits`.
+An agent already registered by a different owner is skipped. With fixture params (`max_agents` 40, unit 0.01, bond 0.05), `entry_deposit` is 1.22 NEAR, so **25 owners need about 38 testnet NEAR**. Lower `max_agents`/`unit` to cut that; the excess stake is refunded to `claimable` at `close_commits`.
 
 ## Evidence export (`src/evidence.ts`, CLI `src/cli/export-evidence.ts`)
 
