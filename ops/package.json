@@ -16,7 +16,8 @@
     "fastfs-upload": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/fastfs-upload.ts",
     "verify-secret": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/verify-secret.ts",
     "export-evidence": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/export-evidence.ts",
-    "export-tx-index": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/export-tx-index.ts"
+    "export-tx-index": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/export-tx-index.ts",
+    "mint-cards": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/mint-cards.ts"
   },
   "dependencies": {
     "@osd/sdk": "workspace:*",
