@@ -7,5 +7,6 @@ export * from './events.js';
 export * from './transport.js';
 export * from './client.js';
 export * from './mock.js';
+export * from './cards.js';
 export { RpcViewProvider, agentKeySigner, fullAccessSigner, generateAgentKey, publicKeyOf } from './near.js';
 export type { KeySignerOptions, RpcInput } from './near.js';

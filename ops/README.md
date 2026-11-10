@@ -92,6 +92,21 @@ Across seasons: `seasons.csv`, `families.csv`. `export-evidence --fixtures` runs
 
 `pnpm --filter @osd/ops export-tx-index [--runs-dir ops/runs] [--out tx-index.json]` reads the top-level keeper journals (not `dryrun/`/`mock/`) and writes `{"version":1,"tx":{"<season_id>:<a>:<b>":"<play_match tx hash>"}}` (last `outcome: ok` send per match wins). Host it and point the web's `NEXT_PUBLIC_INDEX_URL` at it; the web also accepts a raw `<season>.jsonl` journal directly.
 
+## Strategy cards (WS-8: `scripts/deploy-cards.sh`, `src/cards.ts`, CLI `src/cli/mint-cards.ts`)
+
+NEP-245 cards live in a separate contract (`contracts/cards`, `cards.osd.baldingsucks7993.testnet`); the
+core contract is not touched. Both commands are dry runs unless `--execute`.
+
+```sh
+ops/scripts/deploy-cards.sh [--execute]                    # create cards.<core> (signed by core), fund from parent, deploy + new()
+pnpm --filter @osd/ops mint-cards --season 1 [--execute]  # settled season -> mint_season_cards (skips minted cards)
+```
+
+`mint-cards` reads `get_season` (must be settled), `get_leaderboard` and `get_entries`; family comes from the
+house plan (`agents/plans/season-<n>[.seed].json`), else the committed entry family, else `unknown`; `settle_tx`
+from `runs/<n>.jsonl`. Token ids: card `s<n>:<agent_id>` (supply 1, to the entry owner), badge `badge:s<n>`
+(one unit per entry). Sent txs are journaled to `runs/cards-season-<n>.jsonl`.
+
 ## Other pieces
 
 - `fastfs/`: the spike's Python payload tools (reference). `src/fastfs.ts` is the TS port; a test checks the payload layout byte for byte, and its output matches `fastfs_payload.py` exactly on the referee WASM.
