@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OSD dilemma contract ABI (interfaces-v2)",
+  "title": "OSD dilemma contract ABI (interfaces-v3)",
   "description": "Hand-written frozen interface; see INTERFACE.md. Not the near-abi format. JSON args/returns.",
-  "version": "interfaces-v2",
+  "version": "interfaces-v3",
   "contract_testnet": "osd.baldingsucks7993.testnet",
   "near_sdk": "5.9.0",
   "rustc": "1.85.0",
@@ -463,7 +463,7 @@
       "name": "publish_prompt",
       "kind": "call",
       "caller": "agent owner, after settle",
-      "effects": "checks sha256(utf8(prompt) || salt || utf8(agent_id)) == entry.commitment; emits prompt_published",
+      "effects": "checks sha256(utf8(prompt) || salt || utf8(agent_id)) == entry.commitment; stores {prompt, salt} (readable via get_published_prompts); emits prompt_published",
       "args": {
         "type": "object",
         "additionalProperties": false,
@@ -723,6 +723,39 @@
       },
       "returns": {
         "$ref": "#/$defs/U128"
+      },
+      "description": "claimable = unused stake + match payoffs + 3 units per void match + prize share + bond (bond withheld if the agent forfeited any match); WS-1 to confirm. Example: fixtures/claimable.json"
+    },
+    {
+      "name": "get_published_prompts",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season_id"
+        ],
+        "properties": {
+          "season_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "from_index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "returns": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/PublishedPrompt"
+        }
       }
     }
   ],
@@ -770,7 +803,7 @@
           "properties": {
             "season_id": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1
             },
             "agent_id": {
               "$ref": "#/$defs/AccountId"
@@ -1427,6 +1460,32 @@
     },
     "WasmOutput": {
       "$ref": "wasm-io.schema.json#/output"
+    },
+    "PublishedPrompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_id",
+        "prompt",
+        "salt",
+        "commitment"
+      ],
+      "description": "Stored by a successful publish_prompt (season settled, commitment checked). TEST data: fixtures/published-prompts.json",
+      "properties": {
+        "agent_id": {
+          "$ref": "#/$defs/AccountId"
+        },
+        "prompt": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "salt": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "commitment": {
+          "$ref": "#/$defs/Commitment"
+        }
+      }
     }
   }
 }

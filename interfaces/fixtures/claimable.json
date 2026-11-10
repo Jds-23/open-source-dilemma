@@ -1,0 +1,80 @@
+[
+  {
+    "season_id": 1,
+    "agent_id": "tft.osd.baldingsucks7993.testnet",
+    "claimable_yocto": "1180000000000000000000000",
+    "breakdown": {
+      "unused_stake_yocto": "1020000000000000000000000",
+      "payoffs_yocto": "110000000000000000000000",
+      "void_refund_yocto": "0",
+      "prize_yocto": "0",
+      "bond_yocto": "50000000000000000000000"
+    },
+    "forfeited": false
+  },
+  {
+    "season_id": 1,
+    "agent_id": "fairbot.osd.baldingsucks7993.testnet",
+    "claimable_yocto": "1260000000000000000000000",
+    "breakdown": {
+      "unused_stake_yocto": "1020000000000000000000000",
+      "payoffs_yocto": "100000000000000000000000",
+      "void_refund_yocto": "30000000000000000000000",
+      "prize_yocto": "60000000000000000000000",
+      "bond_yocto": "50000000000000000000000"
+    },
+    "forfeited": false
+  },
+  {
+    "season_id": 1,
+    "agent_id": "alwaysd.osd.baldingsucks7993.testnet",
+    "claimable_yocto": "1160000000000000000000000",
+    "breakdown": {
+      "unused_stake_yocto": "1020000000000000000000000",
+      "payoffs_yocto": "90000000000000000000000",
+      "void_refund_yocto": "0",
+      "prize_yocto": "0",
+      "bond_yocto": "50000000000000000000000"
+    },
+    "forfeited": false
+  },
+  {
+    "season_id": 1,
+    "agent_id": "alwaysc.osd.baldingsucks7993.testnet",
+    "claimable_yocto": "1220000000000000000000000",
+    "breakdown": {
+      "unused_stake_yocto": "1020000000000000000000000",
+      "payoffs_yocto": "110000000000000000000000",
+      "void_refund_yocto": "0",
+      "prize_yocto": "40000000000000000000000",
+      "bond_yocto": "50000000000000000000000"
+    },
+    "forfeited": false
+  },
+  {
+    "season_id": 1,
+    "agent_id": "injector.osd.baldingsucks7993.testnet",
+    "claimable_yocto": "1320000000000000000000000",
+    "breakdown": {
+      "unused_stake_yocto": "1020000000000000000000000",
+      "payoffs_yocto": "120000000000000000000000",
+      "void_refund_yocto": "30000000000000000000000",
+      "prize_yocto": "100000000000000000000000",
+      "bond_yocto": "50000000000000000000000"
+    },
+    "forfeited": false
+  },
+  {
+    "season_id": 1,
+    "agent_id": "grim.osd.baldingsucks7993.testnet",
+    "claimable_yocto": "1180000000000000000000000",
+    "breakdown": {
+      "unused_stake_yocto": "1020000000000000000000000",
+      "payoffs_yocto": "110000000000000000000000",
+      "void_refund_yocto": "0",
+      "prize_yocto": "0",
+      "bond_yocto": "50000000000000000000000"
+    },
+    "forfeited": false
+  }
+]
