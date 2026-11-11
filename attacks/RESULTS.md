@@ -46,6 +46,16 @@ Every row below was produced by a script in `attacks/src/attacks/` and is stored
   void a rival's matches (unranked rival, or a skewed leaderboard). Fix: `require!(env::prepaid_gas() >= Gas::from_tgas(250))`
   (or a computed floor: own work + OutLayer + the 40 Tgas callback) in `play_match`; a contract change, so it needs an ADR.
 
+- **F3 (fixed, interfaces-v6): the season secrets profile was owned by the deployer** (`baldingsucks7993.testnet/osd-ad40dcf455fa`).
+  The OutLayer keystore keys each row by its `store_secrets` signer, and only that account can re-store, re-scope
+  (`update_access`) or delete it, so even after seal the deployer could whitelist itself and probe prompts, or plant a known seed.
+  **Fix (PR #32):** a new profile `osd.baldingsucks7993.testnet/osd-ad40dcf455fa-c` was stored **signed by the contract account**
+  (fresh TEE seed), and the config was switched with the owner-only `set_secrets` (refused after seal). The old row was deleted
+  after seasons 1–4 settled, which destroys the old seed: past ciphertexts can no longer be decrypted by anyone. After seal the
+  contract has no keys, so no account can sign as the owner and the profile is immutable by construction (rows 14a/14b; trust that
+  remains: the OutLayer operator). Note: the 05c control derives the season-1 pubkey from the *config* profile. With the new seed
+  it no longer matches seasons 1–4 (expected; seasons from 5 on use the new seed).
+
 ## Run
 
 ```sh
@@ -125,6 +135,8 @@ commitment, clone farm, early lifecycle calls); run again after play they verify
 | 12o | Outsider refund_void on a settled season-1 match (pull the stakes back) | refused: "match not void" | refused: Smart contract panicked: match not void | PASS | [`4HmxW2E1nL…`](https://testnet.nearblocks.io/txns/4HmxW2E1nLvjYHNNBcXXtzH2VHkKSjgLBpX3feCNo1R3) |
 | 12p | Outsider commits someone else's agent into settled season 1 | refused: "caller must be the agent or its owner" | refused: Smart contract panicked: caller must be the agent or its owner | PASS | [`8rmwphaWw2…`](https://testnet.nearblocks.io/txns/8rmwphaWw2hAGXaSrJVJAUWo9aYisMdR8AHRJHQmjkMt) |
 | 13-50 | Outsider play_match with 50 Tgas (exploiter vs tft-oneshot) | refused for too little gas, or the match is played normally (never voided by an outsider) | tx ok; OutLayer receipts FAILED (Exceeded the prepaid gas.); match now void (callback_failed) | **FINDING** | [`D65ek8DGCK…`](https://testnet.nearblocks.io/txns/D65ek8DGCKLPqKkcR6j4fpVsbBF8qFJLEXPc5XqhEJoo) |
+| 14a | secrets-owner: previous secrets owner baldingsucks7993.testnet calls keystore update_access(AllowAll) on the contract's profile osd-ad40dcf455fa-c | refused ("Secrets not found": rows are keyed by the caller); the contract-owned row is unchanged | refused: Smart contract panicked: panicked at src/secrets.rs:661:14:\nSecrets not found; contract-owned row unchanged: true | PASS | [`3Bxt7AkHC3…`](https://testnet.nearblocks.io/txns/3Bxt7AkHC3PeoHXo6VHVjMefRCWUsN5U53oQVCtUQVkZ) |
+| 14b | secrets-owner: who can modify the season secrets profile after seal | get_config().secrets_owner = osd.baldingsucks7993.testnet; keystore row WasmHash(ad40dcf4…) + Predecessor[osd.baldingsucks7993.testnet] under it; after seal (0 keys) no account can sign as the owner, so nobody can re-store, re-scope or delete it (OutLayer operator trusted) | secrets ref osd.baldingsucks7993.testnet/osd-ad40dcf455fa-c; row present: true; Predecessor[contract] only: true; contract keys: 1; is_sealed: false; not sealed yet: the contract key can still modify it until seal | PASS | – |
 
-52 rows: 50 pass, 2 finding(s), 0 fail. Updated 2026-11-11T13:28:35.724Z.
+54 rows: 52 pass, 2 finding(s), 0 fail. Updated 2026-11-11T13:37:53.943Z.
 <!-- results:end -->

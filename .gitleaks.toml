@@ -13,4 +13,5 @@ paths = [
 # Public NEAR account ids assigned to `secrets_owner` (interface field name, not a secret) trip generic-api-key.
 regexes = [
   '''^baldingsucks7993\.testnet$''',
+  '''^osd\.baldingsucks7993\.testnet$''',
 ]
