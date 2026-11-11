@@ -1,56 +1,67 @@
 {
-  "season_id": 2,
+  "season_id": 4,
   "setup_txs": {
     "create atk7.baldingsucks7993.testnet": "4cwapqmN5Dsb3mhBNrnLgLF3mCzeD9f4nX9EBXqVQFPn",
     "create clone7.baldingsucks7993.testnet": "BezHqmR56ZLDiB9XuMBUCnKp7zfVfwb2Kqw9kWTDJSLT",
     "register c-charm.osd.baldingsucks7993.testnet": "HW17R2HBiWwkSREPKQazt6hwMqdN1rwt3sf9ta7cnSY1",
     "register c-delim.osd.baldingsucks7993.testnet": "BxKJK8LQ9iYTJsHSQumtXJxfsomXDEXoiXHNF2VfJRJS",
     "register c-tft.osd.baldingsucks7993.testnet": "2pRXVSQmCusfiBCnxenBT3eqUu3X7QtMFhunD8NCeXfb",
-    "register c-extra.osd.baldingsucks7993.testnet": "7p3JLANAVrP3U29NtEgpYepRUpa9hCp96riC7kzLQXpR"
+    "register c-extra.osd.baldingsucks7993.testnet": "7p3JLANAVrP3U29NtEgpYepRUpa9hCp96riC7kzLQXpR",
+    "close_commits": "G2cAo3VYz4yAPwCqYtzpd6w6zz8myu7FhLwzd76aoqkZ",
+    "schedule_round 0": "2B8XKAL3477XAhKidBvUXky1r51fQic1vVAgZxJs1rfB",
+    "schedule_round 1": "9zjKHt8qiF2fbroGZG1YZnzTEQAhHi5UPb6ni5Cywjny",
+    "schedule_round 2": "6FB5jJ2aDg2PaSAdAqQLpV1yH7W64MhE6LwGXPrF3FbB",
+    "schedule_round 3": "61mySCVpaXh5d6Pa5AgYQjnmjc43ztYrEDXWFGiejvzr",
+    "schedule_round 4": "AShxLsnTpCvGbFNXiE91ZT7GEVmQVGe6y1nUmgFt5gCk",
+    "schedule_round 5": "A6ZvzKVEqX6y3DrQcYdeHeKYBN2joyg3nchLwKAKim9c",
+    "schedule_round 6": "CzRbV9KFv5A3p93VzhR52CcfHh49K14ndphpDVy8AxQJ",
+    "schedule_round 7": "BdsTUxqoyf8odfUSe3FpqZBtT8yp1WQ86ZpF8KrUDMd2",
+    "schedule_round 8": "C4K7jM4jTDdocfc2UeHHfWKx7KJf9VY4opewkRyqzxDr"
   },
   "commits": {
     "inj-override.osd.baldingsucks7993.testnet": {
-      "tx": "H3MbN5bfw5WNRoJBBgd6GDvHxQt5mX9Aj91Jo7ZRCDKT",
+      "tx": "3f1DTgmAkEAwirh4eeUweP2yTMuChxzhjYVrihXV1ePd",
       "kind": "honest"
     },
     "def-quarantine.osd.baldingsucks7993.testnet": {
-      "tx": "GeLwBVAMpbZHDwX8iQNNzK98wxvNoJ6o1UebizsbQvGj",
+      "tx": "EqJXYhhXzZQwm1SKBZrotuSiRAZYyHmmW7qDGEMV6kNd",
       "kind": "honest"
     },
     "fairbot.osd.baldingsucks7993.testnet": {
-      "tx": "Gxb9RHGTJrPWtRgCV7G7BWNr7tCgY4xpanxXxALZPFpN",
+      "tx": "6QrSe9M4T4gg6Tn9ssHk7qfshyRtaWrKRMjU7PhYqAT5",
       "kind": "honest"
     },
     "always-c.osd.baldingsucks7993.testnet": {
-      "tx": "F2qS8mDrMy9Vnpp6Yqy5nyB4d7qTeUHsBadZpRe9pNzR",
+      "tx": "G6edzgSD2zZceizWLGucgUYYBUvT1zuNyDV9fn2ibG3a",
       "kind": "duplicate"
     },
     "tft-oneshot.osd.baldingsucks7993.testnet": {
-      "tx": "6PULLvPQLDqPKqg22uPj6ViwjstW12pWCU6vPtRfre6w",
+      "tx": "4ueB2CfRbEYHPmMdDezYnoofwRA3vDqEzHegkgWDwNWX",
       "kind": "duplicate"
     },
     "exploiter.osd.baldingsucks7993.testnet": {
-      "tx": "4NuuDZF74wontb6kVfgBWDJzgAoCNA7dEjCERjXdcTMj",
+      "tx": "5RcS74T8zVUdD1MMu9yPM67ifQudPiq2zASzNK9ZbS5w",
       "kind": "mismatch"
     },
     "c-charm.osd.baldingsucks7993.testnet": {
-      "tx": "CeWinQEMeQcaP5oBW8ivqaaZqjDkvh5PZzupab43CjM1",
+      "tx": "6M3SaC9uvjXz8bzaT88BfQZ3V7Kqga6CFKw1LXJiVeDy",
       "kind": "honest"
     },
     "c-delim.osd.baldingsucks7993.testnet": {
-      "tx": "9P1gDK29QGNd96PVxPoZZ1wJoe9BffngsAsYPHoGyPti",
+      "tx": "79a2F6ZLWCkJ2CT8UEZUiJni5yVrzdNXXQzKvYSFMoBj",
       "kind": "honest"
     },
     "c-tft.osd.baldingsucks7993.testnet": {
-      "tx": "DhnqeA5BGMQkRza9pLWiXZyMdZZjbrtbW36PhRv8YQKj",
+      "tx": "4UKZtsitqHtwus1HMW8HwvjkBsJrjBMMftQwCbmCgFTK",
       "kind": "honest"
     }
   },
   "notes": {
     "refused c-extra.osd.baldingsucks7993.testnet": {
-      "tx": "872MjiaHZtMPCg9TAXJfaV1BqpY75cp1jjWEsasu7zQL",
+      "tx": "5DWABmzBG4qYyLSGiqUB9yJE7Pz4XRGcpetcWBKM7Amc",
       "error": "Smart contract panicked: owner reached max_entries_per_owner"
     }
   },
-  "open_tx": "GH6XbntGagZ5L3qqTvBzdkE2zTVnrgVSZpbUFPfcPp87"
+  "open_tx": "Gbqksj1prvkYoMoFubnp2RjrjXmaL7Tn9qjAuHywpsCF",
+  "previous": "state/attack-season-2.json"
 }
