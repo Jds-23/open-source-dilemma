@@ -69,6 +69,7 @@ export function validatePlan(plan: CommitPlan, contract: string, maxOwners: numb
 export type Step =
   | { kind: 'create_owner'; owner: string; agent_id: string; fund_yocto: string }
   | { kind: 'register_agent'; owner: string; name: string; agent_id: string; deposit_yocto: string }
+  | { kind: 'claim'; owner: string; agent_id: string; season_id: number; amount_yocto: string }
   | { kind: 'fund_agent'; owner: string; agent_id: string; deposit_yocto: string }
   | { kind: 'commit'; owner: string; agent_id: string; family: string; parent: Parent | null; prompt_file: string }
   | { kind: 'skip'; owner: string; agent_id: string; reason: string };
@@ -77,6 +78,8 @@ export interface ChainFacts {
   accountExists: (id: string) => boolean;
   agent: (agentId: string) => AgentView | null;
   entered: (agentId: string) => boolean;
+  /** Claimable balances from finished seasons (moved to the budget by `claim` before any `fund_agent`). */
+  claimable?: (agentId: string) => { season_id: number; amount_yocto: bigint }[];
 }
 
 export interface PlanOptions {
@@ -88,6 +91,13 @@ export interface PlanOptions {
   gasMarginYocto: bigint;
   /** Restrict to these agent names (owner numbering still follows plan order). */
   only?: Set<string>;
+  /** Pre-stage: everything except `commit` (no season key needed; run before open_season). */
+  noCommit?: boolean;
+}
+
+/** INTERFACE.md §6.1: entry_deposit = bond + 3 × unit × (max_agents − 1). */
+export function entryDepositFor(p: { bond_yocto: string; unit_yocto: string; max_agents: number }): bigint {
+  return BigInt(p.bond_yocto) + 3n * BigInt(p.unit_yocto) * BigInt(p.max_agents - 1);
 }
 
 export function registerDeposit(entryDeposit: bigint): bigint {
@@ -113,10 +123,20 @@ export function planSteps(plan: CommitPlan, facts: ChainFacts, o: PlanOptions): 
     if (!agent) {
       if (!facts.accountExists(owner)) steps.push({ kind: 'create_owner', owner, agent_id: e.agent_id, fund_yocto: String(reg + o.gasMarginYocto) });
       steps.push({ kind: 'register_agent', owner, name: e.name, agent_id: e.agent_id, deposit_yocto: String(reg) });
-    } else if (BigInt(agent.budget_yocto) < o.entryDepositYocto) {
-      steps.push({ kind: 'fund_agent', owner, agent_id: e.agent_id, deposit_yocto: String(o.entryDepositYocto - BigInt(agent.budget_yocto)) });
+    } else {
+      let budget = BigInt(agent.budget_yocto);
+      if (budget < o.entryDepositYocto) {
+        for (const c of facts.claimable?.(e.agent_id) ?? []) {
+          if (c.amount_yocto <= 0n) continue;
+          steps.push({ kind: 'claim', owner, agent_id: e.agent_id, season_id: c.season_id, amount_yocto: String(c.amount_yocto) });
+          budget += c.amount_yocto;
+        }
+      }
+      if (budget < o.entryDepositYocto) {
+        steps.push({ kind: 'fund_agent', owner, agent_id: e.agent_id, deposit_yocto: String(o.entryDepositYocto - budget) });
+      }
     }
-    steps.push({ kind: 'commit', owner, agent_id: e.agent_id, family: e.family, parent: e.parent, prompt_file: e.prompt_file });
+    if (!o.noCommit) steps.push({ kind: 'commit', owner, agent_id: e.agent_id, family: e.family, parent: e.parent, prompt_file: e.prompt_file });
   });
   return steps;
 }

@@ -64,6 +64,8 @@ export interface MockOptions {
   callbackBlocks?: number;
   /** Blocks between open_season and on_pubkey. */
   keyBlocks?: number;
+  /** Virtual ms each call takes before it lands (advances the clock; calls are serial, so this is pessimistic). */
+  txMs?: number;
   resolver?: Resolver;
   keyFails?: boolean;
   wasmUrl?: string;
@@ -94,6 +96,7 @@ export class MockChain implements Chain {
   private readonly callbackBlocks: number;
   private readonly keyBlocks: number;
   private readonly keyFails: boolean;
+  private readonly txMs: number;
   private pending: Pending[] = [];
   private keyDue: { season: number; dueBlock: number } | null = null;
   private currentSeason: number | null = null;
@@ -117,6 +120,7 @@ export class MockChain implements Chain {
     this.callbackBlocks = o.callbackBlocks ?? 18;
     this.keyBlocks = o.keyBlocks ?? 12;
     this.keyFails = o.keyFails ?? false;
+    this.txMs = o.txMs ?? 0;
     this.resolver = o.resolver ?? familyResolver;
     this.wasmUrl = o.wasmUrl ?? 'https://test.fastfs.io/baldingsucks7993.testnet/outlayer.testnet/osd-referee/v1/mock.wasm';
     this.wasmHash = o.wasmHash ?? 'mock';
@@ -136,6 +140,18 @@ export class MockChain implements Chain {
     );
     s.n_entries = entries.length;
     return id;
+  }
+
+  /** `commit` as the agent's owner (the SDK's job, not the keeper's): same window/cap checks as the contract. */
+  commitAs(owner: string, e: Omit<Entry, 'season_id' | 'owner' | 'committed_at_ns'>, seasonId: number): void {
+    const s = this.season(seasonId);
+    if (s.status !== 'commit') throw new ChainError('refused', 'Smart contract panicked: status != commit');
+    if (this.nowNs >= BigInt(s.params.commit_deadline_ns)) throw new ChainError('refused', 'Smart contract panicked: past commit deadline');
+    const list = this.entries.get(seasonId)!;
+    if (list.some((x) => x.agent_id === e.agent_id)) throw new ChainError('refused', 'Smart contract panicked: already entered');
+    if (list.length >= s.params.max_agents) throw new ChainError('refused', 'Smart contract panicked: max_agents reached');
+    list.push({ ...e, season_id: seasonId, owner, committed_at_ns: String(this.nowNs) });
+    s.n_entries = list.length;
   }
 
   advance(ms: number): void {
@@ -197,6 +213,7 @@ export class MockChain implements Chain {
 
     const hash = `mocktx${String(++this.txN).padStart(5, '0')}`;
     const sentAt = this.block;
+    if (this.txMs > 0) this.advance(this.txMs);
     let value: unknown;
     try {
       value = this.apply(method, args, opts.depositYocto ?? 0n);

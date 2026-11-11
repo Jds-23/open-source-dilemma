@@ -79,6 +79,16 @@ export class NearRpc {
     }
   }
 
+  /** Public keys ("ed25519:…") of the account's access keys, with their permission kind. */
+  async accessKeys(accountId: string): Promise<{ public_key: string; full_access: boolean }[]> {
+    const r = await this.request<{ keys: { public_key: string; access_key: { permission: unknown } }[] }>('query', {
+      request_type: 'view_access_key_list',
+      finality: 'final',
+      account_id: accountId,
+    });
+    return r.keys.map((k) => ({ public_key: k.public_key, full_access: k.access_key.permission === 'FullAccess' }));
+  }
+
   /** Full tx status with receipts (for evidence: gas burnt, OutLayer charge). */
   async txStatus(txHash: string, senderId: string): Promise<TxStatus> {
     return this.request<TxStatus>('EXPERIMENTAL_tx_status', { tx_hash: txHash, sender_account_id: senderId, wait_until: 'NONE' });

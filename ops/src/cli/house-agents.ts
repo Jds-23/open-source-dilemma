@@ -5,77 +5,59 @@
 // prints the steps); `--execute` signs and sends. Idempotent: only missing
 // steps run (existing owner / registered agent / committed entry are skipped).
 //
+// Fast seasons:
+//   --prestage --params <season-params.json>   before open_season: create/register, claim old winnings,
+//                                              fund the shortfall, draw salts. No season key needed.
+//   --wait-commit                              poll until the season is in `commit` with a pubkey, then
+//                                              commit every agent in parallel (one tx per owner).
+//   (or let the keeper do the commits: keeper --house-plan <plan>)
+//
 // Secrets written locally (never committed, never printed):
 //   ~/.near-credentials/<net>/h01.<ops>.json   owner full-access key
 //   ~/.near-credentials/<net>/<agent>.json     agent function-call key (commit/claim)
-//   ops/.state/salts/season-<n>.json           commit salts (needed for publish_prompt after settle)
+//   ops/.state/salts/<contract>/season-<n>.json commit salts (needed for publish_prompt after settle)
+//   ops/.state/prestage/<contract>.json        pre-drawn salts (deleted per agent once its commit lands)
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
-import { sealPrompt } from '@osd/sdk';
-import { Account, JsonRpcProvider, KeyPair, actions, type KeyPairString } from 'near-api-js';
-import { classifyError } from '../chain.ts';
-import { ownerIdFor, planSteps, promptFromStrategyFile, PROMPT_MAX_BYTES, validatePlan, type AgentView, type CommitPlan, type Step } from '../house.ts';
-import { fetchAll } from '../keeper.ts';
-import { loadSignerKey } from '../near-chain.ts';
+import { entryDepositFor, validatePlan, type CommitPlan } from '../house.ts';
+import { fmtStep, loadPrompts, prestageFile, prestageSalts, readFacts, runSteps, stepsFor, type HouseContext } from '../house-run.ts';
 import { DEFAULT_RPC, NearRpc } from '../rpc.ts';
 import { SeasonRoutedLog } from '../txlog.ts';
-import { gasFor } from '../chain.ts';
-import { nearToYocto, type Entry, type Season } from '../types.ts';
-import { banner, DEFAULTS, die, OPS_DIR, REPO_DIR, RUNS_DIR } from './common.ts';
+import { nearToYocto, type Season, type SeasonParams } from '../types.ts';
+import { banner, DEFAULTS, die, intArg, OPS_DIR, REPO_DIR, RUNS_DIR } from './common.ts';
 
 const USAGE = `usage: pnpm --filter @osd/ops house-agents --plan agents/plans/season-1.json [options]
 
   --plan <file>            WS-4 commit plan (required)
+  --season <n|current>     season to commit to (default: plan.season_id)
+  --prestage               register/claim/fund + draw salts only (no commit); run BEFORE open_season
+  --params <file>          with --prestage: SeasonParams of the coming season (entry deposit = bond + 3·unit·(max_agents−1))
+  --wait-commit            wait until the season is in commit with a pubkey, then commit (with --season current: the next one)
+  --concurrency <n>        agents in parallel (default 15)
   --network <testnet>      (default testnet)
   --rpc <url>
   --contract <id>          (default ${DEFAULTS.contract}; must equal plan.contract)
   --ops-account <id>       parent of the owner accounts and funder (default ${DEFAULTS.signer})
   --owner-prefix <p>       owner account label prefix (default h → h01, h02, …)
-  --entry-deposit <NEAR>   used only if the season is not readable yet (default 1.22, fixture params)
+  --entry-deposit <NEAR>   used only if neither the season nor --params is readable (default 1.22, fixture params)
   --gas-margin <NEAR>      extra per owner for gas + storage (default 0.1: prepaid gas of register_agent 50 Tgas + commit 30 Tgas is reserved at ~0.08 NEAR)
   --only <name,...>        restrict to these agent names
   --repo-root <dir>        resolve plan prompt_file paths against this dir (default: repo root)
   --execute                sign and send (otherwise dry run)
   -h, --help`;
 
-function credsDir(): string {
-  return process.env.NEAR_CREDENTIALS_DIR ?? join(homedir(), '.near-credentials');
-}
-
-/** Write a key file (0600) BEFORE the tx that uses it, so a crash never loses a key. */
-function saveKey(network: string, accountId: string, kp: KeyPair): void {
-  const file = join(credsDir(), network, `${accountId}.json`);
-  if (existsSync(file)) die(`refusing to overwrite existing key file ${file}`);
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify({ account_id: accountId, public_key: kp.getPublicKey().toString(), private_key: kp.toString() }) + '\n', { mode: 0o600 });
-}
-
-function loadOrCreateKey(network: string, accountId: string, execute: boolean): { pub: string; created: boolean } {
-  const file = join(credsDir(), network, `${accountId}.json`);
-  if (existsSync(file)) {
-    const kp = KeyPair.fromString(loadSignerKey(network, accountId, { ...process.env, NEAR_PRIVATE_KEY: '' }));
-    return { pub: kp.getPublicKey().toString(), created: false };
-  }
-  const kp = KeyPair.fromRandom('ed25519');
-  if (execute) saveKey(network, accountId, kp);
-  return { pub: kp.getPublicKey().toString(), created: true };
-}
-
-function saveSalt(file: string, agentId: string, rec: { salt: string; commitment: string; prompt_file: string }): void {
-  mkdirSync(dirname(file), { recursive: true });
-  const cur = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>) : {};
-  cur[agentId] = rec;
-  writeFileSync(file, JSON.stringify(cur, null, 2) + '\n', { mode: 0o600 });
-  chmodSync(file, 0o600);
-}
-
 async function main(): Promise<void> {
   const { values: v } = parseArgs({
     options: {
       plan: { type: 'string' },
+      season: { type: 'string' },
+      prestage: { type: 'boolean', default: false },
+      params: { type: 'string' },
+      'wait-commit': { type: 'boolean', default: false },
+      concurrency: { type: 'string' },
       network: { type: 'string', default: DEFAULTS.network },
       rpc: { type: 'string' },
       contract: { type: 'string', default: DEFAULTS.contract },
@@ -94,139 +76,78 @@ async function main(): Promise<void> {
     if (!v.plan && !v.help) process.exitCode = 2;
     return;
   }
+  if (v.prestage && v['wait-commit']) die('--prestage and --wait-commit are separate steps');
   banner(v.execute);
   const network = v.network!;
   const contract = v.contract!;
-  const ops = v['ops-account']!;
   const rpcUrl = v.rpc ?? DEFAULT_RPC[network] ?? die(`no default RPC for ${network}`);
   const rpc = new NearRpc(rpcUrl);
   const plan = JSON.parse(readFileSync(resolve(v.plan), 'utf8')) as CommitPlan;
-  const only = v.only ? new Set(v.only.split(',')) : undefined;
   const errs = validatePlan(plan, contract, 99);
   if (errs.length) die(`plan invalid:\n  ${errs.join('\n  ')}`);
-  const active = plan.entries.filter((e) => !only || only.has(e.name));
-
-  // Prompts (read + validated up front; text is never printed).
-  const prompts = new Map<string, string>();
-  for (const e of active) {
-    const p = promptFromStrategyFile(readFileSync(resolve(v['repo-root'] ?? REPO_DIR, e.prompt_file), 'utf8'));
-    const bytes = Buffer.byteLength(p, 'utf8');
-    if (bytes === 0 || bytes > PROMPT_MAX_BYTES) die(`${e.prompt_file}: prompt is ${bytes} bytes (1..${PROMPT_MAX_BYTES})`);
-    if (e.prompt_bytes !== undefined && e.prompt_bytes !== bytes) console.error(`warn: ${e.name}: plan says ${e.prompt_bytes} bytes, file has ${bytes}`);
-    prompts.set(e.agent_id, p);
-  }
-
-  // Chain facts (read-only). A not-yet-deployed contract reads as "nothing exists".
-  let season: Season | null = null;
-  let entries: Entry[] = [];
-  const agents = new Map<string, AgentView | null>();
-  const owners = new Map<string, boolean>();
-  let contractReadable = true;
-  try {
-    season = await rpc.view<Season | null>(contract, 'get_season', { season_id: plan.season_id });
-    entries = season ? await fetchAll<Entry>({ view: (m, a) => rpc.view(contract, m, a) }, 'get_entries', { season_id: plan.season_id }) : [];
-  } catch (e) {
-    contractReadable = false;
-    console.error(`note: ${contract} not readable (${classifyError(e).message.slice(0, 120)}); planning as if nothing exists`);
-  }
-  const entryDeposit = season ? BigInt(season.entry_deposit_yocto) : nearToYocto(v['entry-deposit']!);
-  for (const [i, e] of plan.entries.entries()) {
-    if (only && !only.has(e.name)) continue;
-    const owner = ownerIdFor(i, ops, v['owner-prefix']);
-    owners.set(owner, await rpc.accountExists(owner).catch(() => false));
-    agents.set(e.agent_id, contractReadable ? await rpc.view<AgentView | null>(contract, 'get_agent', { agent_id: e.agent_id }).catch(() => null) : null);
-  }
-  const entered = new Set(entries.map((x) => x.agent_id));
-
-  const steps = planSteps(
+  const ctx: HouseContext = {
+    network,
+    rpcUrl,
+    contract,
+    opsAccount: v['ops-account']!,
+    ownerPrefix: v['owner-prefix']!,
     plan,
-    { accountExists: (id) => owners.get(id) ?? false, agent: (id) => agents.get(id) ?? null, entered: (id) => entered.has(id) },
-    { opsAccount: ops, ownerPrefix: v['owner-prefix'], entryDepositYocto: entryDeposit, gasMarginYocto: nearToYocto(v['gas-margin']!), only },
-  );
-  const fundTotal = steps.reduce((a, s) => a + (s.kind === 'create_owner' ? BigInt(s.fund_yocto) : 0n), 0n);
+    only: v.only ? new Set(v.only.split(',')) : undefined,
+    repoRoot: v['repo-root'] ?? REPO_DIR,
+    opsDir: OPS_DIR,
+    gasMarginYocto: nearToYocto(v['gas-margin']!),
+    concurrency: Math.max(1, intArg(v.concurrency, 'concurrency', 15)),
+    log: new SeasonRoutedLog(contract === DEFAULTS.contract ? RUNS_DIR : join(RUNS_DIR, contract)),
+  };
+  const prompts = loadPrompts(ctx);
 
-  console.error(`plan season ${plan.season_id}: ${active.length} agents; season status ${season?.status ?? 'n/a'}; entry deposit ${entryDeposit} yocto`);
-  console.error(`ops account ${ops} funds ${steps.filter((s) => s.kind === 'create_owner').length} new owner(s): ${Number(fundTotal / 10n ** 21n) / 1000} NEAR total`);
-  for (const s of steps) console.error(`  ${fmt(s)}`);
+  const currentSeason = async (): Promise<number | null> => (await rpc.view<{ current_season_id: number | null }>(contract, 'get_config', {})).current_season_id;
 
+  if (v.prestage) {
+    const params = v.params ? (JSON.parse(readFileSync(v.params, 'utf8')) as SeasonParams) : null;
+    const entryDeposit = params ? entryDepositFor(params) : nearToYocto(v['entry-deposit']!);
+    const facts = await readFacts(ctx, null);
+    const steps = stepsFor(ctx, facts, entryDeposit, true);
+    console.error(`prestage: ${prompts.size} agents; entry deposit ${entryDeposit} yocto${params ? ` (from ${v.params})` : ' (--entry-deposit)'}`);
+    for (const s of steps) console.error(`  ${fmtStep(s)}`);
+    const items = plan.entries.filter((e) => prompts.has(e.agent_id)).map((e) => ({ agent_id: e.agent_id, prompt: prompts.get(e.agent_id)!, prompt_file: e.prompt_file }));
+    if (!v.execute) {
+      console.error(`  draw salts for ${items.length} agent(s) → ${prestageFile(OPS_DIR, contract)}\n\nDRY RUN: nothing sent. Re-run with --execute.`);
+      return;
+    }
+    const res = await runSteps(ctx, steps, null, prompts);
+    const salts = prestageSalts(prestageFile(OPS_DIR, contract), items);
+    console.error(`prestage done: ${res.ok} tx ok, ${res.failed.length} agent(s) failed; salts: ${salts.fresh} new, ${salts.kept} kept`);
+    if (res.failed.length) process.exitCode = 1;
+    return;
+  }
+
+  // Commit path.
+  let sid: number | null = v.season === undefined ? plan.season_id : v.season === 'current' ? await currentSeason() : intArg(v.season, 'season', 0);
+  let season: Season | null = sid === null ? null : await rpc.view<Season | null>(contract, 'get_season', { season_id: sid }).catch(() => null);
+  if (v['wait-commit'] && v.execute) {
+    for (let i = 0; !(season?.status === 'commit' && season.pubkey); i++) {
+      if (season && v.season !== 'current' && ['play', 'settled', 'cancelled', 'key_failed'].includes(season.status)) die(`season ${sid} is ${season.status}: commit window is over`);
+      if (i % 15 === 0) console.error(`waiting for season ${sid ?? '(next)'} to reach commit with a pubkey (now ${season?.status ?? 'none'})`);
+      await delay(1_000);
+      if (v.season === 'current') sid = await currentSeason();
+      season = sid === null ? null : await rpc.view<Season | null>(contract, 'get_season', { season_id: sid }).catch(() => null);
+    }
+  }
+  const facts = await readFacts(ctx, sid);
+  const entryDeposit = season ? BigInt(season.entry_deposit_yocto) : nearToYocto(v['entry-deposit']!);
+  const steps = stepsFor(ctx, facts, entryDeposit, false);
+  console.error(`season ${sid ?? 'n/a'}: ${prompts.size} agents; status ${season?.status ?? 'n/a'}; entry deposit ${entryDeposit} yocto`);
+  for (const s of steps) console.error(`  ${fmtStep(s)}`);
   if (!v.execute) {
     console.error('\nDRY RUN: nothing sent. Re-run with --execute.');
     return;
   }
-  if (!season || season.status !== 'commit' || !season.pubkey) die(`season ${plan.season_id} is not in commit phase (status ${season?.status ?? 'missing'})`);
-
-  const provider = new JsonRpcProvider({ url: rpcUrl });
-  const log = new SeasonRoutedLog(contract === DEFAULTS.contract ? RUNS_DIR : join(RUNS_DIR, contract));
-  const saltFile = join(OPS_DIR, '.state', 'salts', `${contract}`, `season-${plan.season_id}.json`);
-  const opsAcct = new Account(ops, provider, loadSignerKey(network, ops));
-  const acct = (id: string): Account => new Account(id, provider, loadSignerKey(network, id, { ...process.env, NEAR_PRIVATE_KEY: '' }) as KeyPairString);
-  const sid = plan.season_id;
-
-  const failed = new Set<string>();
-  for (const s of steps) {
-    if (s.kind === 'skip' || failed.has(s.agent_id)) continue;
-    try {
-      let hash: string | undefined;
-      if (s.kind === 'create_owner') {
-        const { pub } = loadOrCreateKey(network, s.owner, true);
-        const r = await opsAcct.createSubAccount({ accountOrPrefix: s.owner, publicKey: pub, nearToTransfer: BigInt(s.fund_yocto) });
-        hash = r.transaction.hash;
-      } else if (s.kind === 'register_agent') {
-        const { pub } = loadOrCreateKey(network, s.agent_id, true);
-        const r = await acct(s.owner).signAndSendTransaction({
-          receiverId: contract,
-          actions: [actions.functionCall('register_agent', { name: s.name, agent_public_key: pub }, gasFor('register_agent'), BigInt(s.deposit_yocto))],
-          waitUntil: 'FINAL',
-        });
-        hash = r.transaction.hash;
-      } else if (s.kind === 'fund_agent') {
-        const r = await acct(s.owner).signAndSendTransaction({
-          receiverId: contract,
-          actions: [actions.functionCall('fund_agent', { agent_id: s.agent_id }, gasFor('fund_agent'), BigInt(s.deposit_yocto))],
-          waitUntil: 'FINAL',
-        });
-        hash = r.transaction.hash;
-      } else {
-        const sealed = sealPrompt(season.pubkey, prompts.get(s.agent_id)!, s.agent_id);
-        saveSalt(saltFile, s.agent_id, { salt: sealed.salt, commitment: sealed.commitment, prompt_file: s.prompt_file });
-        const r = await acct(s.owner).signAndSendTransaction({
-          receiverId: contract,
-          actions: [
-            actions.functionCall(
-              'commit',
-              { season_id: sid, agent_id: s.agent_id, ciphertext_hex: sealed.ciphertext_hex, commitment: sealed.commitment, family: s.family, parent: s.parent },
-              gasFor('commit'),
-              0n,
-            ),
-          ],
-          waitUntil: 'FINAL',
-        });
-        hash = r.transaction.hash;
-      }
-      log.write({ kind: 'tx', season_id: sid, method: s.kind, args: { owner: s.owner, agent_id: s.agent_id }, tx_hash: hash, outcome: 'ok', signer: s.kind === 'create_owner' ? ops : s.owner });
-    } catch (e) {
-      const err = classifyError(e);
-      log.write({ kind: 'tx', season_id: sid, method: s.kind, args: { owner: s.owner, agent_id: s.agent_id }, outcome: err.kind === 'refused' ? 'refused' : 'error', error: err.message });
-      process.exitCode = 1;
-      console.error(`stopping this agent's remaining steps after ${s.kind} failed; re-run to resume`);
-      failed.add(s.agent_id); // skip this agent's remaining steps; others continue
-    }
-  }
-}
-
-function fmt(s: Step): string {
-  switch (s.kind) {
-    case 'create_owner':
-      return `create_owner ${s.owner} fund=${s.fund_yocto}`;
-    case 'register_agent':
-      return `register_agent ${s.name} as ${s.owner} deposit=${s.deposit_yocto}`;
-    case 'fund_agent':
-      return `fund_agent ${s.agent_id} as ${s.owner} deposit=${s.deposit_yocto}`;
-    case 'commit':
-      return `commit ${s.agent_id} as ${s.owner} family=${s.family} parent=${JSON.stringify(s.parent)} prompt=${s.prompt_file}`;
-    case 'skip':
-      return `skip ${s.agent_id}: ${s.reason}`;
-  }
+  if (!season || season.status !== 'commit' || !season.pubkey) die(`season ${sid} is not in commit phase (status ${season?.status ?? 'missing'}); use --wait-commit`);
+  const t0 = Date.now();
+  const res = await runSteps(ctx, steps, season, prompts);
+  console.error(`done in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${res.committed.length} committed, ${res.failed.length} agent(s) failed`);
+  if (res.failed.length) process.exitCode = 1;
 }
 
 main().catch((e: unknown) => {
