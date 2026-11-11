@@ -2,6 +2,7 @@
 //   node --experimental-strip-types src/evolve.ts --mock [--out DIR] [--plan FILE] [--top 3] [--bottom 3] [--no-write]
 //   node --experimental-strip-types src/evolve.ts --env ../.env          # real NEAR AI (NEARAI_* env)
 //   node --experimental-strip-types src/evolve.ts --seed-plan [--plan FILE]
+//   ... --season N   evolve from settled season N (default: latest settled); --max-agents N caps the plan; --next N names offspring/plan for season N
 //   ... --chain   read the season via @osd/sdk (OSD_NETWORK / OSD_CONTRACT_ID / OSD_RPC_URL; mock = SDK MockChain)
 // Source: interfaces/fixtures by default (FixtureSource); --chain uses ChainSource over @osd/sdk.
 import { join } from 'node:path';
@@ -33,6 +34,9 @@ if (process.argv[1]?.endsWith('evolve.ts')) {
       top: { type: 'string', default: '3' },
       bottom: { type: 'string', default: '3' },
       contract: { type: 'string', default: DEFAULT_CONTRACT },
+      season: { type: 'string' },
+      'max-agents': { type: 'string' },
+      next: { type: 'string' },
       'no-write': { type: 'boolean', default: false },
       'seed-plan': { type: 'boolean', default: false },
     },
@@ -56,7 +60,10 @@ if (process.argv[1]?.endsWith('evolve.ts')) {
     } else source = new FixtureSource(values.fixtures);
     const { plan, offspring } = await evolve({
       source, llm, contract: values.contract, outDir: values.out, write: !values['no-write'],
-      topK: Number(values.top), bottomK: Number(values.bottom), log: (m) => console.log(m),
+      topK: Number(values.top), bottomK: Number(values.bottom),
+      seasonId: values.season ? Number(values.season) : undefined,
+      maxAgents: values['max-agents'] ? Number(values['max-agents']) : undefined,
+      nextSeasonId: values.next ? Number(values.next) : undefined, log: (m) => console.log(m),
     });
     const path = values.plan ?? join(AGENTS_ROOT, 'plans', `season-${plan.season_id}.json`);
     if (!values['no-write']) writePlan(plan, path);
