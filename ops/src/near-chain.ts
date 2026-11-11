@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { Account, JsonRpcProvider, actions, type KeyPairString } from 'near-api-js';
 import { ChainError, classifyError, gasFor, type CallOptions, type Chain, type TxResult } from './chain.ts';
+import { KeyPool, perKeyLimit } from './key-pool.ts';
 import { NearRpc } from './rpc.ts';
 
 /**
@@ -33,6 +34,10 @@ export interface NearChainOptions {
   signerId: string;
   /** Omit for a view-only chain (dry-run planning). */
   key?: KeyPairString;
+  /** Extra access keys of the same account (`--keys K`): txs are spread round-robin across `key` + these. */
+  extraKeys?: KeyPairString[];
+  /** Parallel txs the caller will issue; sets the in-flight cap per key (default: one tx per key). */
+  concurrency?: number;
 }
 
 /** Real chain. `call` returns once the tx is included in a final block; the
@@ -42,13 +47,21 @@ export class NearChain implements Chain {
   readonly contractId: string;
   readonly signerId: string;
   readonly rpc: NearRpc;
-  private readonly account: Account | null;
+  /** One Account per access key; each has its own nonce sequence (near-api-js NonceManager per key). */
+  readonly pool: KeyPool<Account> | null;
 
   constructor(o: NearChainOptions) {
     this.contractId = o.contractId;
     this.signerId = o.signerId;
     this.rpc = new NearRpc(o.rpcUrl);
-    this.account = o.key ? new Account(o.signerId, new JsonRpcProvider({ url: o.rpcUrl }), o.key) : null;
+    const keys = o.key ? [o.key, ...(o.extraKeys ?? [])] : [];
+    const provider = new JsonRpcProvider({ url: o.rpcUrl });
+    this.pool = keys.length
+      ? new KeyPool(
+          keys.map((k) => new Account(o.signerId, provider, k)),
+          perKeyLimit(o.concurrency ?? keys.length, keys.length),
+        )
+      : null;
   }
 
   view<T>(method: string, args: Record<string, unknown>): Promise<T> {
@@ -64,22 +77,24 @@ export class NearChain implements Chain {
   }
 
   async call(method: string, args: Record<string, unknown>, opts: CallOptions = {}): Promise<TxResult> {
-    if (!this.account) throw new ChainError('refused', `view-only chain: refusing to send ${method}`);
-    const { height } = await this.head();
-    let res;
-    try {
-      res = await this.account.signAndSendTransaction({
-        receiverId: this.contractId,
-        actions: [actions.functionCall(method, args, opts.gas ?? gasFor(method), opts.depositYocto ?? 0n)],
-        waitUntil: 'INCLUDED_FINAL',
-        throwOnFailure: true,
-      });
-    } catch (e) {
-      throw classifyError(e);
-    }
-    const txHash = (res as { transaction?: { hash?: string } }).transaction?.hash;
-    if (!txHash) throw new ChainError('transient', `${method}: no tx hash in response`);
-    return { txHash, block: height, value: successValue(res) };
+    if (!this.pool) throw new ChainError('refused', `view-only chain: refusing to send ${method}`);
+    return this.pool.use(async (account, keyIndex) => {
+      const { height } = await this.head();
+      let res;
+      try {
+        res = await account.signAndSendTransaction({
+          receiverId: this.contractId,
+          actions: [actions.functionCall(method, args, opts.gas ?? gasFor(method), opts.depositYocto ?? 0n)],
+          waitUntil: 'INCLUDED_FINAL',
+          throwOnFailure: true,
+        });
+      } catch (e) {
+        throw classifyError(e);
+      }
+      const txHash = (res as { transaction?: { hash?: string } }).transaction?.hash;
+      if (!txHash) throw new ChainError('transient', `${method}: no tx hash in response`);
+      return { txHash, block: height, value: successValue(res), keyIndex };
+    });
   }
 }
 

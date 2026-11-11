@@ -20,6 +20,8 @@ export interface TxResult {
   block: number;
   /** JSON-decoded return value when known (e.g. settle_season's ranking or `[]`). */
   value?: unknown;
+  /** Which access key signed it (NearChain with `--keys`): 0 = the main key. */
+  keyIndex?: number;
 }
 
 export interface Chain {

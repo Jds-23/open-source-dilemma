@@ -123,7 +123,7 @@ describe('keeper: retry and backoff', () => {
     const { chain } = mockFromFixtures(FIXTURES);
     // a second keeper that already raced us: mark one match pending behind the keeper's back
     const log = new MemoryTxLog();
-    await new Keeper(chain, log, opts({ maxIterations: 7 })).run(); // up to scheduling
+    await new Keeper(chain, log, opts({ maxIterations: 4 })).run(); // up to scheduling (rounds go out in parallel)
     const m = chain.matches.get(1)!.find((x) => x.status === 'scheduled')!;
     const origView = chain.view.bind(chain);
     let flipped = false;
