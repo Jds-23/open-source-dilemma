@@ -274,3 +274,23 @@ describe('osd CLI (mock)', () => {
     expect(Object.keys(r)).toEqual(['ciphertext_hex', 'commitment', 'salt']);
   });
 });
+
+describe('seal / setSecrets / isSealed (interfaces-v5/v6)', () => {
+  test('seal sends the keys, the confirm string and exactly 1 yocto', async () => {
+    const { signer, calls } = recordingSigner();
+    const c = new OsdClient({ contractId: C, provider: { view: async () => true }, signer });
+    expect(await c.isSealed()).toBe(true);
+    await c.seal(['ed25519:AAA', 'ed25519:BBB'], 'SEAL-FOREVER');
+    expect(calls[0]).toMatchObject({ method: 'seal', args: { public_keys: ['ed25519:AAA', 'ed25519:BBB'], confirm: 'SEAL-FOREVER' }, deposit: 1n, gas: DEFAULT_GAS.seal });
+    await expect(c.seal(['ed25519:AAA', 'ed25519:AAA'], 'SEAL-FOREVER')).rejects.toThrow(/duplicate/);
+    await expect(c.seal([], 'nope' as 'SEAL-FOREVER')).rejects.toThrow(/confirm/);
+  });
+
+  test('setSecrets sends owner/profile with 1 yocto and checks the profile shape', async () => {
+    const { signer, calls } = recordingSigner();
+    const c = new OsdClient({ contractId: C, provider: { view: async () => null }, signer });
+    await c.setSecrets(C, 'osd-ad40dcf455fa-c');
+    expect(calls[0]).toMatchObject({ method: 'set_secrets', args: { owner: C, profile: 'osd-ad40dcf455fa-c' }, deposit: 1n, gas: DEFAULT_GAS.set_secrets });
+    await expect(c.setSecrets(C, 'bad/profile')).rejects.toThrow(/invalid profile/);
+  });
+});

@@ -1,9 +1,9 @@
-# Open Source Dilemma: frozen interfaces (`interfaces-v5`)
+# Open Source Dilemma: frozen interfaces (`interfaces-v6`)
 
 Owner: integrator. Changes only through an `interface-change` PR (see `docs/BUILD_PLAN.md` §0).
 Machine-readable copies: [`contract-abi.json`](contract-abi.json), [`wasm-io.schema.json`](wasm-io.schema.json), [`events.md`](events.md). Mock data: [`fixtures/`](fixtures/).
 
-The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2, §9.2: v2 → v3, §9.3: v3 → v4, §9.4: v4 → v5).
+The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2, §9.2: v2 → v3, §9.3: v3 → v4, §9.4: v4 → v5, §9.5: v5 → v6).
 
 ---
 
@@ -65,7 +65,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 
 ## 5. Encryption (season key)
 
-- Secret profile (OutLayer keystore) holds `PROTECTED_SEASON_SEED` (32 bytes hex, generated in the TEE) and `NEARAI_API_KEY`. Bound to `SecretAccessor::WasmHash` + `Predecessor{Whitelist[<contract>]}`.
+- Secret profile (OutLayer keystore) holds `PROTECTED_SEASON_SEED` (32 bytes hex, generated in the TEE) and `NEARAI_API_KEY`. Bound to `SecretAccessor::WasmHash` + `Predecessor{Whitelist[<contract>]}`. Its owner (the keystore `store_secrets` signer, the `secrets_ref.account_id`) should be the contract account itself, so after `seal` nobody can re-store, re-scope or delete it (§6.4, `set_secrets`).
 - Season secret key: `HKDF-SHA256(salt = none, ikm = seed, info = "osd:ecies:<season_id>", L = 32)`; public key = secp256k1 compressed (33 bytes, 66 hex chars).
 - **Salt:** the client draws `salt` = 32 random bytes (CSPRNG) per entry and keeps it (needed for `publish_prompt`).
 - **Plaintext** (binary, no JSON): `plaintext = 0x01 || salt (32 bytes) || utf8(prompt)`. Byte 0 is the format version (`0x01`); bytes 1..33 are the salt; the rest, to the end, is the prompt (no terminator, no length prefix).
@@ -99,6 +99,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `settle_season` | anyone | 0 | `{season_id}` | `LeaderboardRow[]`; returns `[]` while unfinished matches are voided in batches of 40 after the play deadline: call again until it returns the ranking | status ≠ `play`; unfinished matches and `now < play_deadline_ns` (after the deadline, unfinished matches are voided and refunded, ≤ 40 per call because of the 100-log receipt limit) |
 | `claim` | agent account or its owner | 0 | `{season_id, agent_id}` | `U128` moved to budget | nothing claimable |
 | `publish_prompt` | agent's owner | 0 | `{season_id, agent_id, prompt, salt}` (`salt` 64 hex) | `null` (stores `prompt` + `salt`, see `get_published_prompts`) | season not `settled`; `sha256(utf8(prompt) ‖ salt ‖ utf8(agent_id)) ≠ commitment` |
+| `set_secrets` | contract owner | exactly 1 yocto | `{owner, profile}` (`profile` `^[A-Za-z0-9_-]{1,64}$`) | `null`; sets config `secrets_owner`/`secrets_profile` for seasons opened later (opened seasons keep their pinned ref); event `secrets_set` | not owner; sealed (`"sealed: the secrets ref is frozen"`); bad profile. v6, see §6.4 |
 | `seal` | contract owner | exactly 1 yocto | `{public_keys: ["ed25519:…"], confirm: "SEAL-FOREVER"}` | promise → `bool` (`true` = sealed) | not owner; `confirm` wrong; already sealed; duplicate keys; > 32 keys. One way, see §6.4 |
 
 `commit` debits `entry_deposit_yocto = bond + 3 × unit × (max_agents − 1)` from the budget. `close_commits` fixes `stake_per_agent_yocto = 3 × unit × (N − 1)` and credits the excess to `claimable`. `on_match` credits payoffs to `claimable` and the pool delta to the season pool. `settle_season` ranks, splits the pool by `prize_split_bps`, and credits prizes and non-forfeited bonds to `claimable`.
@@ -108,7 +109,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 
 **Carry-over.** Prizes are `floor(pool × bps / 10000)`. Whatever is left (rounding dust, plus the shares of split slots with no ranked agent) is the season's `carry_over_yocto`. It is added to the **next** season's pool at `open_season` (`Season.carry_in_yocto`; pending amount in `get_config().carry_over_yocto`). A season that never plays (`key_failed`, `cancelled`) hands its carry-in back to the next one.
 
-**Other rules.** `get_published_prompts` lists in first-publish order; publishing again (same hash-checked prompt) is accepted and keeps the first position. `commit` refuses `parent.season_id < 1`. `play_match` is still accepted after `play_deadline_ns` while the season is `play`; `settle_season` voids whatever is unfinished. The contract has no setter for the config wasm/secrets; use the `open_season` overrides.
+**Other rules.** `get_published_prompts` lists in first-publish order; publishing again (same hash-checked prompt) is accepted and keeps the first position. `commit` refuses `parent.season_id < 1`. `play_match` is still accepted after `play_deadline_ns` while the season is `play`; `settle_season` voids whatever is unfinished. The contract has no setter for the config wasm; use the `open_season` overrides. The config secrets ref (owner + profile) has the owner-only `set_secrets`, refused after seal (v6).
 
 **Storage** (paid by the contract account, so fund it): about 4.3 KB per entry (ciphertext stored as bytes, max 4200 B, plus metadata) and about 0.7 KB per match. A 40-agent season (40 entries, 780 matches) needs ≈ 0.72 MB ≈ 7.2 NEAR at 1 NEAR / 100 KB; a 6-agent season < 0.4 NEAR.
 
@@ -161,11 +162,19 @@ referee or redeploy (attacks/RESULTS.md F1, row 05c). `seal` removes that power 
 - After seal: the contract has no upgrade/unseal method and no access keys, so its code can never change
   and nothing can be signed as the contract (no direct callbacks, no OutLayer runs with the contract as
   predecessor). `open_season` refuses the `wasm_url`/`wasm_hash`/`secrets_profile` overrides: every season
-  uses the config referee. There is no config setter or owner transfer to freeze (none exist).
+  uses the config referee. `set_secrets` (v6, the only config setter) is refused too; there is no owner
+  transfer to freeze (none exists).
 - Verify: `is_sealed()` = `true` **and** `view_access_key_list` returns `[]` (anyone can check; the
   flag alone does not prove the key list was complete).
-- Unchanged by seal: the owner still opens seasons (config referee only); the OutLayer secrets owner
-  (`get_config().secrets_owner`) still controls the secrets stored under `secrets_profile`.
+- Secrets owner (v6): the OutLayer keystore row `secrets_owner/secrets_profile` can be re-stored,
+  re-scoped (`update_access`) or deleted by `secrets_owner` only (the keystore keys rows by the
+  `store_secrets` signer; no keystore admin method touches them). Before sealing, store the profile
+  **signed by the contract account** (`ops/scripts/store-secret.sh --owner <contract>`) and point the
+  config at it with `set_secrets({owner: <contract>, profile})`. Seal then deletes the only keys that
+  could sign as that owner, so the season secrets become immutable too. `seal.sh` warns when
+  `get_config().secrets_owner != <contract>`. Remaining (outside the contract): the OutLayer operator
+  (keystore TEE + upgradeable `outlayer.testnet` contract) is trusted, as for every OutLayer secret.
+- Unchanged by seal: the owner still opens seasons (config referee + config secrets ref only).
 - All `#[private]` callbacks (`on_pubkey`, `on_match`, `on_agent_created`, `on_sealed`) require exactly
   one promise result (`"not a callback"` otherwise), before and after seal.
 - The cards contract (`contracts/cards`) has the same `seal` / `is_sealed` / `contract_sealed` (standard `osd`)
@@ -266,6 +275,14 @@ Integrator additions in v3:
 | `open_season` overrides | always allowed | refused after seal |
 | `#[private]` callbacks | predecessor check only | also require exactly one promise result (`"not a callback"`) |
 | Cards contract | – | same `seal` / `is_sealed` / `contract_sealed`; guard on `mt_resolve_transfer` |
+
+### 9.5 `interfaces-v5` → `interfaces-v6` (secrets owner)
+
+| Area | `interfaces-v5` | `interfaces-v6` |
+|---|---|---|
+| Secrets ref | config `secrets_owner`/`secrets_profile` fixed at `new` (per-season profile override only, refused after seal) | owner-only `set_secrets({owner, profile})`, 1 yocto, refused after seal (one way); event `secrets_set` |
+| Secrets owner | deployer account (`baldingsucks7993.testnet`) could still change the profile after seal | profile stored by the contract account itself (`osd.baldingsucks7993.testnet/osd-ad40dcf455fa-c`): immutable once sealed (attacks/RESULTS.md `secrets-owner`) |
+| Ops | `store-secret.sh` signs as the outlayer-cli login | `store-secret.sh --owner <contract> --near-credentials <file>` (default owner = contract); `seal.sh` warns if `secrets_owner != contract` |
 
 Additions beyond the Phase 0 brief (so other workstreams don't block): `fund_agent`, `withdraw`, `publish_prompt`, `get_config`, `get_entries`, `get_claimable`, `get_published_prompts`, events `season_opened`, `commits_closed`, `prompt_published`, move `F`, WASM inputs `hash_a`/`hash_b`/`action`.
 

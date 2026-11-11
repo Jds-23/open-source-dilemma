@@ -1,4 +1,4 @@
-//! Open Source Dilemma contract (`interfaces-v5`, see `interfaces/INTERFACE.md`).
+//! Open Source Dilemma contract (`interfaces-v6`, see `interfaces/INTERFACE.md`).
 //!
 //! Seasons of one-shot prisoner's dilemma between encrypted prompt strategies. Every match
 //! runs once in the pinned OutLayer referee WASM (`WasmUrl{url,hash}` + `secrets_ref`, both
@@ -6,7 +6,8 @@
 //! timed-out or malformed run voids the match: there is no retry path.
 //!
 //! `seal` (interfaces-v5) is a one-way switch: it deletes the contract account's access keys and
-//! freezes the per-season referee overrides, so after it the code and the referee are immutable.
+//! freezes the per-season referee overrides and `set_secrets` (v6), so after it the code, the
+//! referee and the secrets ref are immutable (the ref should name a profile the contract owns).
 use near_sdk::json_types::{U128, U64};
 use near_sdk::store::{LookupMap, LookupSet};
 use near_sdk::{
@@ -1114,6 +1115,34 @@ impl Dilemma {
             pkey,
             PublishedPrompt { agent_id, prompt, salt, commitment },
         );
+    }
+
+    // ------------------------------------------------------------ secrets ref (until seal)
+
+    /// Owner only, exactly 1 yocto, refused after `seal` (one way). Points the config referee at
+    /// the OutLayer secrets row `owner/profile` used by every season opened from now on (running
+    /// and past seasons keep the ref pinned at their `open_season`). Meant to move the profile to
+    /// one owned by the contract account itself, so that once `seal` deletes the contract's keys
+    /// nobody can re-store, re-scope or delete the season secrets (attacks/RESULTS.md
+    /// "secrets-owner"). The contract cannot check the row exists: verify with the keystore view
+    /// `list_user_secrets({account_id: owner})` before calling.
+    #[payable]
+    pub fn set_secrets(&mut self, owner: AccountId, profile: String) {
+        near_sdk::assert_one_yocto();
+        require!(env::predecessor_account_id() == self.owner, "owner only");
+        require!(!is_sealed_flag(), "sealed: the secrets ref is frozen");
+        require!(
+            !profile.is_empty()
+                && profile.len() <= 64
+                && profile.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'),
+            "profile must match ^[A-Za-z0-9_-]{1,64}$"
+        );
+        emit(
+            "secrets_set",
+            json!({"owner": owner, "profile": profile, "previous_owner": self.secrets_owner, "previous_profile": self.secrets_profile}),
+        );
+        self.secrets_owner = owner;
+        self.secrets_profile = profile;
     }
 
     // ------------------------------------------------------------ seal (one way)

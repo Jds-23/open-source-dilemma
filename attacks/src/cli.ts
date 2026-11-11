@@ -12,6 +12,7 @@ import { lowGasPlay } from './attacks/low-gas-play.ts';
 import { outsiderCalls } from './attacks/outsider-calls.ts';
 import { outsiderOutlayer } from './attacks/outsider-outlayer.ts';
 import { replayAttack } from './attacks/replay.ts';
+import { secretsOwner } from './attacks/secrets-owner.ts';
 import { tamperedSig } from './attacks/tampered-sig.ts';
 import { withholding } from './attacks/withholding.ts';
 import { wrongWasm } from './attacks/wrong-wasm.ts';
@@ -37,6 +38,7 @@ export const ATTACKS: Attack[] = [
   withholding,
   outsiderCalls,
   lowGasPlay,
+  secretsOwner,
 ];
 
 async function runOne(a: Attack, ctx: RunCtx = {}): Promise<AttackResult[]> {
