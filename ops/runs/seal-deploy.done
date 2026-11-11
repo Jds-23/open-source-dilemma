@@ -1,0 +1,16 @@
+# F1 fix deployed (interfaces-v5, PR #29 squash 5a906a4, tag interfaces-v5). Testnet, NOT sealed.
+date_utc=2026-11-11
+source_commit=5a906a4
+core_contract=osd.baldingsucks7993.testnet
+core_code_hash=EJC2QgwdKFjvRyFkhyb7Ar182dZQfXn5ESW97mUhXynT
+core_wasm_sha256=c58f44dcc3b90245bef5d2fc095b0bc784d07050acf58f0538ba72723e32453c
+core_previous_code_hash=HdrjqBdrALrrTKJ6DTHTQKAe7FWjyjp3WjYk5PTitzm
+core_deploy_tx=8Wdenh3uoeLbEwaeBgaUQRZcpCKgArC61eMU8rKgZe1A
+cards_contract=cards.osd.baldingsucks7993.testnet
+cards_code_hash=FMM9ZXcNvh96CLCrfaU1154TvuKANVkQpRuXq6f41nZR
+cards_wasm_sha256=d53a039d07ad3713d429c9bfcf0ab297f90c0d2f52785ef9dbb1a86e82f138dc
+cards_previous_code_hash=9pEq26E7DfMswjQQWaqkZiF8ZspiCTHKd2Z138hCRbfS
+cards_deploy_tx=Fgouc4docojydmcXzr9YcKgzyjMYzt9UYSQKgxvUjgFm
+state_check=get_config + seasons 1-3 (get_season, get_leaderboard, get_matches, get_entries, get_published_prompts) + cards get_config/mt_tokens byte-identical before/after
+is_sealed=false (both)
+callback_guard_live_tx=CbfNKs5jQh77F6vfag9RGs7sHpXzswyFh6hBKrtXpayS (contract key -> on_match: "not a callback")

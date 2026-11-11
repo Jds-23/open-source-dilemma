@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "osd.baldingsucks7993.testnet",
   "network": "testnet",
-  "updated_at": "2026-11-11T12:38:36.852Z",
+  "updated_at": "2026-11-11T13:13:15.675Z",
   "results": [
     {
       "evidence": "testnet",
@@ -405,6 +405,30 @@
         }
       },
       "ts": "2026-11-11T12:36:49.529Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "05c-b",
+      "attack": 5,
+      "script": "contract-key",
+      "title": "Contract FULL-ACCESS key calls #[private] on_match directly (passes the predecessor check)",
+      "expected": "refused: \"not a callback\" (0 promise results), or unsignable after seal; match unchanged",
+      "actual": "refused: Smart contract panicked: not a callback; match unchanged: true; contract keys: 1; is_sealed: false",
+      "pass": true,
+      "tx": "CbfNKs5jQh77F6vfag9RGs7sHpXzswyFh6hBKrtXpayS",
+      "details": {
+        "signer": "osd.baldingsucks7993.testnet",
+        "args": {
+          "season_id": 1,
+          "a": "clique-amber.osd.baldingsucks7993.testnet",
+          "b": "coin-vowel.osd.baldingsucks7993.testnet"
+        },
+        "keys": [
+          "ed25519:CXWcyxnNj9tfGoTzHS2fVbPfgQ9U9P5HD8aw4GTGcGsV"
+        ],
+        "is_sealed": false
+      },
+      "ts": "2026-11-11T13:13:15.670Z"
     },
     {
       "evidence": "sandbox",
