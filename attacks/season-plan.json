@@ -1,8 +1,8 @@
 {
-  "comment": "WS-7 attack season. Small stakes (unit 0.001 NEAR, bond 0.005 NEAR). Reuses season-1 house agents (h* owners) where possible; only the clone-farm owner registers new agents. Deadlines are relative to open time.",
+  "comment": "WS-7 attack season. Small stakes (unit 0.001 NEAR, bond 0.005 NEAR). Reuses season-1 house agents (h* owners) where possible; only the clone-farm owner registers new agents. Deadlines are relative to open time (fast-attack timing: +165 s = ~45 s to on_pubkey + a 2 min window; play deadline +10 m).",
   "params": {
-    "commit_deadline_ns": "+20m",
-    "play_deadline_ns": "+3h",
+    "commit_deadline_ns": "+165s",
+    "play_deadline_ns": "+10m",
     "unit_yocto": "1000000000000000000000",
     "bond_yocto": "5000000000000000000000",
     "max_agents": 10,

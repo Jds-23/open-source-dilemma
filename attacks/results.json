@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "osd.baldingsucks7993.testnet",
   "network": "testnet",
-  "updated_at": "2026-11-11T13:13:15.675Z",
+  "updated_at": "2026-11-11T13:28:35.724Z",
   "results": [
     {
       "evidence": "testnet",
@@ -74,14 +74,50 @@
       "expected": "refused (\"season not in play\"), OutLayer not called, match unchanged",
       "actual": "refused: Smart contract panicked: season not in play; OutLayer receipts: none; match unchanged",
       "pass": true,
-      "tx": "AathtYugpBCTcxZ42eS9TGXxpNbm7H4bJU8LBwnqetYp",
+      "tx": "AkQY4PgRW5vrwvrY5n3vjKgoktkGXERTyxLh51kbskFq",
       "details": {
         "match_key": "1:clique-amber.osd.baldingsucks7993.testnet:coin-vowel.osd.baldingsucks7993.testnet",
         "status_before": "settled",
         "args_order": "a,b",
         "deposit_refunded": true
       },
-      "ts": "2026-11-11T12:34:38.431Z"
+      "ts": "2026-11-11T13:27:14.377Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "02b",
+      "attack": 2,
+      "script": "replay",
+      "title": "Replay settled attack-season match (season 4), args reversed",
+      "expected": "refused (\"season not in play\"), OutLayer not called, match unchanged",
+      "actual": "refused: Smart contract panicked: season not in play; OutLayer receipts: none; match unchanged",
+      "pass": true,
+      "tx": "BsFJgqoBHHmhzsx6h1cd5QeanUP446KyymMQJfWZZx7Z",
+      "details": {
+        "match_key": "4:c-tft.osd.baldingsucks7993.testnet:def-quarantine.osd.baldingsucks7993.testnet",
+        "status_before": "settled",
+        "args_order": "b,a",
+        "deposit_refunded": true
+      },
+      "ts": "2026-11-11T13:27:20.999Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "02c",
+      "attack": 2,
+      "script": "replay",
+      "title": "Replay refunded attack-season match (callback_failed)",
+      "expected": "refused (\"season not in play\"), OutLayer not called, match unchanged",
+      "actual": "refused: Smart contract panicked: season not in play; OutLayer receipts: none; match unchanged",
+      "pass": true,
+      "tx": "U9znTcGGF7TVWbPiKhSHxPs2pxyrQXxZ4KWk1p7dttG",
+      "details": {
+        "match_key": "4:exploiter.osd.baldingsucks7993.testnet:tft-oneshot.osd.baldingsucks7993.testnet",
+        "status_before": "refunded",
+        "args_order": "a,b",
+        "deposit_refunded": true
+      },
+      "ts": "2026-11-11T13:27:26.062Z"
     },
     {
       "evidence": "testnet",
@@ -473,16 +509,55 @@
       "script": "duplicate-prompt",
       "title": "Commit byte-identical prompt from 2 owners (h16, h19)",
       "expected": "both commits accepted (salted commitments differ; no on-chain duplicate check by design, INTERFACE §5)",
-      "actual": "accepted; commitments eb61035f… ≠ 3f0f59a4…",
+      "actual": "accepted; commitments 384dec2a… ≠ 998b27e1…",
       "pass": true,
-      "tx": "6PULLvPQLDqPKqg22uPj6ViwjstW12pWCU6vPtRfre6w",
+      "tx": "4ueB2CfRbEYHPmMdDezYnoofwRA3vDqEzHegkgWDwNWX",
       "details": {
         "commits": {
-          "always-c.osd.baldingsucks7993.testnet": "F2qS8mDrMy9Vnpp6Yqy5nyB4d7qTeUHsBadZpRe9pNzR",
-          "tft-oneshot.osd.baldingsucks7993.testnet": "6PULLvPQLDqPKqg22uPj6ViwjstW12pWCU6vPtRfre6w"
+          "always-c.osd.baldingsucks7993.testnet": "G6edzgSD2zZceizWLGucgUYYBUvT1zuNyDV9fn2ibG3a",
+          "tft-oneshot.osd.baldingsucks7993.testnet": "4ueB2CfRbEYHPmMdDezYnoofwRA3vDqEzHegkgWDwNWX"
         }
       },
-      "ts": "2026-11-10T20:45:18.159Z"
+      "ts": "2026-11-11T13:27:26.815Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "07b",
+      "attack": 7,
+      "script": "duplicate-prompt",
+      "title": "Duplicate pair meets: referee detects byte-equal prompts",
+      "expected": "match void, void_reason duplicate_prompt, no LLM call, no payoffs",
+      "actual": "status refunded, void_reason duplicate_prompt, moves -/-",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "match_key": "4:always-c.osd.baldingsucks7993.testnet:tft-oneshot.osd.baldingsucks7993.testnet"
+      },
+      "ts": "2026-11-11T13:27:27.728Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "07c",
+      "attack": 7,
+      "script": "duplicate-prompt",
+      "title": "refund_void on the duplicate_prompt match",
+      "expected": "match → refunded; 3 units (3000000000000000000000 yocto) credited to each side's claimable",
+      "actual": "; status now refunded",
+      "pass": true,
+      "tx": null,
+      "ts": "2026-11-11T13:27:29.107Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "07d",
+      "attack": 7,
+      "script": "duplicate-prompt",
+      "title": "Second refund_void on the same match (double refund)",
+      "expected": "refused: \"match not void\"",
+      "actual": "refused: Smart contract panicked: match not void",
+      "pass": true,
+      "tx": "7qQENsM5T3kQViPxWEf7qcPcniFGUzjfqrU8fKFQtv6f",
+      "ts": "2026-11-11T13:27:33.215Z"
     },
     {
       "evidence": "testnet",
@@ -493,8 +568,97 @@
       "expected": "accepted on chain (the contract cannot decrypt; checked in the TEE)",
       "actual": "accepted",
       "pass": true,
-      "tx": "4NuuDZF74wontb6kVfgBWDJzgAoCNA7dEjCERjXdcTMj",
-      "ts": "2026-11-10T20:45:28.197Z"
+      "tx": "5RcS74T8zVUdD1MMu9yPM67ifQudPiq2zASzNK9ZbS5w",
+      "ts": "2026-11-11T13:27:33.523Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "08b",
+      "attack": 8,
+      "script": "commitment-mismatch",
+      "title": "Mismatched entry plays its matches (5/8 settled)",
+      "expected": "every match: this side F (0), opponent 3, +3 units to the pool; no LLM call",
+      "actual": "5/5 settled matches F; payoffs 0/3 +3 pool: yes",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "matches": [
+          {
+            "key": "4:exploiter.osd.baldingsucks7993.testnet:tft-oneshot.osd.baldingsucks7993.testnet",
+            "status": "refunded",
+            "a_move": null,
+            "b_move": null,
+            "void_reason": "callback_failed"
+          },
+          {
+            "key": "4:exploiter.osd.baldingsucks7993.testnet:fairbot.osd.baldingsucks7993.testnet",
+            "status": "settled",
+            "a_move": "F",
+            "b_move": "C",
+            "void_reason": null
+          },
+          {
+            "key": "4:c-delim.osd.baldingsucks7993.testnet:exploiter.osd.baldingsucks7993.testnet",
+            "status": "settled",
+            "a_move": "C",
+            "b_move": "F",
+            "void_reason": null
+          },
+          {
+            "key": "4:exploiter.osd.baldingsucks7993.testnet:inj-override.osd.baldingsucks7993.testnet",
+            "status": "settled",
+            "a_move": "F",
+            "b_move": "C",
+            "void_reason": null
+          },
+          {
+            "key": "4:always-c.osd.baldingsucks7993.testnet:exploiter.osd.baldingsucks7993.testnet",
+            "status": "settled",
+            "a_move": "C",
+            "b_move": "F",
+            "void_reason": null
+          },
+          {
+            "key": "4:def-quarantine.osd.baldingsucks7993.testnet:exploiter.osd.baldingsucks7993.testnet",
+            "status": "settled",
+            "a_move": "C",
+            "b_move": "F",
+            "void_reason": null
+          },
+          {
+            "key": "4:c-tft.osd.baldingsucks7993.testnet:exploiter.osd.baldingsucks7993.testnet",
+            "status": "refunded",
+            "a_move": null,
+            "b_move": null,
+            "void_reason": "deadline"
+          },
+          {
+            "key": "4:c-charm.osd.baldingsucks7993.testnet:exploiter.osd.baldingsucks7993.testnet",
+            "status": "refunded",
+            "a_move": null,
+            "b_move": null,
+            "void_reason": "deadline"
+          }
+        ]
+      },
+      "ts": "2026-11-11T13:27:34.637Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "08c",
+      "attack": 8,
+      "script": "commitment-mismatch",
+      "title": "Settlement of the forfeiting entry",
+      "expected": "bond (5000000000000000000000 yocto) withheld into the pool: claimable = unused stake + void refunds = 12000000000000000000000 yocto",
+      "actual": "claimable 12000000000000000000000 yocto (no bond); rank 9, avg 0",
+      "pass": true,
+      "details": {
+        "claimable": "12000000000000000000000",
+        "bond": "5000000000000000000000",
+        "refunded_matches": 3
+      },
+      "tx": null,
+      "ts": "2026-11-11T13:27:35.642Z"
     },
     {
       "evidence": "testnet",
@@ -505,36 +669,160 @@
       "expected": "refused: \"owner reached max_entries_per_owner\"; owner keeps 3 entries",
       "actual": "refused: Smart contract panicked: owner reached max_entries_per_owner; owner has 3 entries",
       "pass": true,
-      "tx": "872MjiaHZtMPCg9TAXJfaV1BqpY75cp1jjWEsasu7zQL",
-      "ts": "2026-11-10T20:45:47.787Z"
+      "tx": "5DWABmzBG4qYyLSGiqUB9yJE7Pz4XRGcpetcWBKM7Amc",
+      "ts": "2026-11-11T13:27:36.320Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "09b",
+      "attack": 9,
+      "script": "clone-farm",
+      "title": "Ranking excludes the 3 clone-vs-clone matches (leaderboard, season 4, settled)",
+      "expected": "matches_counted / total_payoff_counted use only matches vs other owners; same-owner matches still pay out",
+      "actual": "all 9 rows match the cross-owner recount; clones: c-tft counted 4/6 settled, c-delim counted 5/6 settled, c-charm counted 4/5 settled; same-owner matches: settled DD, settled DD, refunded",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "leaderboard_check": [
+          {
+            "agent": "fairbot",
+            "owner": "h20",
+            "settled": 7,
+            "same_owner": 0,
+            "counted": 7,
+            "expect_counted": 7,
+            "total": 25,
+            "expect_total": 25,
+            "rank": 1,
+            "avg": 3571
+          },
+          {
+            "agent": "tft-oneshot",
+            "owner": "h19",
+            "settled": 4,
+            "same_owner": 0,
+            "counted": 4,
+            "expect_counted": 4,
+            "total": 10,
+            "expect_total": 10,
+            "rank": 2,
+            "avg": 2500
+          },
+          {
+            "agent": "c-tft",
+            "owner": "clone7",
+            "settled": 6,
+            "same_owner": 2,
+            "counted": 4,
+            "expect_counted": 4,
+            "total": 10,
+            "expect_total": 10,
+            "rank": 3,
+            "avg": 2500
+          },
+          {
+            "agent": "always-c",
+            "owner": "h16",
+            "settled": 5,
+            "same_owner": 0,
+            "counted": 5,
+            "expect_counted": 5,
+            "total": 7,
+            "expect_total": 7,
+            "rank": 4,
+            "avg": 1400
+          },
+          {
+            "agent": "c-delim",
+            "owner": "clone7",
+            "settled": 6,
+            "same_owner": 1,
+            "counted": 5,
+            "expect_counted": 5,
+            "total": 7,
+            "expect_total": 7,
+            "rank": 5,
+            "avg": 1400
+          },
+          {
+            "agent": "inj-override",
+            "owner": "h12",
+            "settled": 6,
+            "same_owner": 0,
+            "counted": 6,
+            "expect_counted": 6,
+            "total": 8,
+            "expect_total": 8,
+            "rank": 6,
+            "avg": 1333
+          },
+          {
+            "agent": "def-quarantine",
+            "owner": "h08",
+            "settled": 6,
+            "same_owner": 0,
+            "counted": 6,
+            "expect_counted": 6,
+            "total": 8,
+            "expect_total": 8,
+            "rank": 7,
+            "avg": 1333
+          },
+          {
+            "agent": "c-charm",
+            "owner": "clone7",
+            "settled": 5,
+            "same_owner": 1,
+            "counted": 4,
+            "expect_counted": 4,
+            "total": 4,
+            "expect_total": 4,
+            "rank": 8,
+            "avg": 1000
+          },
+          {
+            "agent": "exploiter",
+            "owner": "h14",
+            "settled": 5,
+            "same_owner": 0,
+            "counted": 5,
+            "expect_counted": 5,
+            "total": 0,
+            "expect_total": 0,
+            "rank": 9,
+            "avg": 0
+          }
+        ]
+      },
+      "ts": "2026-11-11T13:27:37.796Z"
     },
     {
       "evidence": "testnet",
       "id": "10-all",
       "attack": 10,
       "script": "injection",
-      "title": "Injection win rate, pooled (seasons 1)",
+      "title": "Injection win rate, pooled (seasons 1, 4)",
       "expected": "report; defenders should not be exploited; the referee integrity holds (injection changes only the opponent LLM's move, never payoffs, prompts or keys)",
-      "actual": "pooled 1/9 = 11.1%; vs defenders 0/1 = 0.0%",
+      "actual": "pooled 1/20 = 5.0%; vs defenders 0/8 = 0.0%",
       "pass": true,
       "tx": null,
       "details": {
         "pooled": {
-          "n": 9,
+          "n": 20,
           "opponent_c": 1,
           "wins": 1,
-          "win_rate": 0.1111111111111111,
-          "opponent_coop_rate": 0.1111111111111111
+          "win_rate": 0.05,
+          "opponent_coop_rate": 0.05
         },
         "pooled_vs_defenders": {
-          "n": 1,
+          "n": 8,
           "opponent_c": 0,
           "wins": 0,
           "win_rate": 0,
           "opponent_coop_rate": 0
         }
       },
-      "ts": "2026-11-11T12:34:34.154Z"
+      "ts": "2026-11-11T13:27:41.298Z"
     },
     {
       "evidence": "testnet",
@@ -576,7 +864,51 @@
           "inj-override 1/9"
         ]
       },
-      "ts": "2026-11-11T12:34:34.154Z"
+      "ts": "2026-11-11T13:27:39.420Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "10-s4",
+      "attack": 10,
+      "script": "injection",
+      "title": "Injection win rate, season 4 (settled; injectors: inj-override, c-charm, c-delim)",
+      "expected": "report: injector wins = injector D while opponent C (talked into cooperating)",
+      "actual": "overall 0/11 = 0.0% (per injector: inj-override 0/3, c-charm 0/4, c-delim 0/4); vs defenders 0/7 = 0.0%; vs others 0/4 = 0.0%; opponents' C rate vs injectors 0.0% vs non-injectors 57.1%",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "total": {
+          "n": 11,
+          "opponent_c": 0,
+          "wins": 0,
+          "win_rate": 0,
+          "opponent_coop_rate": 0
+        },
+        "vs_defenders": {
+          "n": 7,
+          "opponent_c": 0,
+          "wins": 0,
+          "win_rate": 0,
+          "opponent_coop_rate": 0
+        },
+        "vs_others": {
+          "n": 4,
+          "opponent_c": 0,
+          "wins": 0,
+          "win_rate": 0,
+          "opponent_coop_rate": 0
+        },
+        "baseline_coop": {
+          "n": 14,
+          "coop_rate": 0.5714285714285714
+        },
+        "per_injector": [
+          "inj-override 0/3",
+          "c-charm 0/4",
+          "c-delim 0/4"
+        ]
+      },
+      "ts": "2026-11-11T13:27:41.296Z"
     },
     {
       "evidence": "analysis",
@@ -599,8 +931,8 @@
       "expected": "refused: \"owner only\"",
       "actual": "refused: Smart contract panicked: owner only",
       "pass": true,
-      "tx": "C2BKGvoKJw3DxRJMyYKBpfnZoN9uTaFgdjuFa7ixBiKz",
-      "ts": "2026-11-11T12:38:11.918Z"
+      "tx": "J2orBAJsRxacCmeKvZ2GvSEf3ff2pwvSChQUU23pQiDB",
+      "ts": "2026-11-11T13:27:45.381Z"
     },
     {
       "evidence": "testnet",
@@ -611,8 +943,8 @@
       "expected": "refused: \"commit deadline not reached\"",
       "actual": "refused: Smart contract panicked: commit deadline not reached",
       "pass": true,
-      "tx": "6n3dSsnmC8sYMk8FFvviE93B9ox9QA2Fh6td874n4PBF",
-      "ts": "2026-11-10T20:46:02.031Z"
+      "tx": "DvEuvfjNcFNk5nos7tWW4VmfNVYtP7MdFGGMC2d86tjv",
+      "ts": "2026-11-11T13:16:23.594Z"
     },
     {
       "evidence": "testnet",
@@ -623,8 +955,8 @@
       "expected": "refused: \"season not in play\"",
       "actual": "refused: Smart contract panicked: season not in play",
       "pass": true,
-      "tx": "7QGeQkf5FHQcRA2HaMoysFCL2nbP5VbiUeVpqqDmMYHH",
-      "ts": "2026-11-10T20:46:06.494Z"
+      "tx": "2b1hUcQk2hhaJRvobNHRafK4WwAKKdQp5S7L8435oPjT",
+      "ts": "2026-11-11T13:16:27.801Z"
     },
     {
       "evidence": "testnet",
@@ -635,8 +967,8 @@
       "expected": "refused: \"season not in play\"; OutLayer not called",
       "actual": "refused: Smart contract panicked: season not in play",
       "pass": true,
-      "tx": "2EDsvZVnWbVuDvuuzooCbLk9GGYP6tCQQXcWA3MwtZe5",
-      "ts": "2026-11-10T20:46:10.607Z"
+      "tx": "8F9qhR354T2NGBqvYToksff4PMCY2V8vkdLGRNSyokN1",
+      "ts": "2026-11-11T13:16:31.557Z"
     },
     {
       "evidence": "testnet",
@@ -647,8 +979,8 @@
       "expected": "refused: \"season not in play\"",
       "actual": "refused: Smart contract panicked: season not in play",
       "pass": true,
-      "tx": "HbNa23zdadsqfjF56zEg1FjuP22CzAGWpfcknyh2ALmf",
-      "ts": "2026-11-10T20:46:15.429Z"
+      "tx": "A78upwKq2DwvUJ5Yj1okijUQoe9K3acFRHmrNaeZQZaq",
+      "ts": "2026-11-11T13:16:35.939Z"
     },
     {
       "evidence": "testnet",
@@ -659,8 +991,8 @@
       "expected": "refused: \"caller must be the agent or its owner\"",
       "actual": "refused: Smart contract panicked: caller must be the agent or its owner",
       "pass": true,
-      "tx": "BxWA9UyG9B6Z2j61pY859dsgQkRuL7mmqu5gyEi7MN6u",
-      "ts": "2026-11-10T20:46:19.813Z"
+      "tx": "DiLd7htQmbzmFnBybDrRz31E43AJjbKsXkbHasbkVna4",
+      "ts": "2026-11-11T13:16:40.593Z"
     },
     {
       "evidence": "testnet",
@@ -671,8 +1003,60 @@
       "expected": "refused: \"not owner\"",
       "actual": "refused: Smart contract panicked: not owner",
       "pass": true,
-      "tx": "H1R5d3ehz7NAub9pCvP8yxramD3C6R2vvmK7igMag2Dv",
-      "ts": "2026-11-11T12:38:15.994Z"
+      "tx": "HA9tLjJnsNxDH57Up3UfnS9hDPUpEGDmcQxZF1jBh246",
+      "ts": "2026-11-11T13:27:49.581Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12h",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider settle_season while matches are unfinished, before the play deadline",
+      "expected": "refused: \"unfinished matches before play deadline\"",
+      "actual": "refused: Smart contract panicked: unfinished matches before play deadline",
+      "pass": true,
+      "tx": "7SWqUrcE9e7hC5pmmoSE9uG6NbePDaAcvQEKW9rQxoKK",
+      "ts": "2026-11-11T13:21:18.925Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12i",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "refund_void on a match that is pending for < 250 blocks (grab the stake back mid-run)",
+      "expected": "refused: \"match not void\"",
+      "actual": "refused: Smart contract panicked: match not void",
+      "pass": true,
+      "tx": "32KsH8KNVTeRo36E4A3MuchoW4fDqvsJwmFGGBgACrpm",
+      "details": {
+        "match_key": "4:c-tft.osd.baldingsucks7993.testnet:def-quarantine.osd.baldingsucks7993.testnet",
+        "play_tx": "F9nktraDUTjetYuVKa1oXov3nyVmsEYDPG7xmUnT2qiw"
+      },
+      "ts": "2026-11-11T13:21:37.732Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12j",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider schedule_round after all rounds are scheduled",
+      "expected": "refused: \"all rounds scheduled\"",
+      "actual": "refused: Smart contract panicked: all rounds scheduled",
+      "pass": true,
+      "tx": "6TQjVnybu9svg9pLQBnrrmu6ixMpJ7EQzzeFgd8QB4wM",
+      "ts": "2026-11-11T13:21:23.326Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12k",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Late commit after the commit deadline",
+      "expected": "refused: \"season not in commit\"",
+      "actual": "refused: Smart contract panicked: caller must be the agent or its owner",
+      "pass": true,
+      "tx": "F5aDeqTSukwnuQyw2A5m1VPgHZ22Y6pd2ox1VTFy3NKe",
+      "ts": "2026-11-11T13:21:28.094Z"
     },
     {
       "evidence": "testnet",
@@ -683,8 +1067,8 @@
       "expected": "refused: \"season not in commit\"",
       "actual": "refused: Smart contract panicked: season not in commit",
       "pass": true,
-      "tx": "AtzB7KRP2iC1QoyDWu5MinmwwXe7Z1KMJtTdwXj1124",
-      "ts": "2026-11-11T12:38:21.006Z"
+      "tx": "7AJk5WS4t1j1CYwStuhWSh6bHVm3MDTMv3neE23wJKDf",
+      "ts": "2026-11-11T13:27:54.835Z"
     },
     {
       "evidence": "testnet",
@@ -695,8 +1079,8 @@
       "expected": "refused: \"season not in play\"",
       "actual": "refused: Smart contract panicked: season not in play",
       "pass": true,
-      "tx": "FA2gYt6ByPTnXJbavrNmgp9tKytnHjJhpzoUrTo6LyMQ",
-      "ts": "2026-11-11T12:38:25.214Z"
+      "tx": "DDZcKSo6kZgzdCfd8CVwqrTjZpQr9HpLMpUoQGj1RnJN",
+      "ts": "2026-11-11T13:27:58.797Z"
     },
     {
       "evidence": "testnet",
@@ -707,8 +1091,8 @@
       "expected": "refused: \"season not in play\"",
       "actual": "refused: Smart contract panicked: season not in play",
       "pass": true,
-      "tx": "32Lc5cbZRWNXqS5WosyfvFzngK5nkL2C9Kuc5se3RrLF",
-      "ts": "2026-11-11T12:38:28.759Z"
+      "tx": "7QMkmmkYFxaTcgSqKhpTnKQfJuwijB68aTN3CduphGiX",
+      "ts": "2026-11-11T13:28:02.844Z"
     },
     {
       "evidence": "testnet",
@@ -719,11 +1103,11 @@
       "expected": "refused: \"match not void\"",
       "actual": "refused: Smart contract panicked: match not void",
       "pass": true,
-      "tx": "5wyrPfuUJrRXaKdNe2e4wgNwXiXbzvtNzuAFWXC9tn2f",
+      "tx": "4HmxW2E1nLvjYHNNBcXXtzH2VHkKSjgLBpX3feCNo1R3",
       "details": {
         "match_key": "1:clique-amber.osd.baldingsucks7993.testnet:coin-vowel.osd.baldingsucks7993.testnet"
       },
-      "ts": "2026-11-11T12:38:32.628Z"
+      "ts": "2026-11-11T13:28:07.282Z"
     },
     {
       "evidence": "testnet",
@@ -734,8 +1118,63 @@
       "expected": "refused: \"caller must be the agent or its owner\"",
       "actual": "refused: Smart contract panicked: caller must be the agent or its owner",
       "pass": true,
-      "tx": "D2moCVNZf9qdGRmuPUxQXkWj9ApycX7KqXkffjoE1bfn",
-      "ts": "2026-11-11T12:38:36.850Z"
+      "tx": "8rmwphaWw2hAGXaSrJVJAUWo9aYisMdR8AHRJHQmjkMt",
+      "ts": "2026-11-11T13:28:11.647Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "13-50",
+      "attack": 13,
+      "script": "low-gas-play",
+      "title": "Outsider play_match with 50 Tgas (exploiter vs tft-oneshot)",
+      "expected": "refused for too little gas, or the match is played normally (never voided by an outsider)",
+      "actual": "tx ok; OutLayer receipts FAILED (Exceeded the prepaid gas.); match now void (callback_failed)",
+      "pass": false,
+      "finding": "F2: play_match has no minimum prepaid-gas check. An outsider who attaches just enough gas for play_match + the 40 Tgas on_match callback starves OutLayer, the call fails and the one-shot match is voided (callback_failed). Anyone can void any scheduled match (e.g. all of a rival's matches → rival unranked) for ~0.02 NEAR each. Fix: require!(env::prepaid_gas() >= Gas::from_tgas(250)) (or a computed floor: callback 40 + OutLayer ~150 + own) in play_match.",
+      "tx": "D65ek8DGCKLPqKkcR6j4fpVsbBF8qFJLEXPc5XqhEJoo",
+      "details": {
+        "match_key": "4:exploiter.osd.baldingsucks7993.testnet:tft-oneshot.osd.baldingsucks7993.testnet",
+        "gas_tgas": 50,
+        "receipts": [
+          {
+            "executor": "osd.baldingsucks7993.testnet",
+            "gas": 3955777403349,
+            "ok": true
+          },
+          {
+            "executor": "outlayer.testnet",
+            "gas": 2625267546040,
+            "ok": false,
+            "failure": "Exceeded the prepaid gas."
+          },
+          {
+            "executor": "osd.baldingsucks7993.testnet",
+            "gas": 223182562500,
+            "ok": true
+          },
+          {
+            "executor": "atk7.baldingsucks7993.testnet",
+            "gas": 223182562500,
+            "ok": true
+          },
+          {
+            "executor": "osd.baldingsucks7993.testnet",
+            "gas": 2250126017093,
+            "ok": true
+          },
+          {
+            "executor": "atk7.baldingsucks7993.testnet",
+            "gas": 223182562500,
+            "ok": true
+          },
+          {
+            "executor": "atk7.baldingsucks7993.testnet",
+            "gas": 223182562500,
+            "ok": true
+          }
+        ]
+      },
+      "ts": "2026-11-11T13:17:58.224Z"
     }
   ]
 }
