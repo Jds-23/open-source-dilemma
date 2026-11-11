@@ -26,17 +26,48 @@ export class RpcError extends Error {
   }
 }
 
+export interface RpcRetryOptions {
+  /** Attempts per request on HTTP 429 / 5xx / network errors (default 6). Every request here is a read. */
+  attempts?: number;
+  baseDelayMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}
+
 export class NearRpc {
   readonly url: string;
   private readonly fetchFn: FetchLike;
+  private readonly retry: Required<RpcRetryOptions>;
   private id = 0;
 
-  constructor(url: string, fetchFn: FetchLike = globalThis.fetch as unknown as FetchLike) {
+  constructor(url: string, fetchFn: FetchLike = globalThis.fetch as unknown as FetchLike, retry: RpcRetryOptions = {}) {
     this.url = url;
     this.fetchFn = fetchFn;
+    this.retry = {
+      attempts: retry.attempts ?? 6,
+      baseDelayMs: retry.baseDelayMs ?? 500,
+      sleep: retry.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
+    };
   }
 
+  /**
+   * One JSON-RPC call. Rate limits (429), 5xx and network failures are retried with
+   * exponential backoff + jitter (views and tx lookups are idempotent); a parallel keeper
+   * pass with 15 keys otherwise trips the public RPC's rate limit and aborts the run.
+   */
   async request<T>(method: string, params: unknown): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.requestOnce<T>(method, params);
+      } catch (e) {
+        const retryable = e instanceof RpcError ? e.status === 429 || e.status >= 500 : !(e instanceof RpcError);
+        if (!retryable || attempt >= this.retry.attempts) throw e;
+        const d = Math.min(8000, this.retry.baseDelayMs * 2 ** (attempt - 1));
+        await this.retry.sleep(Math.floor(d / 2 + (d / 2) * Math.random()));
+      }
+    }
+  }
+
+  private async requestOnce<T>(method: string, params: unknown): Promise<T> {
     const body = JSON.stringify({ jsonrpc: '2.0', id: `osd-${++this.id}`, method, params });
     const res = await this.fetchFn(this.url, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
     if (!res.ok) throw new RpcError(`rpc ${method}: HTTP ${res.status}`, res.status);

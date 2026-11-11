@@ -102,10 +102,33 @@ describe('mock RPC (JSON-RPC level)', () => {
   });
 
   test('HTTP errors and RPC errors are classified transient / refused as appropriate', async () => {
-    const down = new NearRpc('http://mock', mockFetch(() => new Error('down')));
+    const down = new NearRpc('http://mock', mockFetch(() => new Error('down')), { attempts: 1 });
     await assert.rejects(down.head(), (e: unknown) => classifyError(e).kind === 'transient');
     const panic = new NearRpc('http://mock', mockFetch(() => ({ result: { error: 'wasm execution failed with error: FunctionCallError(HostError(GuestPanic))' } })));
     await assert.rejects(panic.view('c', 'get_season', {}), (e: unknown) => classifyError(e).kind === 'refused');
+  });
+
+  test('HTTP 429 / 5xx are retried with backoff; RPC-level errors are not', async () => {
+    let n = 0;
+    const slept: number[] = [];
+    const fetch429: FetchLike = async (_url, init) => {
+      const req = JSON.parse(init.body) as { id: string };
+      n += 1;
+      if (n <= 2) return { ok: false, status: n === 1 ? 429 : 502, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => ({ jsonrpc: '2.0', id: req.id, result: { header: { height: 7, timestamp: 1 } } }) };
+    };
+    const rpc = new NearRpc('http://mock', fetch429, { sleep: async (ms) => void slept.push(ms) });
+    assert.equal((await rpc.head()).height, 7);
+    assert.equal(n, 3);
+    assert.equal(slept.length, 2);
+    let calls = 0;
+    const always429: FetchLike = async () => (calls++, { ok: false, status: 429, json: async () => ({}) });
+    await assert.rejects(new NearRpc('http://mock', always429, { attempts: 3, sleep: async () => {} }).head(), /HTTP 429/);
+    assert.equal(calls, 3);
+    let panics = 0;
+    const panic: FetchLike = async (_u, init) => (panics++, { ok: true, status: 200, json: async () => ({ id: JSON.parse(init.body).id, result: { error: 'GuestPanic' } }) });
+    await assert.rejects(new NearRpc('http://mock', panic, { sleep: async () => {} }).view('c', 'm', {}));
+    assert.equal(panics, 1);
   });
 
   test('head reads height + ns timestamp', async () => {
