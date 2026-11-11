@@ -1,0 +1,7 @@
+{"ts":"2026-11-11T12:44:06.220Z","kind":"phase","season_id":2,"msg":"season 2 stuck in commit past both deadlines (earlier attack run): close_commits + settle_season loop, all matches void/refund"}
+{"ts":"2026-11-11T12:44:10.371Z","kind":"tx","season_id":2,"method":"close_commits","args":{"season_id":2},"tx_hash":"B9civgQ1xVvC2RdBXNomh5MSjJtehHoc45PG8ex5LqPk","outcome":"ok","block":277217004,"signer":"baldingsucks7993.testnet","value_len":null}
+{"ts":"2026-11-11T12:44:10.916Z","kind":"phase","season_id":2,"msg":"season 2 commit; n_matches 0, n_void 0, rounds 0/0"}
+{"ts":"2026-11-11T12:44:16.912Z","kind":"phase","season_id":2,"msg":"season 2 stuck in commit past both deadlines (earlier attack run): close_commits + settle_season loop, all matches void/refund"}
+{"ts":"2026-11-11T12:44:22.043Z","kind":"tx","season_id":2,"method":"settle_season","args":{"season_id":2},"tx_hash":"Hq7a2XmNQDgujmE8QgJBGjPJKisaRHcoCfyXaznjyM1D","outcome":"ok","block":277217022,"signer":"baldingsucks7993.testnet","value_len":9}
+{"ts":"2026-11-11T12:44:26.541Z","kind":"tx","season_id":2,"method":"settle_season","args":{"season_id":2},"outcome":"refused","error":"ChainError: ContractExecutionError: Smart contract panicked: season not in play","signer":"baldingsucks7993.testnet"}
+{"ts":"2026-11-11T12:44:27.306Z","kind":"phase","season_id":2,"msg":"season 2 settled; n_matches 0, n_void 0, rounds 0/9"}
