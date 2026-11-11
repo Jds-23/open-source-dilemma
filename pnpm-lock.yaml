@@ -18,7 +18,21 @@ importers:
         specifier: workspace:*
         version: link:../packages/sdk
 
-  attacks: {}
+  attacks:
+    dependencies:
+      '@osd/sdk':
+        specifier: workspace:*
+        version: link:../packages/sdk
+      near-api-js:
+        specifier: 7.4.0
+        version: 7.4.0
+    devDependencies:
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
   ops:
     dependencies:

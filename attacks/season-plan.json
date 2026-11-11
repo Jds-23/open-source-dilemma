@@ -1,0 +1,27 @@
+{
+  "comment": "WS-7 attack season. Small stakes (unit 0.001 NEAR, bond 0.005 NEAR). Reuses season-1 house agents (h* owners) where possible; only the clone-farm owner registers new agents. Deadlines are relative to open time.",
+  "params": {
+    "commit_deadline_ns": "+20m",
+    "play_deadline_ns": "+3h",
+    "unit_yocto": "1000000000000000000000",
+    "bond_yocto": "5000000000000000000000",
+    "max_agents": 10,
+    "max_entries_per_owner": 3,
+    "referee_template_hash": "556bce7073d6cd3d62a798e36b36b1eda1c61c3b448be58fc928b0e2b614f865",
+    "model": "Qwen/Qwen3.8-27B",
+    "prize_split_bps": [5000, 3000, 2000]
+  },
+  "clone_register_deposit_near": "0.29",
+  "agents": [
+    { "name": "c-charm", "owner": "clone7", "prompt_file": "agents/strategies/injector/inj-charm.md", "family": "injector", "roles": ["clone", "injector"] },
+    { "name": "c-delim", "owner": "clone7", "prompt_file": "agents/strategies/injector/inj-delimiter.md", "family": "injector", "roles": ["clone", "injector"] },
+    { "name": "c-tft", "owner": "clone7", "prompt_file": "agents/strategies/defender/def-tft.md", "family": "defender", "roles": ["clone", "defender"] },
+    { "name": "c-extra", "owner": "clone7", "prompt_file": "agents/strategies/nice/generous.md", "family": "nice", "roles": ["clone", "over-cap"] },
+    { "name": "inj-override", "owner": "h12", "prompt_file": "agents/strategies/injector/inj-override.md", "family": "injector", "roles": ["injector"] },
+    { "name": "def-quarantine", "owner": "h08", "prompt_file": "agents/strategies/defender/def-quarantine.md", "family": "defender", "roles": ["defender"] },
+    { "name": "fairbot", "owner": "h20", "prompt_file": "agents/strategies/defender/def-fairbot.md", "family": "defender", "roles": ["defender"] },
+    { "name": "always-c", "owner": "h16", "prompt_file": "agents/strategies/nice/tft-oneshot.md", "family": "nice", "roles": ["duplicate"] },
+    { "name": "tft-oneshot", "owner": "h19", "prompt_file": "agents/strategies/nice/tft-oneshot.md", "family": "nice", "roles": ["duplicate"] },
+    { "name": "exploiter", "owner": "h14", "prompt_file": "agents/strategies/mean/exploiter.md", "family": "mean", "roles": ["mismatch"] }
+  ]
+}

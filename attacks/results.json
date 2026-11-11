@@ -1,0 +1,717 @@
+{
+  "version": 1,
+  "contract": "osd.baldingsucks7993.testnet",
+  "network": "testnet",
+  "updated_at": "2026-11-11T12:38:36.852Z",
+  "results": [
+    {
+      "evidence": "testnet",
+      "id": "01a",
+      "attack": 1,
+      "script": "forged-callback",
+      "title": "Forged on_match (season 1 match) from outsider",
+      "expected": "refused: \"Method on_match is private\" (predecessor ≠ contract)",
+      "actual": "refused: Smart contract panicked: Method on_match is private",
+      "pass": true,
+      "tx": "EUup4oHmd4xLfmY2LQefnMUmovLjPucd1NZyP8aEnx9t",
+      "details": {
+        "signer": "atk7.baldingsucks7993.testnet",
+        "args": {
+          "season_id": 1,
+          "a": "clique-amber.osd.baldingsucks7993.testnet",
+          "b": "coin-vowel.osd.baldingsucks7993.testnet"
+        },
+        "match_unchanged": true
+      },
+      "ts": "2026-11-11T12:34:38.458Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "01b",
+      "attack": 1,
+      "script": "forged-callback",
+      "title": "Forged on_pubkey from outsider",
+      "expected": "refused: \"Method on_pubkey is private\" (predecessor ≠ contract)",
+      "actual": "refused: Smart contract panicked: Method on_pubkey is private",
+      "pass": true,
+      "tx": "2yrNrepRV4yehEcPaM1dWsU7zzhTYRcwdSQxKXt3ys7G",
+      "details": {
+        "signer": "atk7.baldingsucks7993.testnet",
+        "args": {
+          "season_id": 1
+        }
+      },
+      "ts": "2026-11-11T12:34:42.788Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "01c",
+      "attack": 1,
+      "script": "forged-callback",
+      "title": "Forged on_agent_created (mint a 100 NEAR budget) from outsider",
+      "expected": "refused: \"Method on_agent_created is private\" (predecessor ≠ contract)",
+      "actual": "refused: Smart contract panicked: Method on_agent_created is private",
+      "pass": true,
+      "tx": "8bHeTfYLc6WbdQ8nb2Uv73yDULkyvANXYWsubfFMycE1",
+      "details": {
+        "signer": "atk7.baldingsucks7993.testnet",
+        "args": {
+          "agent_id": "ghost.osd.baldingsucks7993.testnet",
+          "owner": "atk7.baldingsucks7993.testnet",
+          "name": "ghost",
+          "deposit": "100000000000000000000000000"
+        },
+        "ghost_agent": null
+      },
+      "ts": "2026-11-11T12:34:46.873Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "02a",
+      "attack": 2,
+      "script": "replay",
+      "title": "Replay settled season-1 match (season settled)",
+      "expected": "refused (\"season not in play\"), OutLayer not called, match unchanged",
+      "actual": "refused: Smart contract panicked: season not in play; OutLayer receipts: none; match unchanged",
+      "pass": true,
+      "tx": "AathtYugpBCTcxZ42eS9TGXxpNbm7H4bJU8LBwnqetYp",
+      "details": {
+        "match_key": "1:clique-amber.osd.baldingsucks7993.testnet:coin-vowel.osd.baldingsucks7993.testnet",
+        "status_before": "settled",
+        "args_order": "a,b",
+        "deposit_refunded": true
+      },
+      "ts": "2026-11-11T12:34:38.431Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "03a",
+      "attack": 3,
+      "script": "agent-key",
+      "title": "FC key: Transfer 0.1 NEAR out of the agent account",
+      "expected": "rejected: RequiresFullAccess",
+      "actual": "rejected before inclusion: InvalidAccessKeyError RequiresFullAccess",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "signer": "inj-override.osd.baldingsucks7993.testnet",
+        "key_permission": [
+          {
+            "FunctionCall": {
+              "allowance": "249238614840050500000000",
+              "method_names": [
+                "commit",
+                "claim"
+              ],
+              "receiver_id": "osd.baldingsucks7993.testnet"
+            }
+          }
+        ],
+        "signed_tx_hash": "8Rm1K7EF8i7RpJW7z5gSVjtTifejk6iqR5GyVtQ1uMup",
+        "included": false
+      },
+      "ts": "2026-11-11T12:34:33.391Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "03b",
+      "attack": 3,
+      "script": "agent-key",
+      "title": "FC key: AddKey (full access) to the agent account",
+      "expected": "rejected: RequiresFullAccess",
+      "actual": "rejected before inclusion: InvalidAccessKeyError RequiresFullAccess",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "signer": "inj-override.osd.baldingsucks7993.testnet",
+        "key_permission": [
+          {
+            "FunctionCall": {
+              "allowance": "249238614840050500000000",
+              "method_names": [
+                "commit",
+                "claim"
+              ],
+              "receiver_id": "osd.baldingsucks7993.testnet"
+            }
+          }
+        ],
+        "signed_tx_hash": "6zKLkqTUwWkDohfN59oe6BwgrrrP4WyQ9JtmFyfUy6kc",
+        "included": false
+      },
+      "ts": "2026-11-11T12:34:34.000Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "03c",
+      "attack": 3,
+      "script": "agent-key",
+      "title": "FC key: DeleteAccount (beneficiary = attacker)",
+      "expected": "rejected: RequiresFullAccess",
+      "actual": "rejected before inclusion: InvalidAccessKeyError RequiresFullAccess",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "signer": "inj-override.osd.baldingsucks7993.testnet",
+        "key_permission": [
+          {
+            "FunctionCall": {
+              "allowance": "249238614840050500000000",
+              "method_names": [
+                "commit",
+                "claim"
+              ],
+              "receiver_id": "osd.baldingsucks7993.testnet"
+            }
+          }
+        ],
+        "signed_tx_hash": "NWVgRozhMdUzPk7oayeZP9MPEuGsVsFNbjzJNMwZppo",
+        "included": false
+      },
+      "ts": "2026-11-11T12:34:34.484Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "03d",
+      "attack": 3,
+      "script": "agent-key",
+      "title": "FC key: call non-allowed method refund_void on the contract",
+      "expected": "rejected: MethodNameMismatch",
+      "actual": "rejected before inclusion: InvalidAccessKeyError {MethodNameMismatch:{method_name:refund_void}}",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "signer": "inj-override.osd.baldingsucks7993.testnet",
+        "key_permission": [
+          {
+            "FunctionCall": {
+              "allowance": "249238614840050500000000",
+              "method_names": [
+                "commit",
+                "claim"
+              ],
+              "receiver_id": "osd.baldingsucks7993.testnet"
+            }
+          }
+        ],
+        "signed_tx_hash": "FVQipa4SVrgz8eXMdTwtAcdhkXBPMT4mNp1y571ypUxh",
+        "included": false
+      },
+      "ts": "2026-11-11T12:34:35.440Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "03e",
+      "attack": 3,
+      "script": "agent-key",
+      "title": "FC key: allowed method name `commit` on another receiver (outlayer.testnet)",
+      "expected": "rejected: ReceiverMismatch",
+      "actual": "rejected before inclusion: InvalidAccessKeyError {ReceiverMismatch:{ak_receiver:osd.baldingsucks7993.testnet,tx_receiver:outlayer.testnet}}",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "signer": "inj-override.osd.baldingsucks7993.testnet",
+        "key_permission": [
+          {
+            "FunctionCall": {
+              "allowance": "249238614840050500000000",
+              "method_names": [
+                "commit",
+                "claim"
+              ],
+              "receiver_id": "osd.baldingsucks7993.testnet"
+            }
+          }
+        ],
+        "signed_tx_hash": "9NXjXf6vD6her5rJGpFzZ8kYEGZGZ6jD1HL34cryiCyf",
+        "included": false
+      },
+      "ts": "2026-11-11T12:34:36.130Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "03f",
+      "attack": 3,
+      "script": "agent-key",
+      "title": "FC key: `commit` with 1 yoctoNEAR attached",
+      "expected": "rejected: DepositWithFunctionCall",
+      "actual": "rejected before inclusion: InvalidAccessKeyError DepositWithFunctionCall",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "signer": "inj-override.osd.baldingsucks7993.testnet",
+        "key_permission": [
+          {
+            "FunctionCall": {
+              "allowance": "249238614840050500000000",
+              "method_names": [
+                "commit",
+                "claim"
+              ],
+              "receiver_id": "osd.baldingsucks7993.testnet"
+            }
+          }
+        ],
+        "signed_tx_hash": "892pDd2gqG4594ssBrrkGry9uiC1JcMU21J6FAe1Tr2p",
+        "included": false
+      },
+      "ts": "2026-11-11T12:34:36.614Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "03g",
+      "attack": 3,
+      "script": "agent-key",
+      "title": "Control: FC key calls allowed `claim` (season 1)",
+      "expected": "accepted by the key (claimable → budget, or contract says \"nothing claimable\")",
+      "actual": "refused: Smart contract panicked: nothing claimable (claimable before: 0)",
+      "pass": true,
+      "tx": "CcsfRXM3g6fvdJ5CeHVXenVXXfdKngUX11bXY5rB2MG3",
+      "details": {
+        "signer": "inj-override.osd.baldingsucks7993.testnet"
+      },
+      "ts": "2026-11-11T12:34:40.732Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "04a",
+      "attack": 4,
+      "script": "outsider-outlayer",
+      "title": "Outsider runs pinned referee with secrets_ref osd-ad40dcf455fa on two sealed season-1 entries",
+      "expected": "OutLayer keystore refuses the secret (Predecessor whitelist = [contract]); no output",
+      "actual": "execution_completed success=false: Access denied by access condition — signer atk7.baldingsucks7993.testnet, called from atk7.baldingsucks7993.testnet. Check the access conditions configured by the secret owner.",
+      "pass": true,
+      "tx": "3RwE5scVPERvh3yKjY5dwew2d4cv2vysedGPxPdJFkzg",
+      "details": {
+        "signer": "atk7.baldingsucks7993.testnet",
+        "wasm_hash": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6",
+        "match_key": "1:clique-amber.osd.baldingsucks7993.testnet:def-quarantine.osd.baldingsucks7993.testnet",
+        "charged": "1000000000000000000000",
+        "tx_value": null
+      },
+      "ts": "2026-11-11T12:37:28.529Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "04b",
+      "attack": 4,
+      "script": "outsider-outlayer",
+      "title": "Outsider runs pinned referee without secrets (WASM-level predecessor check)",
+      "expected": "referee returns error predecessor_not_allowed (no decryption, no LLM call)",
+      "actual": "execution_completed success=true; output: {\"error\":\"predecessor_not_allowed\",\"match_key\":\"1:clique-amber.osd.baldingsucks7993.testnet:def-quarantine.osd.baldingsucks7993.testnet\"}",
+      "pass": true,
+      "tx": "GhKFMBwSHMWM3WvHu7e3KkBwVhjp1uj6DJpZoNM2qx53",
+      "details": {
+        "signer": "atk7.baldingsucks7993.testnet",
+        "charged": "1104400000000000000000",
+        "error_message": null
+      },
+      "ts": "2026-11-11T12:38:04.613Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "05a",
+      "attack": 5,
+      "script": "wrong-wasm",
+      "title": "Whitelisted predecessor (contract key) + attacker probe WASM (b6e46bab…) + game secrets_ref",
+      "expected": "secret not released to a WASM whose hash ≠ WasmHash(ad40dcf4…): PROTECTED_SEASON_SEED and NEARAI_API_KEY absent (or job refused)",
+      "actual": "ran without the secret: season_seed_present=false, nearai_key_present=false (predecessor osd.baldingsucks7993.testnet; env names: ATTACHED_USD NEAR_BLOCK_HEIGHT NEAR_BLOCK_TIMESTAMP NEAR_CONTRACT_ID NEAR_GAS_BURNT NEAR_MAX_EXECUTION_SECONDS NEAR_MAX_INSTRUCTIONS NEAR_MAX_MEMORY_MB NEAR_NETWORK_ID NEAR_PAYMENT_YOCTO NEAR_PREDECESSOR_ID NEAR_RECEIPT_ID NEAR_RELAYER_ID NEAR_REQUEST_ID NEAR_RPC_PROXY_AVAILABLE NEAR_SENDER_ID NEAR_SIGNER_PUBLIC_KEY NEAR_TRANSACTION_HASH NEAR_USER_ACCOUNT_ID OUTLAYER_CALL_ID OUTLAYER_EXECUTION_TYPE USD_PAYMENT)",
+      "pass": true,
+      "tx": "9JxdkHRUTdFuq4XWJU5QQiAQsCrRUnfGD5hhpKruK8ob",
+      "details": {
+        "signer": "osd.baldingsucks7993.testnet",
+        "wasm_hash": "b6e46bab964f5b99194ce0b18f1bf28295a54610b22f07f13a0d5a9099989f14",
+        "wasm_upload_tx": "FFKVE3dRZQ6Kn3aMr4sV49HfsBk7sFJSG1AAuGTvPLdc",
+        "pinned_hash": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6",
+        "outlayer": {
+          "sender_id": "osd.baldingsucks7993.testnet",
+          "code_source": {
+            "WasmUrl": {
+              "url": "https://test.fastfs.io/atk7.baldingsucks7993.testnet/outlayer.testnet/osd-attack-probe/v1/b6e46bab964f5b99194ce0b18f1bf28295a54610b22f07f13a0d5a9099989f14.wasm",
+              "hash": "b6e46bab964f5b99194ce0b18f1bf28295a54610b22f07f13a0d5a9099989f14",
+              "build_target": "wasm32-wasip2"
+            }
+          },
+          "resources_used": {
+            "instructions": 161961,
+            "time_ms": 273,
+            "compile_time_ms": null
+          },
+          "success": true,
+          "error_message": null,
+          "payment_charged": "1027300000000000000000",
+          "payment_refunded": "28972700000000000000000",
+          "compilation_note": "Cached WASM from 2026-11-10T20:43:00.611030+00:00",
+          "timestamp": 1794400507472176000
+        }
+      },
+      "ts": "2026-11-11T12:35:20.562Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "05b",
+      "attack": 5,
+      "script": "wrong-wasm",
+      "title": "Outsider + attacker probe WASM + game secrets_ref",
+      "expected": "secret not released to a WASM whose hash ≠ WasmHash(ad40dcf4…): PROTECTED_SEASON_SEED and NEARAI_API_KEY absent (or job refused)",
+      "actual": "ran without the secret: season_seed_present=false, nearai_key_present=false (predecessor atk7.baldingsucks7993.testnet; env names: ATTACHED_USD NEAR_BLOCK_HEIGHT NEAR_BLOCK_TIMESTAMP NEAR_CONTRACT_ID NEAR_GAS_BURNT NEAR_MAX_EXECUTION_SECONDS NEAR_MAX_INSTRUCTIONS NEAR_MAX_MEMORY_MB NEAR_NETWORK_ID NEAR_PAYMENT_YOCTO NEAR_PREDECESSOR_ID NEAR_RECEIPT_ID NEAR_RELAYER_ID NEAR_REQUEST_ID NEAR_RPC_PROXY_AVAILABLE NEAR_SENDER_ID NEAR_SIGNER_PUBLIC_KEY NEAR_TRANSACTION_HASH NEAR_USER_ACCOUNT_ID OUTLAYER_CALL_ID OUTLAYER_EXECUTION_TYPE USD_PAYMENT)",
+      "pass": true,
+      "tx": "BsHjyLhJP8f6uXJNa7kXsuq6kXTVh6zh1akB7HMvxCew",
+      "details": {
+        "signer": "atk7.baldingsucks7993.testnet",
+        "wasm_hash": "b6e46bab964f5b99194ce0b18f1bf28295a54610b22f07f13a0d5a9099989f14",
+        "wasm_upload_tx": "FFKVE3dRZQ6Kn3aMr4sV49HfsBk7sFJSG1AAuGTvPLdc",
+        "pinned_hash": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6",
+        "outlayer": {
+          "sender_id": "atk7.baldingsucks7993.testnet",
+          "code_source": {
+            "WasmUrl": {
+              "url": "https://test.fastfs.io/atk7.baldingsucks7993.testnet/outlayer.testnet/osd-attack-probe/v1/b6e46bab964f5b99194ce0b18f1bf28295a54610b22f07f13a0d5a9099989f14.wasm",
+              "hash": "b6e46bab964f5b99194ce0b18f1bf28295a54610b22f07f13a0d5a9099989f14",
+              "build_target": "wasm32-wasip2"
+            }
+          },
+          "resources_used": {
+            "instructions": 160751,
+            "time_ms": 216,
+            "compile_time_ms": null
+          },
+          "success": true,
+          "error_message": null,
+          "payment_charged": "1021600000000000000000",
+          "payment_refunded": "28978400000000000000000",
+          "compilation_note": "Cached WASM from 2026-11-10T20:43:00.611030+00:00",
+          "timestamp": 1794400564087953400
+        }
+      },
+      "ts": "2026-11-11T12:36:17.044Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "05c",
+      "attack": 5,
+      "script": "wrong-wasm",
+      "title": "Control: contract FULL-ACCESS key + pinned WASM + game secrets, signed outside the contract code",
+      "expected": "secrets released (same predecessor, right hash) → shows 05a/05b got no secret because of the WasmHash binding alone",
+      "actual": "execution_completed success=true; derived season-1 pubkey matches get_season_pubkey(1); contract has 1 FullAccess key(s)",
+      "pass": true,
+      "finding": "F1: osd contract account still has a FullAccess key. Its holder passes the keystore Predecessor rule (can run the referee against stored ciphertexts out of band: a prompt-probing oracle) and can call #[private] on_match/on_pubkey (forge results). Fix: delete the full-access key after deploy (locked contract), or move upgrades behind a DAO/multisig.",
+      "tx": "DvooRgnbpJxbKfpr9wtD3r69ikCcgmh4co6nJN9eMpd8",
+      "details": {
+        "signer": "osd.baldingsucks7993.testnet",
+        "full_access_keys": 1,
+        "output": {
+          "pubkey": "023efb0e2677afbb1b826bad60fd85ea865c97c044aef8473a7500db02530f648f"
+        }
+      },
+      "ts": "2026-11-11T12:36:49.529Z"
+    },
+    {
+      "evidence": "sandbox",
+      "id": "06a",
+      "attack": 6,
+      "script": "tampered-sig",
+      "title": "Control: genuine NEAR AI signatures",
+      "expected": "sig_a_ok = sig_b_ok = true; settled",
+      "actual": "play_match → \"settled CC\"; status \"settled\"; moves \"C\"\"C\"; payoffs 3/3; sig_a_ok=true sig_b_ok=true",
+      "pass": true,
+      "tx": "AHU71FCeeQJVL6Dq4qo7j2uLcZ9VuUXZ5mAmFkHxayAo",
+      "ts": "2026-11-11T12:35:00.272Z"
+    },
+    {
+      "evidence": "sandbox",
+      "id": "06b",
+      "attack": 6,
+      "script": "tampered-sig",
+      "title": "Tampered: a_sig one hex digit flipped; b_signed_text response hash edited",
+      "expected": "sig_a_ok = sig_b_ok = false; match still settles with the referee moves",
+      "actual": "play_match → \"settled DC\"; status \"settled\"; moves \"D\"\"C\"; payoffs 5/1; sig_a_ok=false sig_b_ok=false",
+      "pass": true,
+      "tx": "AJ16wVqvCchT1xfRUGqnabqBimDAPxBhfdwY798U1Lxy",
+      "ts": "2026-11-11T12:35:00.272Z"
+    },
+    {
+      "evidence": "sandbox",
+      "id": "06c",
+      "attack": 6,
+      "script": "tampered-sig",
+      "title": "Tampered: signatures swapped between sides; one proof dropped",
+      "expected": "sig flags false; settles",
+      "actual": "play_match → \"settled DC\"; status \"settled\"; moves \"D\"\"C\"; payoffs 5/1; sig_a_ok=false sig_b_ok=false",
+      "pass": true,
+      "tx": "52kgd5yg7atBS3UF1J6HeDutkQvifX5QWmZtpExVnU5n",
+      "ts": "2026-11-11T12:35:00.272Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "07a",
+      "attack": 7,
+      "script": "duplicate-prompt",
+      "title": "Commit byte-identical prompt from 2 owners (h16, h19)",
+      "expected": "both commits accepted (salted commitments differ; no on-chain duplicate check by design, INTERFACE §5)",
+      "actual": "accepted; commitments eb61035f… ≠ 3f0f59a4…",
+      "pass": true,
+      "tx": "6PULLvPQLDqPKqg22uPj6ViwjstW12pWCU6vPtRfre6w",
+      "details": {
+        "commits": {
+          "always-c.osd.baldingsucks7993.testnet": "F2qS8mDrMy9Vnpp6Yqy5nyB4d7qTeUHsBadZpRe9pNzR",
+          "tft-oneshot.osd.baldingsucks7993.testnet": "6PULLvPQLDqPKqg22uPj6ViwjstW12pWCU6vPtRfre6w"
+        }
+      },
+      "ts": "2026-11-10T20:45:18.159Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "08a",
+      "attack": 8,
+      "script": "commitment-mismatch",
+      "title": "Commit ciphertext(prompt, saltA) with commitment(prompt, saltB) as exploiter",
+      "expected": "accepted on chain (the contract cannot decrypt; checked in the TEE)",
+      "actual": "accepted",
+      "pass": true,
+      "tx": "4NuuDZF74wontb6kVfgBWDJzgAoCNA7dEjCERjXdcTMj",
+      "ts": "2026-11-10T20:45:28.197Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "09a",
+      "attack": 9,
+      "script": "clone-farm",
+      "title": "4th agent of one owner commits (cap max_entries_per_owner = 3)",
+      "expected": "refused: \"owner reached max_entries_per_owner\"; owner keeps 3 entries",
+      "actual": "refused: Smart contract panicked: owner reached max_entries_per_owner; owner has 3 entries",
+      "pass": true,
+      "tx": "872MjiaHZtMPCg9TAXJfaV1BqpY75cp1jjWEsasu7zQL",
+      "ts": "2026-11-10T20:45:47.787Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "10-all",
+      "attack": 10,
+      "script": "injection",
+      "title": "Injection win rate, pooled (seasons 1)",
+      "expected": "report; defenders should not be exploited; the referee integrity holds (injection changes only the opponent LLM's move, never payoffs, prompts or keys)",
+      "actual": "pooled 1/9 = 11.1%; vs defenders 0/1 = 0.0%",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "pooled": {
+          "n": 9,
+          "opponent_c": 1,
+          "wins": 1,
+          "win_rate": 0.1111111111111111,
+          "opponent_coop_rate": 0.1111111111111111
+        },
+        "pooled_vs_defenders": {
+          "n": 1,
+          "opponent_c": 0,
+          "wins": 0,
+          "win_rate": 0,
+          "opponent_coop_rate": 0
+        }
+      },
+      "ts": "2026-11-11T12:34:34.154Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "10-s1",
+      "attack": 10,
+      "script": "injection",
+      "title": "Injection win rate, season 1 (settled; injectors: inj-override)",
+      "expected": "report: injector wins = injector D while opponent C (talked into cooperating)",
+      "actual": "overall 1/9 = 11.1% (per injector: inj-override 1/9); vs defenders 0/1 = 0.0%; vs others 1/8 = 12.5%; opponents' C rate vs injectors 11.1% vs non-injectors 45.8%",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "total": {
+          "n": 9,
+          "opponent_c": 1,
+          "wins": 1,
+          "win_rate": 0.1111111111111111,
+          "opponent_coop_rate": 0.1111111111111111
+        },
+        "vs_defenders": {
+          "n": 1,
+          "opponent_c": 0,
+          "wins": 0,
+          "win_rate": 0,
+          "opponent_coop_rate": 0
+        },
+        "vs_others": {
+          "n": 8,
+          "opponent_c": 1,
+          "wins": 1,
+          "win_rate": 0.125,
+          "opponent_coop_rate": 0.125
+        },
+        "baseline_coop": {
+          "n": 72,
+          "coop_rate": 0.4583333333333333
+        },
+        "per_injector": [
+          "inj-override 1/9"
+        ]
+      },
+      "ts": "2026-11-11T12:34:34.154Z"
+    },
+    {
+      "evidence": "analysis",
+      "id": "11",
+      "attack": 11,
+      "script": "withholding",
+      "title": "Withhold the reveal after seeing the opponent (classic commit-reveal attack)",
+      "expected": "n/a: there is no reveal step to withhold",
+      "actual": "n/a. commit stores the ECIES ciphertext itself (season 1 entry clique-amber: 542 B on chain); only the TEE (season key from PROTECTED_SEASON_SEED) decrypts it, at play time, without the player. Nothing to withhold after commit; the commit is final (no overwrite). The nearest levers: commit garbage → F + bond lost (attack 8); refuse to enter → no stake; void a match by starving play_match gas → see 13.",
+      "pass": true,
+      "tx": null,
+      "ts": "2026-11-11T12:34:33.559Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12a",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider open_season",
+      "expected": "refused: \"owner only\"",
+      "actual": "refused: Smart contract panicked: owner only",
+      "pass": true,
+      "tx": "C2BKGvoKJw3DxRJMyYKBpfnZoN9uTaFgdjuFa7ixBiKz",
+      "ts": "2026-11-11T12:38:11.918Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12b",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider close_commits before the commit deadline",
+      "expected": "refused: \"commit deadline not reached\"",
+      "actual": "refused: Smart contract panicked: commit deadline not reached",
+      "pass": true,
+      "tx": "6n3dSsnmC8sYMk8FFvviE93B9ox9QA2Fh6td874n4PBF",
+      "ts": "2026-11-10T20:46:02.031Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12c",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider schedule_round during commit",
+      "expected": "refused: \"season not in play\"",
+      "actual": "refused: Smart contract panicked: season not in play",
+      "pass": true,
+      "tx": "7QGeQkf5FHQcRA2HaMoysFCL2nbP5VbiUeVpqqDmMYHH",
+      "ts": "2026-11-10T20:46:06.494Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12d",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Early play_match during commit (two entered agents)",
+      "expected": "refused: \"season not in play\"; OutLayer not called",
+      "actual": "refused: Smart contract panicked: season not in play",
+      "pass": true,
+      "tx": "2EDsvZVnWbVuDvuuzooCbLk9GGYP6tCQQXcWA3MwtZe5",
+      "ts": "2026-11-10T20:46:10.607Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12e",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider settle_season during commit",
+      "expected": "refused: \"season not in play\"",
+      "actual": "refused: Smart contract panicked: season not in play",
+      "pass": true,
+      "tx": "HbNa23zdadsqfjF56zEg1FjuP22CzAGWpfcknyh2ALmf",
+      "ts": "2026-11-10T20:46:15.429Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12f",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider commits on behalf of someone else's agent",
+      "expected": "refused: \"caller must be the agent or its owner\"",
+      "actual": "refused: Smart contract panicked: caller must be the agent or its owner",
+      "pass": true,
+      "tx": "BxWA9UyG9B6Z2j61pY859dsgQkRuL7mmqu5gyEi7MN6u",
+      "ts": "2026-11-10T20:46:19.813Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12g",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider withdraw from another owner's agent budget",
+      "expected": "refused: \"not owner\"",
+      "actual": "refused: Smart contract panicked: not owner",
+      "pass": true,
+      "tx": "H1R5d3ehz7NAub9pCvP8yxramD3C6R2vvmK7igMag2Dv",
+      "ts": "2026-11-11T12:38:15.994Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12l",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider close_commits on settled season 1",
+      "expected": "refused: \"season not in commit\"",
+      "actual": "refused: Smart contract panicked: season not in commit",
+      "pass": true,
+      "tx": "AtzB7KRP2iC1QoyDWu5MinmwwXe7Z1KMJtTdwXj1124",
+      "ts": "2026-11-11T12:38:21.006Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12m",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider schedule_round on settled season 1 (re-schedule a played pair)",
+      "expected": "refused: \"season not in play\"",
+      "actual": "refused: Smart contract panicked: season not in play",
+      "pass": true,
+      "tx": "FA2gYt6ByPTnXJbavrNmgp9tKytnHjJhpzoUrTo6LyMQ",
+      "ts": "2026-11-11T12:38:25.214Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12n",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider settle_season again on settled season 1 (double payout)",
+      "expected": "refused: \"season not in play\"",
+      "actual": "refused: Smart contract panicked: season not in play",
+      "pass": true,
+      "tx": "32Lc5cbZRWNXqS5WosyfvFzngK5nkL2C9Kuc5se3RrLF",
+      "ts": "2026-11-11T12:38:28.759Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12o",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider refund_void on a settled season-1 match (pull the stakes back)",
+      "expected": "refused: \"match not void\"",
+      "actual": "refused: Smart contract panicked: match not void",
+      "pass": true,
+      "tx": "5wyrPfuUJrRXaKdNe2e4wgNwXiXbzvtNzuAFWXC9tn2f",
+      "details": {
+        "match_key": "1:clique-amber.osd.baldingsucks7993.testnet:coin-vowel.osd.baldingsucks7993.testnet"
+      },
+      "ts": "2026-11-11T12:38:32.628Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "12p",
+      "attack": 12,
+      "script": "outsider-calls",
+      "title": "Outsider commits someone else's agent into settled season 1",
+      "expected": "refused: \"caller must be the agent or its owner\"",
+      "actual": "refused: Smart contract panicked: caller must be the agent or its owner",
+      "pass": true,
+      "tx": "D2moCVNZf9qdGRmuPUxQXkWj9ApycX7KqXkffjoE1bfn",
+      "ts": "2026-11-11T12:38:36.850Z"
+    }
+  ]
+}

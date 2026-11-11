@@ -5,8 +5,38 @@
   "license": "MIT",
   "type": "module",
   "description": "WS7: attack suite + results tables",
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
-    "lint": "node --check test/placeholder.test.mjs",
-    "test": "node --test test/*.test.mjs"
+    "lint": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test test/*.test.ts",
+    "all": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts all",
+    "render": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts render",
+    "spend": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts spend",
+    "no-season": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts no-season",
+    "season": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts season",
+    "season-ctl": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/season-cli.ts",
+    "forged-callback": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts forged-callback",
+    "replay": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts replay",
+    "agent-key": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts agent-key",
+    "outsider-outlayer": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts outsider-outlayer",
+    "wrong-wasm": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts wrong-wasm",
+    "tampered-sig": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts tampered-sig",
+    "duplicate-prompt": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts duplicate-prompt",
+    "commitment-mismatch": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts commitment-mismatch",
+    "clone-farm": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts clone-farm",
+    "injection": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts injection",
+    "withholding": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts withholding",
+    "outsider-calls": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts outsider-calls",
+    "low-gas-play": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts low-gas-play"
+  },
+  "dependencies": {
+    "@osd/sdk": "workspace:*",
+    "near-api-js": "7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
   }
 }

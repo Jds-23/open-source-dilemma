@@ -1,0 +1,77 @@
+{
+  "start": {
+    "at": "2026-11-10T20:39:32.442Z",
+    "balances": {
+      "baldingsucks7993.testnet": "12489221213792239400000000",
+      "osd.baldingsucks7993.testnet": "8390346926068338000000000",
+      "atk7.baldingsucks7993.testnet": null,
+      "clone7.baldingsucks7993.testnet": null,
+      "h12.baldingsucks7993.testnet": "142077582731299400000000",
+      "h08.baldingsucks7993.testnet": "142072910501843600000000",
+      "h20.baldingsucks7993.testnet": "142064338131302000000000",
+      "h16.baldingsucks7993.testnet": "142089377305691600000000",
+      "h19.baldingsucks7993.testnet": "142069572437492000000000",
+      "h14.baldingsucks7993.testnet": "142073959155347600000000",
+      "c-charm.osd.baldingsucks7993.testnet": null,
+      "c-delim.osd.baldingsucks7993.testnet": null,
+      "c-tft.osd.baldingsucks7993.testnet": null,
+      "c-extra.osd.baldingsucks7993.testnet": null,
+      "inj-override.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "def-quarantine.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "fairbot.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "always-c.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "tft-oneshot.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "exploiter.osd.baldingsucks7993.testnet": "200000000000000000000000"
+    }
+  },
+  "ns-start": {
+    "at": "2026-11-11T12:34:26.405Z",
+    "balances": {
+      "baldingsucks7993.testnet": "10762624054501053900000000",
+      "osd.baldingsucks7993.testnet": "8742872310421468400000000",
+      "atk7.baldingsucks7993.testnet": "390136045362254900000000",
+      "clone7.baldingsucks7993.testnet": "118429331050544400000000",
+      "h12.baldingsucks7993.testnet": "142077582731299400000000",
+      "h08.baldingsucks7993.testnet": "142072910501843600000000",
+      "h20.baldingsucks7993.testnet": "142064338131302000000000",
+      "h16.baldingsucks7993.testnet": "142089377305691600000000",
+      "h19.baldingsucks7993.testnet": "142069572437492000000000",
+      "h14.baldingsucks7993.testnet": "142073959155347600000000",
+      "c-charm.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "c-delim.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "c-tft.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "c-extra.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "inj-override.osd.baldingsucks7993.testnet": "199238614840050500000000",
+      "def-quarantine.osd.baldingsucks7993.testnet": "199419500058634100000000",
+      "fairbot.osd.baldingsucks7993.testnet": "199415717742416700000000",
+      "always-c.osd.baldingsucks7993.testnet": "199415842721134100000000",
+      "tft-oneshot.osd.baldingsucks7993.testnet": "199416050633651900000000",
+      "exploiter.osd.baldingsucks7993.testnet": "199420279920913900000000"
+    }
+  },
+  "ns-end": {
+    "at": "2026-11-11T12:39:13.704Z",
+    "balances": {
+      "baldingsucks7993.testnet": "10262579417988553900000000",
+      "osd.baldingsucks7993.testnet": "8739272228800274600000000",
+      "atk7.baldingsucks7993.testnet": "881363507562289600000000",
+      "clone7.baldingsucks7993.testnet": "118429331050544400000000",
+      "h12.baldingsucks7993.testnet": "142077582731299400000000",
+      "h08.baldingsucks7993.testnet": "142072910501843600000000",
+      "h20.baldingsucks7993.testnet": "142064338131302000000000",
+      "h16.baldingsucks7993.testnet": "142089377305691600000000",
+      "h19.baldingsucks7993.testnet": "142069572437492000000000",
+      "h14.baldingsucks7993.testnet": "142073959155347600000000",
+      "c-charm.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "c-delim.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "c-tft.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "c-extra.osd.baldingsucks7993.testnet": "200000000000000000000000",
+      "inj-override.osd.baldingsucks7993.testnet": "199050747591601900000000",
+      "def-quarantine.osd.baldingsucks7993.testnet": "199419500058634100000000",
+      "fairbot.osd.baldingsucks7993.testnet": "199415717742416700000000",
+      "always-c.osd.baldingsucks7993.testnet": "199415842721134100000000",
+      "tft-oneshot.osd.baldingsucks7993.testnet": "199416050633651900000000",
+      "exploiter.osd.baldingsucks7993.testnet": "199420279920913900000000"
+    }
+  }
+}
