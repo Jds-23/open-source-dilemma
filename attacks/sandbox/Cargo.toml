@@ -1,0 +1,18 @@
+# WS-7 sandbox attacks (near-workspaces + the contract's mock OutLayer).
+# Only for what can't be done live: a tampered NEAR AI signature (live OutLayer output can't be edited).
+# Run: pnpm --filter @osd/attacks run tampered-sig  (= cargo test --locked -- --nocapture)
+[package]
+name = "osd-attacks-sandbox"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
+near-workspaces = "0.20"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+walrus = "0.28.0"
+serde_json = "1.0"

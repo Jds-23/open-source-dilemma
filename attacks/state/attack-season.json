@@ -1,0 +1,56 @@
+{
+  "season_id": 2,
+  "setup_txs": {
+    "create atk7.baldingsucks7993.testnet": "4cwapqmN5Dsb3mhBNrnLgLF3mCzeD9f4nX9EBXqVQFPn",
+    "create clone7.baldingsucks7993.testnet": "BezHqmR56ZLDiB9XuMBUCnKp7zfVfwb2Kqw9kWTDJSLT",
+    "register c-charm.osd.baldingsucks7993.testnet": "HW17R2HBiWwkSREPKQazt6hwMqdN1rwt3sf9ta7cnSY1",
+    "register c-delim.osd.baldingsucks7993.testnet": "BxKJK8LQ9iYTJsHSQumtXJxfsomXDEXoiXHNF2VfJRJS",
+    "register c-tft.osd.baldingsucks7993.testnet": "2pRXVSQmCusfiBCnxenBT3eqUu3X7QtMFhunD8NCeXfb",
+    "register c-extra.osd.baldingsucks7993.testnet": "7p3JLANAVrP3U29NtEgpYepRUpa9hCp96riC7kzLQXpR"
+  },
+  "commits": {
+    "inj-override.osd.baldingsucks7993.testnet": {
+      "tx": "H3MbN5bfw5WNRoJBBgd6GDvHxQt5mX9Aj91Jo7ZRCDKT",
+      "kind": "honest"
+    },
+    "def-quarantine.osd.baldingsucks7993.testnet": {
+      "tx": "GeLwBVAMpbZHDwX8iQNNzK98wxvNoJ6o1UebizsbQvGj",
+      "kind": "honest"
+    },
+    "fairbot.osd.baldingsucks7993.testnet": {
+      "tx": "Gxb9RHGTJrPWtRgCV7G7BWNr7tCgY4xpanxXxALZPFpN",
+      "kind": "honest"
+    },
+    "always-c.osd.baldingsucks7993.testnet": {
+      "tx": "F2qS8mDrMy9Vnpp6Yqy5nyB4d7qTeUHsBadZpRe9pNzR",
+      "kind": "duplicate"
+    },
+    "tft-oneshot.osd.baldingsucks7993.testnet": {
+      "tx": "6PULLvPQLDqPKqg22uPj6ViwjstW12pWCU6vPtRfre6w",
+      "kind": "duplicate"
+    },
+    "exploiter.osd.baldingsucks7993.testnet": {
+      "tx": "4NuuDZF74wontb6kVfgBWDJzgAoCNA7dEjCERjXdcTMj",
+      "kind": "mismatch"
+    },
+    "c-charm.osd.baldingsucks7993.testnet": {
+      "tx": "CeWinQEMeQcaP5oBW8ivqaaZqjDkvh5PZzupab43CjM1",
+      "kind": "honest"
+    },
+    "c-delim.osd.baldingsucks7993.testnet": {
+      "tx": "9P1gDK29QGNd96PVxPoZZ1wJoe9BffngsAsYPHoGyPti",
+      "kind": "honest"
+    },
+    "c-tft.osd.baldingsucks7993.testnet": {
+      "tx": "DhnqeA5BGMQkRza9pLWiXZyMdZZjbrtbW36PhRv8YQKj",
+      "kind": "honest"
+    }
+  },
+  "notes": {
+    "refused c-extra.osd.baldingsucks7993.testnet": {
+      "tx": "872MjiaHZtMPCg9TAXJfaV1BqpY75cp1jjWEsasu7zQL",
+      "error": "Smart contract panicked: owner reached max_entries_per_owner"
+    }
+  },
+  "open_tx": "GH6XbntGagZ5L3qqTvBzdkE2zTVnrgVSZpbUFPfcPp87"
+}

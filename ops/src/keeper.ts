@@ -171,23 +171,45 @@ export class Keeper {
     const before = (await this.chain.view<ContractConfig>('get_config', {})).current_season_id;
     const ov = this.o.openOverrides ?? {};
     if ((ov.wasm_url === undefined) !== (ov.wasm_hash === undefined)) throw new Error('open overrides: wasm_url and wasm_hash go together');
-    const ok = await this.send(null, 'open_season', { params: this.o.openParams, ...ov }, this.o.openDepositYocto, async () => {
-      const now = (await this.chain.view<ContractConfig>('get_config', {})).current_season_id;
-      return now === before; // retry only if the open did not land
-    });
+    const args = { params: this.o.openParams, ...ov };
+    let sent: { tx: TxResult; attempt: number } | null = null;
+    const ok = await this.send(
+      null,
+      'open_season',
+      args,
+      this.o.openDepositYocto,
+      async () => {
+        const now = (await this.chain.view<ContractConfig>('get_config', {})).current_season_id;
+        return now === before; // retry only if the open did not land
+      },
+      // The new season id is only known once the open lands, so the ok record is written
+      // below, into that season's journal (<id>.jsonl), not keeper.jsonl.
+      (tx, attempt) => {
+        sent = { tx, attempt };
+      },
+    );
     if (!ok) return null;
+    const logOpen = (sid: number | null): void => {
+      if (!sent) return;
+      const { tx, attempt } = sent;
+      sent = null;
+      this.logTx(sid, 'open_season', args, tx, attempt, this.o.openDepositYocto);
+    };
     if (this.o.once) {
+      logOpen(null);
       this.note('phase', null, 'dry-run: would wait for the new season id');
       return null;
     }
     for (let i = 0; i < 120; i++) {
       const now = (await this.chain.view<ContractConfig>('get_config', {})).current_season_id;
       if (now !== null && now !== before) {
+        logOpen(now);
         this.note('phase', now, `opened season ${now}`);
         return now;
       }
       await this.chain.sleep(this.o.pollMs);
     }
+    logOpen(null);
     throw new Error('open_season sent but current_season_id never changed');
   }
 
@@ -345,15 +367,28 @@ export class Keeper {
 
   // ── plumbing ──────────────────────────────────────────────────────────
 
+  private logTx(sid: number | null, method: string, args: Record<string, unknown>, tx: TxResult, attempt: number, depositYocto: bigint): void {
+    this.log.write({ kind: 'tx', season_id: sid, method, args, tx_hash: tx.txHash, outcome: this.o.okOutcome, attempt, block: tx.block, deposit_yocto: String(depositYocto), signer: this.chain.signerId });
+  }
+
   /**
    * Send one tx with backoff. Before each retry `stillNeeded` re-reads chain
    * state; if the earlier attempt actually landed, we stop instead of re-sending.
+   * `onOk` replaces the default ok record (the caller logs it itself, e.g. once the season id is known).
    */
-  private async send(sid: number | null, method: string, args: Record<string, unknown>, depositYocto: bigint, stillNeeded: () => Promise<boolean>): Promise<TxResult | null> {
+  private async send(
+    sid: number | null,
+    method: string,
+    args: Record<string, unknown>,
+    depositYocto: bigint,
+    stillNeeded: () => Promise<boolean>,
+    onOk?: (tx: TxResult, attempt: number) => void,
+  ): Promise<TxResult | null> {
     const res = await withRetry(
       async (attempt) => {
         const tx = await this.chain.call(method, args, { depositYocto, gas: this.o.gas ?? gasFor(method) });
-        this.log.write({ kind: 'tx', season_id: sid, method, args, tx_hash: tx.txHash, outcome: this.o.okOutcome, attempt, block: tx.block, deposit_yocto: String(depositYocto), signer: this.chain.signerId });
+        if (onOk) onOk(tx, attempt);
+        else this.logTx(sid, method, args, tx, attempt, depositYocto);
         return tx;
       },
       {

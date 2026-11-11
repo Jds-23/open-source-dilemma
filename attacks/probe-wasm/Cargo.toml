@@ -1,0 +1,14 @@
+# Attacker WASM for attack 5 (wrong wasm + game secrets). Reports only WHETHER the
+# game's secrets reached it (booleans + env var names), never a value.
+[package]
+name = "osd-attack-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true

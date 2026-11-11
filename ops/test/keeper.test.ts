@@ -4,7 +4,10 @@ import { DryRunChain } from '../src/dry-run-chain.ts';
 import { Keeper } from '../src/keeper.ts';
 import { MockChain } from '../src/mock-chain.ts';
 import { loadFixtures, mockFromFixtures, mockParams } from '../src/mock-fixtures.ts';
-import { MemoryTxLog } from '../src/txlog.ts';
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { MemoryTxLog, readJsonl, SeasonRoutedLog } from '../src/txlog.ts';
 import { STALE_PENDING_BLOCKS, TGAS, type Entry } from '../src/types.ts';
 import { FIXTURES, opts, SlowCalls } from './helpers.ts';
 
@@ -210,6 +213,21 @@ describe('keeper: season lifecycle', () => {
     const close = chain.sent.find((s) => s.method === 'close_commits')!;
     assert.ok(close);
     assert.ok(chain.seasons.get(1)!.closed_at_ns! >= params.commit_deadline_ns);
+  });
+
+  test('the open_season record goes to the new season journal (<id>.jsonl), not keeper.jsonl', async () => {
+    const fx = loadFixtures(FIXTURES);
+    const chain = new MockChain();
+    const dir = mkdtempSync(join(tmpdir(), 'osd-keeper-'));
+    const log = new SeasonRoutedLog(dir, { echo: false });
+    await new Keeper(chain, log, opts({ openParams: mockParams(fx, chain.nowNs, 300), settle: false, maxIterations: 3 })).run();
+    const open = readJsonl(join(dir, '1.jsonl')).filter((r) => r.kind === 'tx' && r.method === 'open_season');
+    assert.equal(open.length, 1);
+    assert.equal(open[0].season_id, 1);
+    assert.ok(open[0].tx_hash);
+    // keeper.jsonl only keeps season-less notes now, never the open_season tx.
+    const stray = existsSync(join(dir, 'keeper.jsonl')) ? readJsonl(join(dir, 'keeper.jsonl')) : [];
+    assert.deepEqual(stray.filter((r) => r.kind === 'tx'), []);
   });
 
   test('does not open a second season while one is active', async () => {
