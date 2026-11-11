@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OSD dilemma contract ABI (interfaces-v5)",
+  "title": "OSD dilemma contract ABI (interfaces-v6)",
   "description": "Hand-written frozen interface; see INTERFACE.md. Not the near-abi format. JSON args/returns.",
-  "version": "interfaces-v5",
+  "version": "interfaces-v6",
   "contract_testnet": "osd.baldingsucks7993.testnet",
   "near_sdk": "5.9.0",
   "rustc": "1.85.0",
@@ -513,11 +513,39 @@
       }
     },
     {
+      "name": "set_secrets",
+      "kind": "call",
+      "caller": "contract owner (get_config.owner)",
+      "deposit": "exactly 1 yoctoNEAR",
+      "effects": "interfaces-v6. Refused after seal (\"sealed: the secrets ref is frozen\"), so one way. Sets config secrets_owner + secrets_profile (the OutLayer secrets_ref owner/profile) for seasons opened from now on; seasons already opened keep their pinned ref. Emits secrets_set. Intended use before seal: point at a profile owned by the contract account itself so nobody can modify it after seal. The contract does not check the row exists: verify with outlayer keystore list_user_secrets first",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "owner",
+          "profile"
+        ],
+        "properties": {
+          "owner": {
+            "type": "string",
+            "description": "AccountId that stored the OutLayer secrets row (the keystore store_secrets signer)"
+          },
+          "profile": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          }
+        }
+      },
+      "returns": {
+        "type": "null"
+      }
+    },
+    {
       "name": "seal",
       "kind": "call",
       "caller": "contract owner (get_config.owner)",
       "deposit": "exactly 1 yoctoNEAR",
-      "effects": "one way. confirm must equal \"SEAL-FOREVER\"; refused if already sealed. Schedules one batch on the contract account deleting every listed access key (pass the full RPC view_access_key_list; the contract cannot enumerate its keys) -> on_sealed sets the permanent seal flag and emits contract_sealed. If any listed key is missing the batch fails, no key is deleted, the contract stays unsealed and the call returns false. Empty list: sealed at once. After seal: no code-deploy path (the contract has no upgrade method and no keys), open_season overrides refused. Verify with view_access_key_list == []",
+      "effects": "one way. confirm must equal \"SEAL-FOREVER\"; refused if already sealed. Schedules one batch on the contract account deleting every listed access key (pass the full RPC view_access_key_list; the contract cannot enumerate its keys) -> on_sealed sets the permanent seal flag and emits contract_sealed. If any listed key is missing the batch fails, no key is deleted, the contract stays unsealed and the call returns false. Empty list: sealed at once. After seal: no code-deploy path (the contract has no upgrade method and no keys), open_season overrides and set_secrets refused. Verify with view_access_key_list == []",
       "args": {
         "type": "object",
         "additionalProperties": false,

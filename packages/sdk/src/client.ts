@@ -6,7 +6,10 @@ import {
   MIN_OUTLAYER_DEPOSIT,
   MIN_REGISTER_DEPOSIT,
   ONE_YOCTO,
+  MAX_SEAL_KEYS,
   PAGE_MAX,
+  SEAL_CONFIRM,
+  SECRETS_PROFILE_RE,
   agentAccountId,
   orderPair,
 } from './constants.js';
@@ -143,6 +146,11 @@ export class OsdClient {
 
   getConfig(): Promise<Config> {
     return this.view('get_config', {});
+  }
+
+  /** v5 seal flag. A sealed contract also has `view_access_key_list == []` (check both). */
+  isSealed(): Promise<boolean> {
+    return this.view('is_sealed', {});
   }
 
   getSeason(seasonId: number): Promise<Season | null> {
@@ -347,6 +355,26 @@ export class OsdClient {
     if (overrides.wasmUrl !== undefined) Object.assign(args, { wasm_url: overrides.wasmUrl, wasm_hash: overrides.wasmHash });
     if (overrides.secretsProfile !== undefined) args.secrets_profile = overrides.secretsProfile;
     return this.call('open_season', args, { deposit: depositYocto, gas });
+  }
+
+  /**
+   * Owner, ONE WAY (v5): delete every listed access key of the contract account and set the seal flag.
+   * Pass the complete `view_access_key_list`; `confirm` must be the literal `SEAL-FOREVER`.
+   */
+  async seal(publicKeys: string[], confirm: typeof SEAL_CONFIRM, gas?: bigint) {
+    if (confirm !== SEAL_CONFIRM) throw new Error(`confirm must be ${JSON.stringify(SEAL_CONFIRM)}`);
+    if (publicKeys.length > MAX_SEAL_KEYS) throw new Error(`at most ${MAX_SEAL_KEYS} keys`);
+    if (new Set(publicKeys).size !== publicKeys.length) throw new Error('duplicate key');
+    return this.call('seal', { public_keys: publicKeys, confirm }, { deposit: ONE_YOCTO, gas });
+  }
+
+  /**
+   * Owner, before seal only (v6): point seasons opened from now on at the OutLayer secrets row `owner/profile`.
+   * Use a profile stored by the contract account itself so it is immutable once sealed.
+   */
+  async setSecrets(owner: string, profile: string, gas?: bigint) {
+    if (!SECRETS_PROFILE_RE.test(profile)) throw new Error(`invalid profile ${JSON.stringify(profile)} (want ${SECRETS_PROFILE_RE})`);
+    return this.call('set_secrets', { owner, profile }, { deposit: ONE_YOCTO, gas });
   }
 
   async closeCommits(seasonId: number, gas?: bigint) {

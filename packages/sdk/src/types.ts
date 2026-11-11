@@ -1,4 +1,4 @@
-// Types mirroring interfaces/contract-abi.json `$defs` (interfaces-v4).
+// Types mirroring interfaces/contract-abi.json `$defs` (interfaces-v6).
 
 /** yoctoNEAR as a decimal string. */
 export type U128 = string;
@@ -196,6 +196,7 @@ export interface ViewArgs {
   get_lineage: { agent_id: AccountId };
   get_claimable: { season_id: number; agent_id: AccountId };
   get_published_prompts: { season_id: number } & PageArgs;
+  is_sealed: Record<string, never>;
 }
 
 export interface ViewReturns {
@@ -209,6 +210,8 @@ export interface ViewReturns {
   get_lineage: LineageEntry[];
   get_claimable: U128;
   get_published_prompts: PublishedPrompt[];
+  /** v5: true once `seal` deleted the contract's keys (one way). Also check `view_access_key_list == []`. */
+  is_sealed: boolean;
 }
 
 export type ViewMethod = keyof ViewArgs;
@@ -236,6 +239,10 @@ export interface CallArgs {
   settle_season: { season_id: number };
   claim: { season_id: number; agent_id: AccountId };
   publish_prompt: { season_id: number; agent_id: AccountId; prompt: string; salt: string };
+  /** v5, owner only, 1 yocto, one way: pass every key from `view_access_key_list`. */
+  seal: { public_keys: string[]; confirm: 'SEAL-FOREVER' };
+  /** v6, owner only, 1 yocto, refused after seal: OutLayer secrets_ref for seasons opened later. */
+  set_secrets: { owner: AccountId; profile: string };
 }
 
 export interface CallReturns {
@@ -252,6 +259,9 @@ export interface CallReturns {
   settle_season: LeaderboardRow[];
   claim: U128;
   publish_prompt: null;
+  /** Promise result: true when sealed (false if a listed key did not exist; nothing deleted). */
+  seal: boolean;
+  set_secrets: null;
 }
 
 export type CallMethod = keyof CallArgs;

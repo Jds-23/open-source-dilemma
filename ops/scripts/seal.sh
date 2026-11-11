@@ -6,6 +6,8 @@
 # can be signed as the contract. DRY RUN by default; --execute signs and sends.
 #
 #   ops/scripts/seal.sh --contract <id> [--owner <id>] [--execute]
+# Pre-check (warn only): get_config().secrets_owner == contract and the keystore lists the profile
+# (interfaces-v6; otherwise the secrets owner keeps control of the season secrets after seal).
 # Verification (printed after --execute): is_sealed() == true and view_access_key_list == [].
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
@@ -16,7 +18,7 @@ CONTRACT=""
 OWNER=""   # default: get_config().owner
 
 usage() {
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
   cat <<EOF
 
 options:
@@ -66,6 +68,26 @@ log "    access keys ($(KEYS="$KEYS" node -e 'process.stdout.write(String(JSON.p
 [ "$SEALED" = false ] || die "$CONTRACT is already sealed"
 if [ "$OWNER" = "$CONTRACT" ]; then
   die "owner is the contract account itself: after seal nobody could sign as the owner (no keys left); refusing"
+fi
+# Secrets owner (interfaces-v6): after seal the OutLayer profile must be owned by the contract itself,
+# else its owner can still re-store / re-scope / delete the season secrets (attacks/RESULTS.md secrets-owner).
+SEC_OWNER=$(CFG="$CFG" node -e 'process.stdout.write(JSON.parse(process.env.CFG).secrets_owner ?? "")')
+if [ -n "$SEC_OWNER" ]; then
+  SEC_PROFILE=$(CFG="$CFG" node -e 'process.stdout.write(JSON.parse(process.env.CFG).secrets_profile ?? "")')
+  SEC_KEYSTORE=$(CFG="$CFG" node -e 'process.stdout.write(JSON.parse(process.env.CFG).outlayer_account ?? "")')
+  log "    secrets ref: $SEC_OWNER/$SEC_PROFILE (keystore $SEC_KEYSTORE)"
+  if [ "$SEC_OWNER" != "$CONTRACT" ]; then
+    log "WARNING: get_config().secrets_owner = $SEC_OWNER, not $CONTRACT. After seal $SEC_OWNER can still"
+    log "         re-store, re-scope or delete the season secrets. Fix first: store-secret.sh --owner $CONTRACT,"
+    log "         then set_secrets({owner: \"$CONTRACT\", profile}) (refused after seal)."
+  else
+    ROWS=$(view_json "$NETWORK" "$SEC_KEYSTORE" list_user_secrets "{\"account_id\":\"$CONTRACT\"}" 2>/dev/null || printf '[]')
+    if ROWS="$ROWS" P="$SEC_PROFILE" node -e 'const r=JSON.parse(process.env.ROWS);process.exit(r.some(x=>x.profile===process.env.P)?0:1)'; then
+      log "    ok: secrets_owner == contract and the keystore lists profile $SEC_PROFILE under it"
+    else
+      log "WARNING: keystore $SEC_KEYSTORE lists no profile $SEC_PROFILE for $CONTRACT: after seal no season could get a key"
+    fi
+  fi
 fi
 if [ "$NETWORK" = testnet ] && [ "$CONTRACT" = osd.baldingsucks7993.testnet ]; then
   CUR=$(CFG="$CFG" node -e 'const c=JSON.parse(process.env.CFG);process.stdout.write(String(c.current_season_id ?? ""))')

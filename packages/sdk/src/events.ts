@@ -34,6 +34,10 @@ export interface OsdEventData {
     ranking: { agent_id: AccountId; rank: number | null; avg_payoff_milli: number; prize_yocto: U128 }[];
   };
   prompt_published: { season_id: number; agent_id: AccountId; commitment: Commitment };
+  /** v5: `seal` succeeded (also emitted by the cards contract). */
+  contract_sealed: { keys_deleted: string[]; block: number };
+  /** v6: `set_secrets` changed the config secrets ref. */
+  secrets_set: { owner: AccountId; profile: string; previous_owner: AccountId; previous_profile: string };
 }
 
 export type OsdEventName = keyof OsdEventData;
@@ -46,6 +50,8 @@ export const OSD_EVENT_NAMES: readonly OsdEventName[] = [
   'match_void',
   'season_settled',
   'prompt_published',
+  'contract_sealed',
+  'secrets_set',
 ];
 
 /** Discriminated union: narrow on `event`, then `data` is typed. `data` is `data[0]` of the raw log (always one object). */

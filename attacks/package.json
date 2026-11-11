@@ -29,6 +29,7 @@
     "clone-farm": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts clone-farm",
     "injection": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts injection",
     "withholding": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts withholding",
+    "secrets-owner": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts secrets-owner",
     "outsider-calls": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts outsider-calls",
     "low-gas-play": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts low-gas-play"
   },

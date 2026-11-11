@@ -1,5 +1,5 @@
 // Fixture-backed in-memory mock of the dilemma contract, so consumers (WS4 evolver, WS5 web, MCP)
-// can run fully offline. Views mirror INTERFACE.md §6.2 (interfaces-v4); calls for the player/owner flow
+// can run fully offline. Views mirror INTERFACE.md §6.2 (interfaces-v6); calls for the player/owner flow
 // (register_agent, fund_agent, withdraw, open_season, commit, claim, publish_prompt) are simulated
 // with the contract's refusal rules. Keeper calls (close_commits, schedule_round, play_match,
 // refund_void, settle_season) are not simulated and throw.
@@ -158,6 +158,8 @@ export class MockChain implements ViewProvider {
         return String(this.#claimable.get(`${sid}:${a.agent_id as string}`) ?? 0n);
       case 'get_published_prompts':
         return page(this.prompts.get(sid) ?? [], from, limit);
+      case 'is_sealed':
+        return false;
       default:
         return fail(`MethodNotFound: ${method}`);
     }

@@ -1,7 +1,7 @@
-// Constants from interfaces/contract-abi.json `constants` (interfaces-v4).
+// Constants from interfaces/contract-abi.json `constants` (interfaces-v6).
 import type { CallMethod } from './types.js';
 
-export const INTERFACE_VERSION = 'interfaces-v4';
+export const INTERFACE_VERSION = 'interfaces-v6';
 export const CONTRACT_TESTNET = 'osd.baldingsucks7993.testnet';
 
 export const AGENT_ACCOUNT_FUNDING = 200_000_000_000_000_000_000_000n; // 0.2 NEAR
@@ -19,6 +19,11 @@ export const PAGE_DEFAULT = 100;
 export const PAGE_MAX = 200;
 /** `settle_season` voids at most this many unfinished matches per call after the play deadline (returns `[]` until done). */
 export const SETTLE_VOID_BATCH = 40;
+/** `seal` confirm string (v5) and max keys per call. */
+export const SEAL_CONFIRM = 'SEAL-FOREVER';
+export const MAX_SEAL_KEYS = 32;
+/** OutLayer secrets profile name accepted by `set_secrets` (v6). */
+export const SECRETS_PROFILE_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Payoff matrix `[a, b, pool]` in units (INTERFACE.md §2). */
 export const PAYOFF = {
@@ -55,6 +60,8 @@ export const DEFAULT_GAS: Record<CallMethod, bigint> = {
   settle_season: 300n * TGAS,
   claim: 30n * TGAS,
   publish_prompt: 50n * TGAS,
+  seal: 100n * TGAS,
+  set_secrets: 30n * TGAS,
 };
 
 export const NETWORKS = {

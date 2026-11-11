@@ -973,3 +973,73 @@ fn sealed_refuses_referee_overrides() {
     assert_eq!((s.wasm.url.as_str(), s.wasm.hash.clone(), s.secrets_profile.as_str()), ("https://example/referee.wasm", "ab".repeat(32), "osd-s1"));
     assert_eq!(s.status, SeasonStatus::Commit);
 }
+
+// ---------------------------------------------------------------- set_secrets (v6, secrets-owner)
+
+#[test]
+fn set_secrets_rules_and_frozen_after_seal() {
+    let mut chain = Chain { ts: 1_000, height: 100 };
+    let mut c = new_contract(&chain);
+    let mut p = params_from_fixture();
+    p.commit_deadline_ns = U64(10_000);
+    p.play_deadline_ns = U64(20_000);
+    // a season opened before the switch keeps its pinned owner/profile
+    let s_old = open(&mut c, &mut chain, p.clone());
+
+    chain.pay(KEEPER, NearToken::from_yoctonear(1));
+    expect_panic(|| c.set_secrets(acc(CONTRACT), "osd-c".into()), "owner only");
+    chain.pay(OWNER, NearToken::from_yoctonear(0));
+    expect_panic(|| c.set_secrets(acc(CONTRACT), "osd-c".into()), "Requires attached deposit of exactly 1 yoctoNEAR");
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    for bad in ["", "a b", "x/y", &"p".repeat(65)] {
+        expect_panic(|| c.set_secrets(acc(CONTRACT), bad.to_string()), "profile must match");
+    }
+    c.set_secrets(acc(CONTRACT), "osd-ad40dcf455fa-c".into());
+    let ev: Value = serde_json::from_str(get_logs().last().unwrap().strip_prefix("EVENT_JSON:").unwrap()).unwrap();
+    assert_eq!(ev["event"], "secrets_set");
+    assert_eq!(
+        ev["data"][0],
+        json!({"owner": CONTRACT, "profile": "osd-ad40dcf455fa-c", "previous_owner": OWNER, "previous_profile": "osd-s1"})
+    );
+    let cfg = c.get_config();
+    assert_eq!((cfg.secrets_owner.as_str(), cfg.secrets_profile.as_str()), (CONTRACT, "osd-ad40dcf455fa-c"));
+    // the running season is untouched
+    assert_eq!(c.seasons.get(&s_old).unwrap().secrets_owner, acc(OWNER));
+    assert_eq!(c.get_season(s_old).unwrap().secrets_profile, "osd-s1");
+
+    // seal → frozen for good (one way)
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    assert!(matches!(c.seal(vec![], SEAL_CONFIRM.into()), PromiseOrValue::Value(true)));
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    expect_panic(|| c.set_secrets(acc(OWNER), "osd-s1".into()), "sealed: the secrets ref is frozen");
+    let cfg = c.get_config();
+    assert_eq!((cfg.secrets_owner.as_str(), cfg.secrets_profile.as_str()), (CONTRACT, "osd-ad40dcf455fa-c"));
+}
+
+#[test]
+fn seasons_after_set_secrets_use_the_new_ref_in_the_outlayer_call() {
+    let mut chain = Chain { ts: 1_000, height: 100 };
+    let mut c = new_contract(&chain);
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    c.set_secrets(acc(CONTRACT), "osd-ad40dcf455fa-c".into());
+    let mut p = params_from_fixture();
+    p.commit_deadline_ns = U64(10_000);
+    p.play_deadline_ns = U64(20_000);
+    chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
+    let sid = c.open_season(p, None, None, None);
+    let s = c.seasons.get(&sid).unwrap();
+    assert_eq!((s.secrets_owner.as_str(), s.secrets_profile.as_str()), (CONTRACT, "osd-ad40dcf455fa-c"));
+    // the derive_pubkey request carries secrets_ref {profile, account_id = contract}
+    let receipts = near_sdk::test_utils::get_created_receipts();
+    let args = receipts
+        .iter()
+        .flat_map(|r| r.actions.iter())
+        .find_map(|a| match a {
+            near_sdk::mock::MockAction::FunctionCallWeight { method_name, args, .. } if method_name == b"request_execution" => {
+                Some(serde_json::from_slice::<Value>(args).unwrap())
+            }
+            _ => None,
+        })
+        .expect("request_execution receipt");
+    assert_eq!(args["secrets_ref"], json!({"profile": "osd-ad40dcf455fa-c", "account_id": CONTRACT}));
+}
