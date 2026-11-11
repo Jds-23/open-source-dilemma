@@ -27,7 +27,7 @@ export class RpcError extends Error {
 }
 
 export interface RpcRetryOptions {
-  /** Attempts per request on HTTP 429 / 5xx / network errors (default 6). Every request here is a read. */
+  /** Attempts per request on HTTP 429 / 5xx / network errors (default 10, backoff capped at 15 s). Every request here is a read. */
   attempts?: number;
   baseDelayMs?: number;
   sleep?: (ms: number) => Promise<void>;
@@ -43,7 +43,7 @@ export class NearRpc {
     this.url = url;
     this.fetchFn = fetchFn;
     this.retry = {
-      attempts: retry.attempts ?? 6,
+      attempts: retry.attempts ?? 10,
       baseDelayMs: retry.baseDelayMs ?? 500,
       sleep: retry.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
     };
@@ -61,7 +61,7 @@ export class NearRpc {
       } catch (e) {
         const retryable = e instanceof RpcError ? e.status === 429 || e.status >= 500 : !(e instanceof RpcError);
         if (!retryable || attempt >= this.retry.attempts) throw e;
-        const d = Math.min(8000, this.retry.baseDelayMs * 2 ** (attempt - 1));
+        const d = Math.min(15_000, this.retry.baseDelayMs * 2 ** (attempt - 1));
         await this.retry.sleep(Math.floor(d / 2 + (d / 2) * Math.random()));
       }
     }
