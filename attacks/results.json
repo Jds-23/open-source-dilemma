@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "osd.baldingsucks7993.testnet",
   "network": "testnet",
-  "updated_at": "2026-11-11T13:28:35.724Z",
+  "updated_at": "2026-11-11T13:37:53.943Z",
   "results": [
     {
       "evidence": "testnet",
@@ -1175,6 +1175,63 @@
         ]
       },
       "ts": "2026-11-11T13:17:58.224Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "14a",
+      "attack": 14,
+      "script": "secrets-owner",
+      "title": "secrets-owner: previous secrets owner baldingsucks7993.testnet calls keystore update_access(AllowAll) on the contract's profile osd-ad40dcf455fa-c",
+      "expected": "refused (\"Secrets not found\": rows are keyed by the caller); the contract-owned row is unchanged",
+      "actual": "refused: Smart contract panicked: panicked at src/secrets.rs:661:14:\\nSecrets not found; contract-owned row unchanged: true",
+      "pass": true,
+      "tx": "3Bxt7AkHC3PeoHXo6VHVjMefRCWUsN5U53oQVCtUQVkZ",
+      "details": {
+        "signer": "baldingsucks7993.testnet",
+        "owner": "osd.baldingsucks7993.testnet",
+        "profile": "osd-ad40dcf455fa-c"
+      },
+      "ts": "2026-11-11T13:36:08.397Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "14b",
+      "attack": 14,
+      "script": "secrets-owner",
+      "title": "secrets-owner: who can modify the season secrets profile after seal",
+      "expected": "get_config().secrets_owner = osd.baldingsucks7993.testnet; keystore row WasmHash(ad40dcf4…) + Predecessor[osd.baldingsucks7993.testnet] under it; after seal (0 keys) no account can sign as the owner, so nobody can re-store, re-scope or delete it (OutLayer operator trusted)",
+      "actual": "secrets ref osd.baldingsucks7993.testnet/osd-ad40dcf455fa-c; row present: true; Predecessor[contract] only: true; contract keys: 1; is_sealed: false; not sealed yet: the contract key can still modify it until seal",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "secrets_owner": "osd.baldingsucks7993.testnet",
+        "profile": "osd-ad40dcf455fa-c",
+        "row": {
+          "accessor": {
+            "WasmHash": {
+              "hash": "ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6"
+            }
+          },
+          "profile": "osd-ad40dcf455fa-c",
+          "created_at": 1794403168044275000,
+          "updated_at": 1794403168044275000,
+          "storage_deposit": "6420000000000000000000",
+          "access": {
+            "Predecessor": {
+              "condition": {
+                "Whitelist": {
+                  "accounts": [
+                    "osd.baldingsucks7993.testnet"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "keys": 1,
+        "is_sealed": false
+      },
+      "ts": "2026-11-11T13:36:08.399Z"
     }
   ]
 }
