@@ -1,9 +1,9 @@
-# Open Source Dilemma: frozen interfaces (`interfaces-v4`)
+# Open Source Dilemma: frozen interfaces (`interfaces-v5`)
 
 Owner: integrator. Changes only through an `interface-change` PR (see `docs/BUILD_PLAN.md` §0).
 Machine-readable copies: [`contract-abi.json`](contract-abi.json), [`wasm-io.schema.json`](wasm-io.schema.json), [`events.md`](events.md). Mock data: [`fixtures/`](fixtures/).
 
-The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2, §9.2: v2 → v3, §9.3: v3 → v4).
+The spike (`contracts/dilemma`, `wasm/referee` at the "spike baseline" commit) does **not** implement this yet. WS1 and WS2 bring it to this spec; §9 lists every delta (§9.1: v1 → v2, §9.2: v2 → v3, §9.3: v3 → v4, §9.4: v4 → v5).
 
 ---
 
@@ -89,16 +89,17 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `fund_agent` | anyone | > 0 | `{agent_id}` | `U128` new budget | unknown agent |
 | `withdraw` | agent's owner | 1 yocto | `{agent_id, amount_yocto}` | `U128` new budget | not owner; amount > budget |
 | `open_season` | contract owner | ≥ 0.02 NEAR (OutLayer) | `{params: SeasonParams, wasm_url?, wasm_hash?, secrets_profile?}` (overrides default to `get_config`; `wasm_url` and `wasm_hash` only together; frozen in the season and used by its `play_match`) | `u32` season_id (returned directly; the detached OutLayer call ends in `on_pubkey`, which sets the key) | previous season not `settled`/`cancelled`/`key_failed`; bad params; only one of `wasm_url`/`wasm_hash` |
-| `on_pubkey` | **private** callback | – | `{season_id}` + callback result `{pubkey}` | `Option<String>` | – |
+| `on_pubkey` | **private** callback | – | `{season_id}` + callback result `{pubkey}` | `Option<String>` | not a genuine callback (`promise_results_count ≠ 1` → `"not a callback"`, v5) |
 | `commit` | agent account or its owner | 0 | `{season_id, agent_id, ciphertext_hex, commitment, family, parent}` | `null` | status ≠ `commit`; past deadline; agent already entered (no overwrite); owner reached `max_entries_per_owner`; `max_agents` reached; budget < `entry_deposit_yocto`; bad hex/size; `family` not `^[a-z0-9_]{1,32}$` |
 | `close_commits` | anyone | 0 | `{season_id}` | `u32` n_entries | before deadline; status ≠ `commit` |
 | `schedule_round` | anyone | 0 | `{season_id}` | `MatchKey[]` for the new round | status ≠ `play`; all rounds scheduled |
 | `play_match` | anyone (keeper) | ≥ 0.02 NEAR (OutLayer; unused part refunded by OutLayer to caller) | `{season_id, a, b}` | promise → `String` `"settled CD"` / `"void"` | match not `scheduled` |
-| `on_match` | **private** callback | – | `{season_id, a, b}` + callback result (WASM output) | `String` | match not `pending` |
+| `on_match` | **private** callback | – | `{season_id, a, b}` + callback result (WASM output) | `String` | match not `pending`; not a genuine callback (`"not a callback"`, v5) |
 | `refund_void` | anyone | 0 | `{season_id, a, b}` | `U128` refunded per side | match not `void`, and not `pending` for > 250 blocks |
 | `settle_season` | anyone | 0 | `{season_id}` | `LeaderboardRow[]`; returns `[]` while unfinished matches are voided in batches of 40 after the play deadline: call again until it returns the ranking | status ≠ `play`; unfinished matches and `now < play_deadline_ns` (after the deadline, unfinished matches are voided and refunded, ≤ 40 per call because of the 100-log receipt limit) |
 | `claim` | agent account or its owner | 0 | `{season_id, agent_id}` | `U128` moved to budget | nothing claimable |
 | `publish_prompt` | agent's owner | 0 | `{season_id, agent_id, prompt, salt}` (`salt` 64 hex) | `null` (stores `prompt` + `salt`, see `get_published_prompts`) | season not `settled`; `sha256(utf8(prompt) ‖ salt ‖ utf8(agent_id)) ≠ commitment` |
+| `seal` | contract owner | exactly 1 yocto | `{public_keys: ["ed25519:…"], confirm: "SEAL-FOREVER"}` | promise → `bool` (`true` = sealed) | not owner; `confirm` wrong; already sealed; duplicate keys; > 32 keys. One way, see §6.4 |
 
 `commit` debits `entry_deposit_yocto = bond + 3 × unit × (max_agents − 1)` from the budget. `close_commits` fixes `stake_per_agent_yocto = 3 × unit × (N − 1)` and credits the excess to `claimable`. `on_match` credits payoffs to `claimable` and the pool delta to the season pool. `settle_season` ranks, splits the pool by `prize_split_bps`, and credits prizes and non-forfeited bonds to `claimable`.
 
@@ -129,6 +130,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `get_lineage` | `{agent_id}` | `LineageEntry[]` (one per season entered; follow `parent` to walk ancestors) |
 | `get_claimable` | `{season_id, agent_id}` | `U128` (formula §6.1; [fixture](fixtures/claimable.json)) |
 | `get_published_prompts` | `{season_id, from_index?, limit?}` | `PublishedPrompt[]` = `[{agent_id, prompt, salt, commitment}]` (first-publish order; only prompts revealed via `publish_prompt`; [fixture](fixtures/published-prompts.json)) |
+| `is_sealed` | `{}` | `bool` (§6.4) |
 
 Pagination defaults: `from_index = 0`, `limit = 100`, max 200.
 
@@ -143,6 +145,31 @@ Pagination defaults: `from_index = 0`, `limit = 100`, max 200.
 - `LeaderboardRow` `{agent_id, owner, family, matches_counted, total_payoff_counted, avg_payoff_milli, rank, prize_yocto}` ([fixture](fixtures/leaderboard.json))
 - `LineageEntry` `{season_id, agent_id, commitment, family, parent, rank, avg_payoff_milli}` ([fixture](fixtures/lineage.json))
 - `PublishedPrompt` `{agent_id, prompt, salt, commitment}` ([fixture](fixtures/published-prompts.json))
+
+### 6.4 Seal (one way, `interfaces-v5`)
+
+During testing the contract account keeps a full-access key (upgrades). That key passes `#[private]`
+and the OutLayer keystore `Predecessor` rule, so its holder could probe prompts through the pinned
+referee or redeploy (attacks/RESULTS.md F1, row 05c). `seal` removes that power for good:
+
+- `seal({public_keys, confirm: "SEAL-FOREVER"})`, owner only, exactly 1 yocto. The contract cannot list
+  its own keys: pass **every** key from RPC `view_access_key_list`. One batch on the contract account
+  deletes them, then the `on_sealed` callback sets a permanent flag (raw storage key `__osd_sealed`,
+  outside the state struct) and emits `contract_sealed`. If a listed key does not exist the batch
+  fails, nothing is deleted, the flag is not set and the call returns `false`. An empty list sets the
+  flag at once (keys already removed by hand). Allowed in any season phase: it only removes power.
+- After seal: the contract has no upgrade/unseal method and no access keys, so its code can never change
+  and nothing can be signed as the contract (no direct callbacks, no OutLayer runs with the contract as
+  predecessor). `open_season` refuses the `wasm_url`/`wasm_hash`/`secrets_profile` overrides: every season
+  uses the config referee. There is no config setter or owner transfer to freeze (none exist).
+- Verify: `is_sealed()` = `true` **and** `view_access_key_list` returns `[]` (anyone can check; the
+  flag alone does not prove the key list was complete).
+- Unchanged by seal: the owner still opens seasons (config referee only); the OutLayer secrets owner
+  (`get_config().secrets_owner`) still controls the secrets stored under `secrets_profile`.
+- All `#[private]` callbacks (`on_pubkey`, `on_match`, `on_agent_created`, `on_sealed`) require exactly
+  one promise result (`"not a callback"` otherwise), before and after seal.
+- The cards contract (`contracts/cards`) has the same `seal` / `is_sealed` / `contract_sealed` (standard `osd`)
+  and guard on `mt_resolve_transfer`; it has no minter setter, and `mint_season_cards` stays owner only.
 
 ## 7. Scheduling and ranking
 
@@ -230,6 +257,15 @@ Integrator additions in v3:
 | `open_season` return | promise | `u32` returned directly (OutLayer call detached) |
 | Referee output | all proof fields required | missing `*_chat_id`/`*_signed_text`/`*_sig` read as `""` (WS-2 §9.2 vi); sig flags false |
 | Misc | – | `get_published_prompts` first-publish order, re-publish keeps position; `parent.season_id ≥ 1`; `play_match` allowed after the play deadline; storage sizes documented (§6.1) |
+
+### 9.4 `interfaces-v4` → `interfaces-v5` (seal, F1)
+
+| Area | `interfaces-v4` | `interfaces-v5` |
+|---|---|---|
+| Lock-down | contract account keeps a full-access key (F1) | `seal` (one way) deletes the listed keys, sets `is_sealed`; event `contract_sealed` (§6.4) |
+| `open_season` overrides | always allowed | refused after seal |
+| `#[private]` callbacks | predecessor check only | also require exactly one promise result (`"not a callback"`) |
+| Cards contract | – | same `seal` / `is_sealed` / `contract_sealed`; guard on `mt_resolve_transfer` |
 
 Additions beyond the Phase 0 brief (so other workstreams don't block): `fund_agent`, `withdraw`, `publish_prompt`, `get_config`, `get_entries`, `get_claimable`, `get_published_prompts`, events `season_opened`, `commits_closed`, `prompt_published`, move `F`, WASM inputs `hash_a`/`hash_b`/`action`.
 

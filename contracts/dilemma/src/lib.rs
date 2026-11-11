@@ -1,14 +1,17 @@
-//! Open Source Dilemma contract (`interfaces-v2`, see `interfaces/INTERFACE.md`).
+//! Open Source Dilemma contract (`interfaces-v5`, see `interfaces/INTERFACE.md`).
 //!
 //! Seasons of one-shot prisoner's dilemma between encrypted prompt strategies. Every match
 //! runs once in the pinned OutLayer referee WASM (`WasmUrl{url,hash}` + `secrets_ref`, both
 //! frozen per season); the result arrives in the `#[private]` `on_match` callback. A failed,
 //! timed-out or malformed run voids the match: there is no retry path.
+//!
+//! `seal` (interfaces-v5) is a one-way switch: it deletes the contract account's access keys and
+//! freezes the per-season referee overrides, so after it the code and the referee are immutable.
 use near_sdk::json_types::{U128, U64};
 use near_sdk::store::{LookupMap, LookupSet};
 use near_sdk::{
     env, log, near, require, AccountId, Allowance, CurveType, Gas, GasWeight, NearToken, PanicOnDefault,
-    Promise, PromiseResult, PublicKey,
+    Promise, PromiseOrValue, PromiseResult, PublicKey,
 };
 use serde_json::{json, Value};
 
@@ -40,6 +43,13 @@ pub const SETTLE_VOID_BATCH: u32 = 40;
 /// The final (ranking) call may void at most this many, leaving log room for `season_settled`.
 pub const SETTLE_FINAL_MAX_VOIDS: u32 = 20;
 const MAX_LIMIT: u32 = 200;
+/// Raw storage key of the one-way seal flag. Kept outside the `Dilemma` state struct so an
+/// in-place redeploy of this code over existing state needs no migration.
+pub const SEALED_KEY: &[u8] = b"__osd_sealed";
+/// Literal `confirm` argument `seal` requires.
+pub const SEAL_CONFIRM: &str = "SEAL-FOREVER";
+pub const MAX_SEAL_KEYS: usize = 32;
+const SEAL_CALLBACK_GAS: Gas = Gas::from_tgas(10);
 
 // ---------------------------------------------------------------- types
 
@@ -384,6 +394,17 @@ fn ordered(a: AccountId, b: AccountId) -> (AccountId, AccountId) {
     }
 }
 
+/// Defense in depth for `#[private]` callbacks: `#[private]` only checks predecessor == contract,
+/// which a transaction signed with the contract account's own key also passes. A genuine promise
+/// callback always has exactly one promise result; a direct call has none.
+fn require_callback() {
+    require!(env::promise_results_count() == 1, "not a callback");
+}
+
+pub fn is_sealed_flag() -> bool {
+    env::storage_has_key(SEALED_KEY)
+}
+
 fn promise_result_bytes() -> Option<Vec<u8>> {
     if env::promise_results_count() != 1 {
         return None;
@@ -505,6 +526,7 @@ impl Dilemma {
         name: String,
         deposit: U128,
     ) -> Option<AccountId> {
+        require_callback();
         self.pending_agents.remove(&agent_id);
         if promise_result_bytes().is_none() {
             log!("register_agent failed for {}; refunding {}", agent_id, deposit.0);
@@ -556,6 +578,7 @@ impl Dilemma {
     /// Optional `wasm_url` + `wasm_hash` (together) and `secrets_profile` override the config
     /// for this season only; they are frozen in the season and used by its `play_match` calls.
     /// Any carry-over from earlier seasons is added to the new pool.
+    /// After `seal` the overrides are refused: every season uses the config referee.
     #[payable]
     pub fn open_season(
         &mut self,
@@ -594,6 +617,10 @@ impl Dilemma {
             .checked_mul(STAKE_UNITS_PER_MATCH * (p.max_agents as u128 - 1))
             .and_then(|s| s.checked_add(p.bond_yocto.0))
             .unwrap_or_else(|| env::panic_str("deposit overflow"));
+        require!(
+            !is_sealed_flag() || (wasm_url.is_none() && wasm_hash.is_none() && secrets_profile.is_none()),
+            "sealed: per-season wasm_url/wasm_hash/secrets_profile overrides are disabled"
+        );
         require!(wasm_url.is_some() == wasm_hash.is_some(), "wasm_url and wasm_hash must be overridden together");
         let wasm = WasmSource {
             url: wasm_url.unwrap_or_else(|| self.wasm_url.clone()),
@@ -642,6 +669,7 @@ impl Dilemma {
 
     #[private]
     pub fn on_pubkey(&mut self, season_id: u32) -> Option<String> {
+        require_callback();
         let mut s = self.season(season_id);
         require!(s.status == SeasonStatus::PendingKey, "season not pending_key");
         let pk = promise_result_bytes()
@@ -868,6 +896,7 @@ impl Dilemma {
     /// Settles or voids a pending match from the referee output. Never panics on bad output.
     #[private]
     pub fn on_match(&mut self, season_id: u32, a: AccountId, b: AccountId) -> String {
+        require_callback();
         let key = (season_id, a.clone(), b.clone());
         let mut m = self.matches.get(&key).cloned().unwrap_or_else(|| env::panic_str("unknown match"));
         require!(m.status == MatchStatus::Pending, "match not pending");
@@ -1087,6 +1116,53 @@ impl Dilemma {
         );
     }
 
+    // ------------------------------------------------------------ seal (one way)
+
+    /// Owner only, exactly 1 yocto, `confirm == "SEAL-FOREVER"`. Deletes every listed access key
+    /// of the contract account (pass the full `view_access_key_list`; the contract cannot
+    /// enumerate its keys) in one batch, then `on_sealed` sets the permanent flag. If any listed
+    /// key does not exist the batch fails, no key is deleted and the contract stays unsealed.
+    /// An empty list seals immediately (for keys already deleted by hand). Irreversible: the
+    /// code has no upgrade or unseal path, so with zero keys the code can never change again.
+    #[payable]
+    pub fn seal(&mut self, public_keys: Vec<PublicKey>, confirm: String) -> PromiseOrValue<bool> {
+        near_sdk::assert_one_yocto();
+        require!(env::predecessor_account_id() == self.owner, "owner only");
+        require!(confirm == SEAL_CONFIRM, "confirm must be \"SEAL-FOREVER\"");
+        require!(!is_sealed_flag(), "already sealed");
+        require!(public_keys.len() <= MAX_SEAL_KEYS, "too many keys");
+        for (i, k) in public_keys.iter().enumerate() {
+            require!(!public_keys[..i].contains(k), "duplicate key");
+        }
+        if public_keys.is_empty() {
+            return PromiseOrValue::Value(self.mark_sealed(vec![]));
+        }
+        let mut p = Promise::new(env::current_account_id());
+        for k in &public_keys {
+            p = p.delete_key(k.clone());
+        }
+        let keys: Vec<String> = public_keys.iter().map(String::from).collect();
+        p.then(Self::ext(env::current_account_id()).with_static_gas(SEAL_CALLBACK_GAS).on_sealed(keys)).into()
+    }
+
+    /// Sets the seal flag once the key-deletion batch succeeded.
+    #[private]
+    pub fn on_sealed(&mut self, public_keys: Vec<String>) -> bool {
+        require_callback();
+        if promise_result_bytes().is_none() {
+            log!("seal aborted: deleting the listed access keys failed; contract NOT sealed");
+            return false;
+        }
+        if is_sealed_flag() {
+            return true;
+        }
+        self.mark_sealed(public_keys)
+    }
+
+    pub fn is_sealed(&self) -> bool {
+        is_sealed_flag()
+    }
+
     // ------------------------------------------------------------ views
 
     pub fn get_config(&self) -> Config {
@@ -1265,6 +1341,12 @@ fn page(from_index: Option<u32>, limit: Option<u32>) -> (u32, u32) {
 }
 
 impl Dilemma {
+    fn mark_sealed(&mut self, keys_deleted: Vec<String>) -> bool {
+        env::storage_write(SEALED_KEY, &env::block_height().to_le_bytes());
+        emit("contract_sealed", json!({"keys_deleted": keys_deleted, "block": env::block_height()}));
+        true
+    }
+
     fn season(&self, season_id: u32) -> SeasonState {
         self.seasons.get(&season_id).cloned().unwrap_or_else(|| env::panic_str("unknown season"))
     }

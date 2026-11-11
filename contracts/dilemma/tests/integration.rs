@@ -551,6 +551,151 @@ async fn scoped_agent_key_cannot_transfer_or_call_other_methods() -> anyhow::Res
     Ok(())
 }
 
+/// 05c: a `request_execution` signed directly with the contract account's key (predecessor = contract).
+async fn outlayer_as_contract(env: &Env) -> Result<ExecutionFinalResult, near_workspaces::error::Error> {
+    let me = env.osd.as_account();
+    me.call(env.mock.id(), "request_execution")
+        .args_json(json!({
+            "source": {"WasmUrl": {"url": "https://test.fastfs.io/osd/referee.wasm", "hash": "ab".repeat(32), "build_target": "wasm32-wasip2"}},
+            "resource_limits": {}, "input_data": json!({"action": "derive_pubkey", "season": 1}).to_string(),
+            "secrets_ref": {"profile": "osd-test", "account_id": env.admin.id()}, "response_format": "Json",
+            "payer_account_id": me.id(),
+        }))
+        .deposit(NearToken::from_millinear(20))
+        .max_gas()
+        .transact()
+        .await
+}
+
+/// F1: the contract account's own full-access key passes `#[private]`. Before and after `seal`
+/// direct callbacks are refused ("not a callback"); `seal` deletes every key, so nothing can be
+/// signed as the contract (no OutLayer keystore bypass, no redeploy), and seasons still run.
+#[tokio::test]
+async fn seal_deletes_keys_and_locks_contract() -> anyhow::Result<()> {
+    let env = setup().await?;
+    let root = env.w.root_account()?;
+    let alice = sub(&root, "alice", 20).await?;
+    let bob = sub(&root, "bob", 20).await?;
+    let a1 = env.register(&alice, "a1", 2).await?;
+    let b1 = env.register(&bob, "b1", 2).await?;
+    let me = env.osd.as_account(); // signs with the contract account's own full-access key
+
+    // Before seal: direct callbacks from the contract's own key are refused.
+    let (sid0, _) = env.open_season(120).await?;
+    for (method, args) in [
+        ("on_match", json!({"season_id": sid0, "a": a1.id(), "b": b1.id()})),
+        ("on_pubkey", json!({"season_id": sid0})),
+        ("on_agent_created", json!({"agent_id": format!("zz.{}", env.osd.id()), "owner": me.id(), "name": "zz", "deposit": "100000000000000000000000000"})),
+        ("on_sealed", json!({"public_keys": []})),
+    ] {
+        let r = me.call(env.osd.id(), method).args_json(args).max_gas().transact().await?;
+        assert!(r.is_failure() && err_text(&r).contains("not a callback"), "{method}: {}", err_text(&r));
+    }
+    assert!(!env.view("is_sealed", json!({})).await?.as_bool().unwrap());
+    // ...but the key can still call OutLayer with the contract as predecessor (05c, the keystore bypass).
+    let r = outlayer_as_contract(&env).await?;
+    assert!(r.is_success(), "{}", err_text(&r));
+    let req: Value = serde_json::from_str(&env.mock.view("get_last_request").await?.json::<Option<String>>()?.unwrap())?;
+    assert_eq!(req["predecessor"], env.osd.id().as_str());
+
+    let keys: Vec<String> = env.w.view_access_keys(env.osd.id()).await?.iter().map(|k| k.public_key.to_string()).collect();
+    assert!(!keys.is_empty());
+    let seal = |who: &Account, keys: Value, confirm: &str, yocto: u128| {
+        who.call(env.osd.id(), "seal")
+            .args_json(json!({"public_keys": keys, "confirm": confirm}))
+            .deposit(NearToken::from_yoctonear(yocto))
+            .max_gas()
+            .transact()
+    };
+    // Refusals: not owner, wrong confirm, no 1 yocto.
+    let r = seal(&env.keeper, json!(keys), "SEAL-FOREVER", 1).await?;
+    assert!(r.is_failure() && err_text(&r).contains("owner only"));
+    let r = seal(&env.admin, json!(keys), "yes", 1).await?;
+    assert!(r.is_failure() && err_text(&r).contains("confirm must be"));
+    let r = seal(&env.admin, json!(keys), "SEAL-FOREVER", 0).await?;
+    assert!(r.is_failure());
+    // A key that does not exist: the batch fails, nothing is deleted, not sealed.
+    let bogus = SecretKey::from_random(KeyType::ED25519).public_key().to_string();
+    let mut with_bogus = keys.clone();
+    with_bogus.push(bogus);
+    let r = seal(&env.admin, json!(with_bogus), "SEAL-FOREVER", 1).await?;
+    assert!(!r.json::<bool>()?);
+    assert!(!env.view("is_sealed", json!({})).await?.as_bool().unwrap());
+    assert_eq!(env.w.view_access_keys(env.osd.id()).await?.len(), keys.len());
+
+    // Seal (anytime, here while season 1 is in commit).
+    let r = seal(&env.admin, json!(keys), "SEAL-FOREVER", 1).await?;
+    assert!(r.is_success(), "{}", err_text(&r));
+    assert!(r.logs().iter().any(|l| l.contains("\"event\":\"contract_sealed\"")), "{:?}", r.logs());
+    assert!(r.json::<bool>()?);
+    assert!(env.view("is_sealed", json!({})).await?.as_bool().unwrap());
+    assert!(env.w.view_access_keys(env.osd.id()).await?.is_empty(), "view_access_key_list must be []");
+
+    // Irreversible.
+    let r = seal(&env.admin, json!([]), "SEAL-FOREVER", 1).await?;
+    assert!(r.is_failure() && err_text(&r).contains("already sealed"));
+    // Nothing can be signed as the contract any more: no direct callback, no OutLayer call with
+    // the contract as predecessor (05c), no redeploy, no new key.
+    assert!(refused(me.call(env.osd.id(), "on_match").args_json(json!({"season_id": sid0, "a": a1.id(), "b": b1.id()})).max_gas().transact().await));
+    assert!(refused(outlayer_as_contract(&env).await));
+    assert!(me.deploy(&wasms().1).await.map_or(true, |r| r.is_failure()), "redeploy must be impossible");
+    let sk = SecretKey::from_random(KeyType::ED25519);
+    assert!(refused(me.batch(env.osd.id()).add_key(sk.public_key(), AccessKey::full_access()).transact().await));
+
+    // Season 1 (opened before seal) still runs to settlement; then season 2 uses the config referee only.
+    for (ag, i) in [(&a1, 0), (&b1, 2)] {
+        let e = &fx("entries.json")[i];
+        let r = ag
+            .call(env.osd.id(), "commit")
+            .args_json(json!({"season_id": sid0, "agent_id": ag.id(), "ciphertext_hex": e["ciphertext_hex"],
+                              "commitment": e["commitment"], "family": e["family"], "parent": null}))
+            .gas(Gas::from_tgas(50))
+            .transact()
+            .await?;
+        assert!(r.is_success(), "{}", err_text(&r));
+    }
+    let deadline: u64 = env.view("get_season", json!({"season_id": sid0})).await?["params"]["commit_deadline_ns"].as_str().unwrap().parse()?;
+    env.wait_past(deadline).await?;
+    env.keeper.call(env.osd.id(), "close_commits").args_json(json!({"season_id": sid0})).max_gas().transact().await?.into_result()?;
+    env.keeper.call(env.osd.id(), "schedule_round").args_json(json!({"season_id": sid0})).max_gas().transact().await?.into_result()?;
+    let (a, b) = ordered(a1.id(), b1.id());
+    let mk = format!("{sid0}:{a}:{b}");
+    let (ma, mb) = if a == a1.id() { ("D", "C") } else { ("C", "D") };
+    env.mock.call("set_output").args_json(json!({"key": mk, "output": out(&mk, ma, mb)})).transact().await?.into_result()?;
+    let r = env
+        .keeper
+        .call(env.osd.id(), "play_match")
+        .args_json(json!({"season_id": sid0, "a": a, "b": b}))
+        .deposit(NearToken::from_millinear(20))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(r.clone().json::<String>()?.starts_with("settled "), "{}", err_text(&r));
+    let rows: Vec<Value> = env.keeper.call(env.osd.id(), "settle_season").args_json(json!({"season_id": sid0})).max_gas().transact().await?.into_result()?.json()?;
+    assert_eq!(rows[0]["agent_id"], a1.id().as_str());
+    assert_eq!(rows[0]["rank"], 1);
+
+    // Overrides refused after seal; the config default still opens a season.
+    let mut params = fx("season.json")["params"].clone();
+    let dl = env.now_ns().await? + 600 * 1_000_000_000;
+    params["commit_deadline_ns"] = json!(dl.to_string());
+    params["play_deadline_ns"] = json!((dl + 3_600 * 1_000_000_000).to_string());
+    for ov in [
+        json!({"wasm_url": "https://evil/probe.wasm", "wasm_hash": "ee".repeat(32)}),
+        json!({"secrets_profile": "other"}),
+    ] {
+        let mut args = ov.clone();
+        args["params"] = params.clone();
+        let r = env.admin.call(env.osd.id(), "open_season").args_json(args).deposit(NearToken::from_millinear(20)).max_gas().transact().await?;
+        assert!(r.is_failure() && err_text(&r).contains("sealed: per-season"), "{}", err_text(&r));
+    }
+    let (sid1, _) = env.open_season(600).await?;
+    assert_eq!(sid1, sid0 + 1);
+    let s = env.view("get_season", json!({"season_id": sid1})).await?;
+    assert_eq!(s["secrets_profile"], "osd-test");
+    Ok(())
+}
+
 /// Worst-case gas at the 40-agent cap: 20-match rounds, then settle_season voiding all
 /// 780 matches at the play deadline. Slow (~minutes); run with `cargo test -- --ignored`.
 #[tokio::test]

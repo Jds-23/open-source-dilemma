@@ -30,6 +30,11 @@ Every row below was produced by a script in `attacks/src/attacks/` and is stored
   secrets on any stored ciphertexts (a prompt-probing oracle) and call the `#[private]` callbacks (`on_match`, `on_pubkey`)
   directly to forge results. Every outsider attack is refused (1, 4, 5); the hole is the deployer's own key.
   Fix: delete the full-access key after deploy (locked contract) or move upgrades behind a DAO or multisig.
+  **Fix (interfaces-v5, PR `fix/seal-contract`):** every `#[private]` callback now requires exactly one promise result,
+  so a direct call signed with the contract key is refused with `"not a callback"` (row 05c-b, live after redeploy);
+  and the owner-only, one-way `seal` deletes all of the contract's access keys and freezes the per-season referee
+  overrides (INTERFACE.md §6.4; `ops/scripts/seal.sh`). The keys stay during testing (upgrades); row 05c-after-seal is
+  recorded by `run contract-key` once the owner has sealed. Until then 05c (the OutLayer keystore bypass) still works.
 
 ## Run
 
@@ -37,7 +42,7 @@ Every row below was produced by a script in `attacks/src/attacks/` and is stored
 pnpm --filter @osd/attacks run no-season      # every attack that needs no live season, in parallel (~2–3 min)
 pnpm --filter @osd/attacks run season         # attacks bound to the live attack season (phase-aware; no-op without one)
 pnpm --filter @osd/attacks run <attack>       # forged-callback | replay | agent-key | outsider-outlayer | wrong-wasm |
-                                              # tampered-sig | duplicate-prompt | commitment-mismatch | clone-farm |
+                                              # contract-key | tampered-sig | duplicate-prompt | commitment-mismatch | clone-farm |
                                               # injection | withholding | outsider-calls | low-gas-play
                                               # (ATK_NO_SEASON=1 limits replay / injection / outsider-calls to season 1)
 pnpm --filter @osd/attacks run season-ctl <step>  # setup | open | enter | close | status (attack-season orchestration)

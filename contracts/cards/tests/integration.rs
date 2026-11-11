@@ -35,7 +35,7 @@ fn wasm() -> &'static Vec<u8> {
 }
 
 struct Env {
-    _w: Worker<Sandbox>,
+    w: Worker<Sandbox>,
     keeper: Account,
     alice: Account,
     bob: Account,
@@ -59,7 +59,7 @@ async fn setup() -> anyhow::Result<Env> {
         .transact()
         .await?
         .into_result()?;
-    Ok(Env { _w: w, keeper, alice, bob, cards })
+    Ok(Env { w, keeper, alice, bob, cards })
 }
 
 fn events(r: &ExecutionFinalResult, event: &str) -> Vec<Value> {
@@ -216,5 +216,45 @@ async fn cards_flow() -> anyhow::Result<()> {
     let cards = e.view("cards_for_agent", json!({"agent_id": "a.osd.test.near"})).await?;
     assert_eq!(cards.as_array().unwrap().len(), 1);
     assert_eq!(e.view("get_config", json!({})).await?["n_tokens"], 7);
+    Ok(())
+}
+
+/// F1 for the cards account: direct `mt_resolve_transfer` from its own key is refused; `seal`
+/// deletes every key (view_access_key_list → []), is one way, and minting stays owner-only.
+#[tokio::test]
+async fn seal_deletes_keys() -> anyhow::Result<()> {
+    let e = setup().await?;
+    let me = e.cards.as_account();
+    e.mint(&e.keeper, 1, vec![row("a.osd.test.near", &e.alice, 1, None)]).await?.into_result()?;
+    let r = me
+        .call(e.cards.id(), "mt_resolve_transfer")
+        .args_json(json!({"previous_owner_ids": [e.alice.id()], "receiver_id": e.bob.id(), "token_ids": ["badge:s1"], "amounts": ["1"]}))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(r.is_failure() && format!("{:?}", r.failures()).contains("not a callback"));
+
+    let keys: Vec<String> = e.w.view_access_keys(e.cards.id()).await?.iter().map(|k| k.public_key.to_string()).collect();
+    assert!(!keys.is_empty());
+    let seal = |who: &Account, keys: Value| {
+        who.call(e.cards.id(), "seal")
+            .args_json(json!({"public_keys": keys, "confirm": "SEAL-FOREVER"}))
+            .deposit(NearToken::from_yoctonear(1))
+            .max_gas()
+            .transact()
+    };
+    let r = seal(&e.alice, json!(keys)).await?;
+    assert!(r.is_failure() && format!("{:?}", r.failures()).contains("owner only"));
+    let r = seal(&e.keeper, json!(keys)).await?;
+    assert!(r.is_success(), "{:?}", r.failures());
+    assert!(r.logs().iter().any(|l| l.contains("\"event\":\"contract_sealed\"")));
+    assert_eq!(e.view("is_sealed", json!({})).await?, json!(true));
+    assert!(e.w.view_access_keys(e.cards.id()).await?.is_empty());
+    let r = seal(&e.keeper, json!([])).await?;
+    assert!(r.is_failure() && format!("{:?}", r.failures()).contains("already sealed"));
+    assert!(me.deploy(wasm()).await.map_or(true, |r| r.is_failure()));
+    // minting continues (owner only)
+    assert!(e.mint(&e.keeper, 2, vec![row("a.osd.test.near", &e.alice, 1, None)]).await?.is_success());
+    assert!(e.mint(&e.alice, 3, vec![row("a.osd.test.near", &e.alice, 1, None)]).await?.is_failure());
     Ok(())
 }

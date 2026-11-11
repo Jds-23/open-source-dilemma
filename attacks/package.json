@@ -22,6 +22,7 @@
     "agent-key": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts agent-key",
     "outsider-outlayer": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts outsider-outlayer",
     "wrong-wasm": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts wrong-wasm",
+    "contract-key": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts contract-key",
     "tampered-sig": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts tampered-sig",
     "duplicate-prompt": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts duplicate-prompt",
     "commitment-mismatch": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts commitment-mismatch",
