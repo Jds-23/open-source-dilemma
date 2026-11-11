@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OSD dilemma contract ABI (interfaces-v4)",
+  "title": "OSD dilemma contract ABI (interfaces-v5)",
   "description": "Hand-written frozen interface; see INTERFACE.md. Not the near-abi format. JSON args/returns.",
-  "version": "interfaces-v4",
+  "version": "interfaces-v5",
   "contract_testnet": "osd.baldingsucks7993.testnet",
   "near_sdk": "5.9.0",
   "rustc": "1.85.0",
@@ -52,7 +52,9 @@
         0,
         6
       ]
-    }
+    },
+    "SEAL_CONFIRM": "SEAL-FOREVER",
+    "MAX_SEAL_KEYS": 32
   },
   "methods": [
     {
@@ -202,7 +204,7 @@
         "type": "integer",
         "minimum": 0
       },
-      "effects": "creates season (status pending_key) with wasm{url,hash} + secrets_profile pinned (overrides or config); pool starts at the pending carry-over; detached OutLayer derive_pubkey -> on_pubkey. Allowed when the previous season is settled, cancelled or key_failed"
+      "effects": "creates season (status pending_key) with wasm{url,hash} + secrets_profile pinned (overrides or config); pool starts at the pending carry-over; detached OutLayer derive_pubkey -> on_pubkey. Allowed when the previous season is settled, cancelled or key_failed. After seal: any wasm_url/wasm_hash/secrets_profile override is refused (\"sealed: per-season ... overrides are disabled\"); only the config referee"
     },
     {
       "name": "on_pubkey",
@@ -234,7 +236,8 @@
             "type": "null"
           }
         ]
-      }
+      },
+      "guard": "requires env::promise_results_count() == 1, else panics \"not a callback\" (a tx signed with the contract account's own key passes #[private] but has no promise result). Same guard on the internal on_agent_created callback"
     },
     {
       "name": "commit",
@@ -389,7 +392,8 @@
       },
       "returns": {
         "type": "string"
-      }
+      },
+      "guard": "requires env::promise_results_count() == 1, else panics \"not a callback\" (a tx signed with the contract account's own key passes #[private] but has no promise result). Same guard on the internal on_agent_created callback"
     },
     {
       "name": "refund_void",
@@ -506,6 +510,63 @@
       },
       "returns": {
         "type": "null"
+      }
+    },
+    {
+      "name": "seal",
+      "kind": "call",
+      "caller": "contract owner (get_config.owner)",
+      "deposit": "exactly 1 yoctoNEAR",
+      "effects": "one way. confirm must equal \"SEAL-FOREVER\"; refused if already sealed. Schedules one batch on the contract account deleting every listed access key (pass the full RPC view_access_key_list; the contract cannot enumerate its keys) -> on_sealed sets the permanent seal flag and emits contract_sealed. If any listed key is missing the batch fails, no key is deleted, the contract stays unsealed and the call returns false. Empty list: sealed at once. After seal: no code-deploy path (the contract has no upgrade method and no keys), open_season overrides refused. Verify with view_access_key_list == []",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "public_keys",
+          "confirm"
+        ],
+        "properties": {
+          "public_keys": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "description": "\"ed25519:<base58>\""
+            }
+          },
+          "confirm": {
+            "const": "SEAL-FOREVER"
+          }
+        }
+      },
+      "returns": {
+        "type": "boolean",
+        "description": "promise result: true when sealed"
+      }
+    },
+    {
+      "name": "on_sealed",
+      "kind": "call",
+      "private": true,
+      "guard": "requires exactly one promise result (\"not a callback\")",
+      "effects": "key batch succeeded -> sets the seal flag, emits contract_sealed; failed -> logs, stays unsealed",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "public_keys"
+        ],
+        "properties": {
+          "public_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "returns": {
+        "type": "boolean"
       }
     },
     {
@@ -771,6 +832,19 @@
         }
       },
       "description": "first-publish order"
+    },
+    {
+      "name": "is_sealed",
+      "kind": "view",
+      "args": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {}
+      },
+      "returns": {
+        "type": "boolean"
+      }
     }
   ],
   "$defs": {

@@ -3,6 +3,7 @@
 // records expected vs actual + tx hash into results.json and the RESULTS.md table.
 import { agentKey } from './attacks/agent-key.ts';
 import { cloneFarm } from './attacks/clone-farm.ts';
+import { contractKey } from './attacks/contract-key.ts';
 import { commitmentMismatch } from './attacks/commitment-mismatch.ts';
 import { duplicatePrompt } from './attacks/duplicate-prompt.ts';
 import { forgedCallback } from './attacks/forged-callback.ts';
@@ -27,6 +28,7 @@ export const ATTACKS: Attack[] = [
   agentKey,
   outsiderOutlayer,
   wrongWasm,
+  contractKey,
   tamperedSig,
   duplicatePrompt,
   commitmentMismatch,

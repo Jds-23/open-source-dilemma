@@ -860,3 +860,116 @@ fn per_season_referee_override_is_pinned() {
     // config itself is unchanged
     assert_eq!(c.get_config().wasm_url, "https://example/referee.wasm");
 }
+
+// ---------------------------------------------------------------- seal + callback guard (F1)
+
+const PK1: &str = "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp";
+const PK2: &str = "ed25519:CXWcyxnNj9tfGoTzHS2fVbPfgQ9U9P5HD8aw4GTGcGsV";
+
+fn pk(s: &str) -> PublicKey {
+    s.parse().unwrap()
+}
+
+#[test]
+fn direct_callback_without_promise_result_refused() {
+    // A tx signed with the contract account's own key passes `#[private]` but has 0 results.
+    let chain = Chain { ts: 1_000, height: 100 };
+    let mut p = params_from_fixture();
+    p.commit_deadline_ns = U64(10_000);
+    p.play_deadline_ns = U64(20_000);
+    let mut c = new_contract(&chain);
+    chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
+    let sid = c.open_season(p, None, None, None);
+    chain.call(CONTRACT);
+    expect_panic(|| { c.on_pubkey(sid); }, "not a callback");
+    expect_panic(
+        || { c.on_agent_created(acc(&format!("x1.{CONTRACT}")), acc("evil.testnet"), "x1".into(), U128(10u128.pow(26))); },
+        "not a callback",
+    );
+    expect_panic(|| { c.on_match(sid, acc("a.testnet"), acc("b.testnet")); }, "not a callback");
+    expect_panic(|| { c.on_sealed(vec![]); }, "not a callback");
+    // two results (not a single-promise callback) is refused too
+    chain.set(CONTRACT, NearToken::from_yoctonear(0), vec![PromiseResult::Successful(b"1".to_vec()), PromiseResult::Successful(b"1".to_vec())]);
+    expect_panic(|| { c.on_pubkey(sid); }, "not a callback");
+    // genuine callback still works
+    chain.callback(Some(&json!({"pubkey": fx("season")["pubkey"]}).to_string()));
+    assert!(c.on_pubkey(sid).is_some());
+    assert!(!c.is_sealed());
+}
+
+#[test]
+fn direct_on_match_refused_after_seal_too() {
+    let (mut c, mut chain, sid, ids) = small_season(&[("a1", "alice.near"), ("b1", "bob.near")]);
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    let _ = c.seal(vec![], SEAL_CONFIRM.into());
+    assert!(c.is_sealed());
+    chain.pay(KEEPER, MIN_OUTLAYER_DEPOSIT);
+    let (a, b) = ordered(ids[0].clone(), ids[1].clone());
+    let _ = c.play_match(sid, a.clone(), b.clone());
+    chain.call(CONTRACT);
+    expect_panic(|| { c.on_match(sid, a.clone(), b.clone()); }, "not a callback");
+    // the genuine result still settles after seal
+    chain.callback(Some(&out_for(&mkey(sid, &a, &b), "C", "D")));
+    assert_eq!(c.on_match(sid, a.clone(), b.clone()), "settled CD");
+}
+
+#[test]
+fn seal_rules_and_one_way() {
+    let chain = Chain { ts: 1_000, height: 100 };
+    let mut c = new_contract(&chain);
+    assert!(!c.is_sealed());
+    let keys = vec![pk(PK1), pk(PK2)];
+    chain.pay(KEEPER, NearToken::from_yoctonear(1));
+    expect_panic(|| { let _ = c.seal(keys.clone(), SEAL_CONFIRM.into()); }, "owner only");
+    chain.pay(OWNER, NearToken::from_yoctonear(0));
+    expect_panic(|| { let _ = c.seal(keys.clone(), SEAL_CONFIRM.into()); }, "Requires attached deposit of exactly 1 yoctoNEAR");
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    expect_panic(|| { let _ = c.seal(keys.clone(), "seal".into()); }, "confirm must be");
+    expect_panic(|| { let _ = c.seal(vec![pk(PK1), pk(PK1)], SEAL_CONFIRM.into()); }, "duplicate key");
+    // the key batch is scheduled; the flag waits for its result
+    assert!(matches!(c.seal(keys.clone(), SEAL_CONFIRM.into()), PromiseOrValue::Promise(_)));
+    assert!(!c.is_sealed());
+    // deletion failed (e.g. a listed key did not exist) → stays unsealed, can retry
+    chain.callback(None);
+    assert!(!c.on_sealed(vec![PK1.into(), PK2.into()]));
+    assert!(!c.is_sealed());
+    assert!(get_logs().iter().all(|l| !l.contains("contract_sealed")));
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    let _ = c.seal(keys.clone(), SEAL_CONFIRM.into());
+    chain.callback(Some(""));
+    assert!(c.on_sealed(vec![PK1.into(), PK2.into()]));
+    assert!(c.is_sealed());
+    let ev: Value = serde_json::from_str(get_logs().last().unwrap().strip_prefix("EVENT_JSON:").unwrap()).unwrap();
+    assert_eq!(ev["event"], "contract_sealed");
+    assert_eq!(ev["data"][0], json!({"keys_deleted": [PK1, PK2], "block": 100}));
+    // irreversible: a second seal is refused
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    expect_panic(|| { let _ = c.seal(vec![], SEAL_CONFIRM.into()); }, "already sealed");
+    expect_panic(|| { let _ = c.seal(keys, SEAL_CONFIRM.into()); }, "already sealed");
+    assert!(c.is_sealed());
+}
+
+#[test]
+fn sealed_refuses_referee_overrides() {
+    let mut chain = Chain { ts: 1_000, height: 100 };
+    let mut c = new_contract(&chain);
+    let mut p = params_from_fixture();
+    p.commit_deadline_ns = U64(10_000);
+    p.play_deadline_ns = U64(20_000);
+    chain.pay(OWNER, NearToken::from_yoctonear(1));
+    assert!(matches!(c.seal(vec![], SEAL_CONFIRM.into()), PromiseOrValue::Value(true)));
+    assert!(c.is_sealed());
+    for (url, hash, prof) in [
+        (Some("https://x/a.wasm".to_string()), Some("aa".repeat(32)), None),
+        (None, None, Some("prof-a".to_string())),
+        (Some("https://x/a.wasm".to_string()), Some("aa".repeat(32)), Some("prof-a".to_string())),
+    ] {
+        chain.pay(OWNER, MIN_OUTLAYER_DEPOSIT);
+        expect_panic(|| { c.open_season(p.clone(), url.clone(), hash.clone(), prof.clone()); }, "sealed: per-season");
+    }
+    // the config default referee still opens seasons
+    let sid = open(&mut c, &mut chain, p);
+    let s = c.get_season(sid).unwrap();
+    assert_eq!((s.wasm.url.as_str(), s.wasm.hash.clone(), s.secrets_profile.as_str()), ("https://example/referee.wasm", "ab".repeat(32), "osd-s1"));
+    assert_eq!(s.status, SeasonStatus::Commit);
+}

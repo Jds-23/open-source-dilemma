@@ -12,6 +12,8 @@ Secrets are read only at runtime: signing keys from `~/.near-credentials/<networ
 | Verify secret (read-only) | `ops/scripts/store-secret.sh --verify-only --wasm-hash <hash> [--profile p]` |
 | Contract deploy + init | `ops/scripts/deploy.sh --wasm-url … --wasm-hash … --secrets-profile … --nearai-signer … [--max-agents 40 --seasons 1]` |
 | Top up contract storage | `ops/scripts/deploy.sh --fund-only [--max-agents 40 --seasons 1]` |
+| In-place code upgrade (testing only, state kept) | `ops/scripts/deploy.sh --redeploy …` / `ops/scripts/deploy-cards.sh --redeploy` |
+| **Seal (one way, irreversible)** | `ops/scripts/seal.sh --contract osd.baldingsucks7993.testnet [--execute]`, same for `cards.osd…`: deletes every access key of the contract (from `view_access_key_list`), then checks `is_sealed()` and that the key list is `[]` (INTERFACE.md §6.4) |
 | House agents (h01..h25) | `pnpm --filter @osd/ops house-agents --plan ../agents/plans/season-1.json` |
 | House agents, pre-stage (before open) | `pnpm --filter @osd/ops house-agents --plan ../agents/plans/season-1.json --prestage --params season-params.fast-10.json` |
 | Keeper (season runner) | `pnpm --filter @osd/ops keeper [--open season-params.example.json]` |

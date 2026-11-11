@@ -12,11 +12,15 @@
 //! `mt_batch_transfer_call`, `mt_balance_of`, `mt_batch_balance_of`, `mt_supply`,
 //! `mt_batch_supply`, `mt_token`, plus `mt_mint` / `mt_transfer` events (nep245 1.0.0).
 //! Approvals are not supported (`approval(s)` must be null). The contract pays storage.
+//!
+//! `seal` (interfaces-v5) is one way: it deletes the cards account's access keys, so the code
+//! can never change again. The contract has no owner/minter setter, so the minter stays the
+//! init `owner`; minting remains owner-only after seal (it does not check the core contract).
 use near_sdk::json_types::{U128, U64};
 use near_sdk::store::{LookupMap, Vector};
 use near_sdk::{
     env, ext_contract, near, require, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault,
-    PromiseOrValue, PromiseResult,
+    Promise, PromiseOrValue, PromiseResult, PublicKey,
 };
 use serde_json::json;
 
@@ -30,6 +34,11 @@ pub const MAX_TX_LEN: usize = 64;
 const MAX_LIMIT: u32 = 200;
 const GAS_FOR_RESOLVE: Gas = Gas::from_tgas(15);
 const GAS_FOR_TRANSFER_CALL: Gas = Gas::from_tgas(30);
+/// Raw storage key of the one-way seal flag (outside the state struct: no migration needed).
+pub const SEALED_KEY: &[u8] = b"__cards_sealed";
+pub const SEAL_CONFIRM: &str = "SEAL-FOREVER";
+pub const MAX_SEAL_KEYS: usize = 32;
+const SEAL_CALLBACK_GAS: Gas = Gas::from_tgas(10);
 
 pub fn card_token_id(season_id: u32, agent_id: &AccountId) -> TokenId {
     format!("s{season_id}:{agent_id}")
@@ -157,6 +166,7 @@ pub trait SelfResolver {
         amounts: Vec<U128>,
         approvals: Option<Vec<Option<Vec<(AccountId, u64, U128)>>>>,
     ) -> Vec<U128>;
+    fn on_sealed(&mut self, public_keys: Vec<String>) -> bool;
 }
 
 // ---------------------------------------------------------------- events
@@ -166,6 +176,23 @@ fn emit(event: &str, data: serde_json::Value) {
         "EVENT_JSON:{}",
         json!({"standard": "nep245", "version": "1.0.0", "event": event, "data": data})
     ));
+}
+
+fn emit_osd(event: &str, data: serde_json::Value) {
+    env::log_str(&format!(
+        "EVENT_JSON:{}",
+        json!({"standard": "osd", "version": "1.0.0", "event": event, "data": [data]})
+    ));
+}
+
+/// `#[private]` alone also accepts a tx signed with this account's own key; a genuine promise
+/// callback always carries exactly one promise result.
+fn require_callback() {
+    require!(env::promise_results_count() == 1, "not a callback");
+}
+
+fn is_sealed_flag() -> bool {
+    env::storage_has_key(SEALED_KEY)
 }
 
 fn amounts_json(a: &[u128]) -> Vec<String> {
@@ -370,6 +397,7 @@ impl Cards {
         amounts: Vec<U128>,
         #[allow(unused_variables)] approvals: Option<Vec<Option<Vec<(AccountId, u64, U128)>>>>,
     ) -> Vec<U128> {
+        require_callback();
         let unused: Vec<u128> = match env::promise_result(0) {
             PromiseResult::Successful(v) => match serde_json::from_slice::<Vec<U128>>(&v) {
                 Ok(r) if r.len() == amounts.len() => r.iter().zip(&amounts).map(|(u, a)| u.0.min(a.0)).collect(),
@@ -399,6 +427,46 @@ impl Cards {
             );
         }
         used
+    }
+
+    // ------------------------------------------------------------ seal (one way)
+
+    /// Owner only, exactly 1 yocto, `confirm == "SEAL-FOREVER"`. Deletes the listed access keys
+    /// of this account (pass the full `view_access_key_list`) in one batch; `on_sealed` sets the
+    /// permanent flag only if the batch succeeded. An empty list seals immediately.
+    #[payable]
+    pub fn seal(&mut self, public_keys: Vec<PublicKey>, confirm: String) -> PromiseOrValue<bool> {
+        near_sdk::assert_one_yocto();
+        require!(env::predecessor_account_id() == self.owner, "owner only");
+        require!(confirm == SEAL_CONFIRM, "confirm must be \"SEAL-FOREVER\"");
+        require!(!is_sealed_flag(), "already sealed");
+        require!(public_keys.len() <= MAX_SEAL_KEYS, "too many keys");
+        for (i, k) in public_keys.iter().enumerate() {
+            require!(!public_keys[..i].contains(k), "duplicate key");
+        }
+        if public_keys.is_empty() {
+            return PromiseOrValue::Value(Self::mark_sealed(vec![]));
+        }
+        let mut p = Promise::new(env::current_account_id());
+        for k in &public_keys {
+            p = p.delete_key(k.clone());
+        }
+        let keys: Vec<String> = public_keys.iter().map(String::from).collect();
+        p.then(ext_self::ext(env::current_account_id()).with_static_gas(SEAL_CALLBACK_GAS).on_sealed(keys)).into()
+    }
+
+    #[private]
+    pub fn on_sealed(&mut self, public_keys: Vec<String>) -> bool {
+        require_callback();
+        if !matches!(env::promise_result(0), PromiseResult::Successful(_)) {
+            env::log_str("seal aborted: deleting the listed access keys failed; contract NOT sealed");
+            return false;
+        }
+        is_sealed_flag() || Self::mark_sealed(public_keys)
+    }
+
+    pub fn is_sealed(&self) -> bool {
+        is_sealed_flag()
     }
 
     // ------------------------------------------------------------ NEP-245 core: views
@@ -458,6 +526,12 @@ impl Cards {
 // ---------------------------------------------------------------- internals
 
 impl Cards {
+    fn mark_sealed(keys_deleted: Vec<String>) -> bool {
+        env::storage_write(SEALED_KEY, &env::block_height().to_le_bytes());
+        emit_osd("contract_sealed", json!({"keys_deleted": keys_deleted, "block": env::block_height()}));
+        true
+    }
+
     fn token(&self, id: &TokenId) -> Option<Token> {
         self.tokens.get(id).map(|t| Token {
             token_id: id.clone(),

@@ -235,3 +235,70 @@ fn resolve_transfer_refunds_unused() {
     assert_eq!(c.mt_balance_of(acc("recv.testnet"), "s1:a.osd.testnet".into()), U128(1));
     assert_eq!(events("mt_transfer").len(), 1);
 }
+
+// ---------------------------------------------------------------- seal + callback guard (F1)
+
+fn ctx_results(predecessor: &str, deposit: u128, results: Vec<PromiseResult>) {
+    let mut b = VMContextBuilder::new();
+    b.current_account_id(acc("cards.osd.testnet"))
+        .predecessor_account_id(acc(predecessor))
+        .attached_deposit(NearToken::from_yoctonear(deposit))
+        .block_timestamp(1_000)
+        .block_height(77);
+    testing_env!(
+        b.build(),
+        near_sdk::test_vm_config(),
+        near_sdk::RuntimeFeesConfig::test(),
+        Default::default(),
+        results
+    );
+}
+
+fn expect_panic<F: FnOnce()>(f: F, msg: &str) {
+    let e = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).expect_err(msg);
+    let s = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|x| x.to_string())).unwrap_or_default();
+    assert!(s.contains(msg), "panic {s:?} does not contain {msg:?}");
+}
+
+const PK1: &str = "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp";
+
+#[test]
+fn direct_resolve_transfer_refused() {
+    let mut c = setup();
+    season1(&mut c);
+    ctx_results("cards.osd.testnet", 0, vec![]);
+    expect_panic(
+        || { c.mt_resolve_transfer(vec![acc("alice.testnet")], acc("bob.testnet"), vec!["s1:a.osd.testnet".into()], vec![U128(1)], None); },
+        "not a callback",
+    );
+    expect_panic(|| { c.on_sealed(vec![]); }, "not a callback");
+}
+
+#[test]
+fn seal_rules_one_way_and_mint_still_owner_only() {
+    let mut c = setup();
+    let keys: Vec<PublicKey> = vec![PK1.parse().unwrap()];
+    ctx_results("mallory.testnet", 1, vec![]);
+    expect_panic(|| { let _ = c.seal(keys.clone(), SEAL_CONFIRM.into()); }, "owner only");
+    ctx_results("keeper.testnet", 0, vec![]);
+    expect_panic(|| { let _ = c.seal(keys.clone(), SEAL_CONFIRM.into()); }, "exactly 1 yoctoNEAR");
+    ctx_results("keeper.testnet", 1, vec![]);
+    expect_panic(|| { let _ = c.seal(keys.clone(), "no".into()); }, "confirm must be");
+    assert!(matches!(c.seal(keys.clone(), SEAL_CONFIRM.into()), PromiseOrValue::Promise(_)));
+    assert!(!c.is_sealed());
+    ctx_results("cards.osd.testnet", 0, vec![PromiseResult::Failed]);
+    assert!(!c.on_sealed(vec![PK1.into()]));
+    assert!(!c.is_sealed());
+    ctx_results("cards.osd.testnet", 0, vec![PromiseResult::Successful(vec![])]);
+    assert!(c.on_sealed(vec![PK1.into()]));
+    assert!(c.is_sealed());
+    let ev = events("contract_sealed");
+    assert_eq!(ev[0]["standard"], "osd");
+    assert_eq!(ev[0]["data"][0], json!({"keys_deleted": [PK1], "block": 77}));
+    ctx_results("keeper.testnet", 1, vec![]);
+    expect_panic(|| { let _ = c.seal(vec![], SEAL_CONFIRM.into()); }, "already sealed");
+    // minting stays owner-only after seal
+    assert_eq!(season1(&mut c).len(), 3);
+    ctx("mallory.testnet", 0);
+    expect_panic(|| { c.mint_season_cards(2, vec![row("a.osd.testnet", "alice.testnet", 1, None)], None); }, "only the owner can mint");
+}
