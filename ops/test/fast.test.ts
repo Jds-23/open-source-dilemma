@@ -172,8 +172,8 @@ describe('fast season on the mock contract', () => {
     const { chain, log, s, openedAt, pubkeySeenAt, committedAt } = await fastSeason('fast-10', 10);
     assert.equal(s.n_entries, 10);
     const deadline = BigInt(s.params.commit_deadline_ns);
-    // deadline = open + 30 s (pubkey estimate) + 2 min; the mock key lands after 15 blocks
-    assert.equal(deadline - openedAt, 150n * S); // chain time read right before open_season was sent
+    // deadline = open + 45 s (default pubkey estimate) + 2 min; the mock key lands after 15 blocks
+    assert.equal(deadline - openedAt, 165n * S); // chain time read right before open_season was sent
     assert.ok(pubkeySeenAt !== null && committedAt !== null);
     assert.ok(deadline - pubkeySeenAt! >= 120n * S, `effective window ${(deadline - pubkeySeenAt!) / S} s`);
     assert.ok(committedAt! < deadline);

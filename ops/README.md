@@ -81,7 +81,7 @@ The contract has no minimum window; the waits are settings and sequencing. Prese
 `max_agents` is a cap, not a count: the stake is fixed at `close_commits` from the real N and the excess of the entry deposit goes back to `claimable`.
 
 **How the deadlines resolve** (`resolveOpenParams`, against chain time right before `open_season` is sent):
-- A relative commit deadline (`+2m`, or `--commit-window 2m`) is a window **measured from pubkey arrival**. The deadline has to be absolute at `open_season`, before the key exists, so the keeper sets `commit_deadline = now + --pubkey-wait (30 s) + window`. `open_season → on_pubkey` measured 12 s (season 1), so a `+2m` window is ~2 min 18 s in practice; the keeper logs the effective window when the key lands and warns below 60 s.
+- A relative commit deadline (`+2m`, or `--commit-window 2m`) is a window **measured from pubkey arrival**. The deadline has to be absolute at `open_season`, before the key exists, so the keeper sets `commit_deadline = now + --pubkey-wait (45 s) + window`. `open_season → on_pubkey` measured 12 s (season 1) and 34 s (season 3), so a `+2m` window is ~2–2.5 min in practice; the keeper logs the effective window when the key lands and warns below 60 s.
 - A relative play deadline (`+15m`) counts from open. It is only a ceiling: the keeper settles the moment no match is unfinished. Unfinished matches at the deadline are voided, so keep it ≥ 2 × the expected play time.
 
 **Flow:**
@@ -95,14 +95,29 @@ The contract has no minimum window; the waits are settings and sequencing. Prese
 
 | Phase | fast-attack (6) | fast-10 (10) | fast-25 (25 / 30) |
 |---|---|---|---|
-| open → pubkey | ~15 s | ~15 s | ~15 s |
-| commit window (from open) | ~2.5 min | ~2.5 min | ~2.5 min |
+| open → pubkey | 12–35 s | 12–35 s | 12–35 s |
+| commit window (from open) | ~2.75 min | ~2.75 min | ~2.75 min |
 | close + schedule (parallel) | < 10 s | < 10 s | < 15 s |
 | play (15 keys) | ~2 min | ~2.5 min | ~6 / ~8 min if OutLayer runs 15 jobs at once (≥ 25 min if it serialises per payer) |
 | settle | < 10 s after the last match | same | same |
 | **total** | **~5 min** (deadline 10) | **~5–6 min** (deadline 15) | **~10–30 min** (deadline 60) |
 
-Measured live: see "Live smoke" below.
+**Live smoke (season 3, 2026-11-11, testnet):** `fast-10` preset, `--commit-window 2m`, 4 house agents (def-quarantine, tft-oneshot, prudentbot, coin-vowel; season-1 owners h08/h19/h22/h24, pre-staged: 2 claims + 1 fund_agent in 11 s), 6 matches, `--keys 15`. Journal: `runs/3.jsonl` (`info/timing`).
+
+| Milestone | since open (chain time) |
+|---|---|
+| open_season landed | 0 s (tx 5.7 s before the first timing mark) |
+| pubkey seen | 34 s (effective window 106 s with the old 30 s estimate → default now 45 s) |
+| 4 commits sent (parallel, incl. reading chain facts) | +7 s → 42 s |
+| close_commits | 146 s (right at the deadline) |
+| 3 rounds scheduled (parallel) | 150 s |
+| 6 play_match sent (6 different keeper keys, within 1 s) | 156 s |
+| all 6 matches final | 226 s (65–70 s after the play txs) |
+| settled (1 settle_season call) | 230 s |
+
+**Total: 3 min 50 s from open to settle (4 min 6 s wall clock including the key setup); 0 voids, 6/6 settled.** Spent: keeper account 0.023 NEAR (15 AddKey + open + close + 3 schedule + 6 play deposits net of OutLayer refunds + settle); owners 0.0013 NEAR gas, plus 0.08 NEAR `fund_agent` now sitting in coin-vowel's budget. The smoke showed that the next pass re-sent `schedule_round` 3× because of view lag. They were refused, so nothing broke, but they burnt gas. The keeper now waits until the view shows every round before the next pass.
+
+Before the smoke, season 2 (a stuck attack season, in `commit` past both deadlines, 9 entries) was closed and settled with no rounds scheduled, so every stake went back to `claimable` (`runs/2.jsonl`).
 
 ## House agents (`src/house.ts`, CLI `src/cli/house-agents.ts`)
 

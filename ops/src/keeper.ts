@@ -13,7 +13,7 @@
 // Fast seasons: a RELATIVE commit deadline ("+2m") is a commit window measured
 // from the season pubkey's arrival. The contract needs an absolute deadline at
 // open_season, before the pubkey exists, so the keeper sets
-//   commit_deadline = chain_now + pubkeyWaitMs (estimate, 30 s) + window
+//   commit_deadline = chain_now + pubkeyWaitMs (estimate, 45 s) + window
 // and logs the effective window once the pubkey lands.
 
 import { gasFor, type Chain, type ChainError, type TxResult } from './chain.ts';
@@ -37,7 +37,7 @@ export interface KeeperOptions {
   openParams?: SeasonParams;
   /** Commit window measured from pubkey arrival; overrides openParams.commit_deadline_ns. */
   commitWindowMs?: number;
-  /** Estimate of open_season → on_pubkey (OutLayer derive_pubkey; ~12–15 s measured), added to a relative commit window. */
+  /** Estimate of open_season → on_pubkey (OutLayer derive_pubkey; 12 s in season 1, 34 s in season 3), added to a relative commit window. */
   pubkeyWaitMs: number;
   /** Runs once per run when the season is in `commit` with a pubkey (house commits). Errors are logged, not fatal. */
   onCommitOpen?: (s: Season) => Promise<void>;
@@ -70,7 +70,7 @@ export interface KeeperOptions {
 
 export const DEFAULT_KEEPER_OPTIONS: Omit<KeeperOptions, 'openDepositYocto' | 'playDepositYocto'> = {
   maxSettleCalls: 32,
-  pubkeyWaitMs: 30_000,
+  pubkeyWaitMs: 45_000,
   concurrency: 15,
   maxAttempts: 5,
   baseDelayMs: 1_000,
@@ -289,6 +289,13 @@ export class Keeper {
     if (oks.some((x) => !x)) {
       await this.chain.sleep(this.o.pollMs);
       return true; // the main loop re-reads rounds_scheduled
+    }
+    // Views are at final finality and lag the INCLUDED_FINAL sends by a few blocks: wait until the view shows
+    // every round, or the next pass would re-send schedule_round (refused "all rounds scheduled", gas burnt).
+    for (let i = 0; i < 30; i++) {
+      const now = await this.chain.view<Season | null>('get_season', { season_id: s.season_id });
+      if (!now || now.status !== 'play' || now.rounds_scheduled >= now.total_rounds) break;
+      await this.chain.sleep(1_000);
     }
     await this.mark(s.season_id, 'scheduled');
     return true;
