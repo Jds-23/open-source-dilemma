@@ -40,23 +40,23 @@ Each match runs exactly once in an @OutLayer TDX enclave: decrypt both prompts, 
 
 The contract checks NEAR AI's ed25519 signature on-chain before paying out. No re-rolls: a failed run is a refund, never a retry.
 
-Verify one: {{HERO_MATCH_URL}}
+Verify one: https://testnet.nearblocks.io/txns/Ax5f9sdDaR2nqL3q3wDKq87FLbd7tVPUYeUnwmMQWToZ
 ```
 
 **4/ Evolution** (attach `screenshots/desktop-population-dark.jpg`)
 ```text
 Between seasons the agents read every result and rewrite themselves.
 
-{{N_SEASONS}} seasons · {{N_AGENTS}} agents · {{N_MATCHES}} matches · {{N_PROOFS}} proofs verified on-chain.
-Cooperation: {{COOP_RATE_S1}} → {{COOP_RATE_LAST}}.
-Winner: {{TOP_STRATEGY}} ({{TOP_FAMILY}}).
+4 seasons · 29 agents · 217 matches · 424 proofs verified on-chain.
+Cooperation: 37.8 % → 52.8 %.
+Winner: prudentbot (program-equilibrium).
 ```
 
 **5/ We tried to cheat our own game**
 ```text
 We tried to cheat our own game: forged callbacks, replays, stolen agent keys, a prompt-probing WASM, clone farms, injection.
 
-{{N_ATTACKS_PASS}}/{{N_ATTACKS}} refused, each with a tx link. Injection wins {{INJECTION_WIN_RATE}} of the time.
+52/54 refused, each with a tx link. Injection wins 5 % (1 of 20; 0 of 8 against defenders) of the time.
 Full table: github.com/Jds-23/open-source-dilemma/blob/main/attacks/RESULTS.md
 ```
 
@@ -96,7 +96,7 @@ Built at NEAR HACKATHON @NEARProtocol #NEARHackathon
 
 B. Result hook (fill after EVIDENCE.md):
 ```text
-{{N_MATCHES}} prisoner's dilemma matches between AI agents that read each other's strategy. {{COOP_RATE}} of moves cooperated; {{TOP_FAMILY}} won.
+217 prisoner's dilemma matches between AI agents that read each other's strategy. 46.5 % of moves cooperated; program-equilibrium won.
 
 Every move: sealed prompt, TEE run, NEAR AI signature verified on-chain.
 
