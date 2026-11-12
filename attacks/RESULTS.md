@@ -50,6 +50,13 @@ Every row below was produced by a script in `attacks/src/attacks/` and is stored
   panics `"insufficient gas: attach at least 210 Tgas"` before any state change, so the match stays `scheduled`
   (INTERFACE.md §9.6; unit + sandbox tests). Season 6 measured: OutLayer ran with ~127.5 Tgas and burned ~9 Tgas over its
   two receipts, `on_match` ~4 Tgas. Re-run: `pnpm --filter @osd/attacks run f2-low-gas` (rows 13f-*, expect refusal).
+  **Live (2026-11-12, testnet, not sealed):** in-place redeploy of squash `106a502` (tag `interfaces-v7`), deploy tx
+  [`9PsinSww…`](https://testnet.nearblocks.io/txns/9PsinSwwAq52sjrnPagDzQ9pQgJpFqEwzBzkmWXtNzxb), code hash
+  `A7xcoJwj…` → `BE1BJYimNsqb6mckaXpzqZYgbbL4TQxX8YZ1V9Z5hiGt` (wasm sha256 `97e99ee1…`), with no season in commit/play (season 6 settled).
+  `get_config` + seasons 1, 4, 6 (`get_season`, `get_leaderboard`, `get_matches`, `get_entries`) byte-identical before/after.
+  Re-run as `atk7`: 50 Tgas [`2ykq8MFg…`](https://testnet.nearblocks.io/txns/2ykq8MFgUepwqNsm9hEJgRuEf1jN5ZFKJ2EbYcK5eHgS) and
+  209 Tgas [`3LXFW74c…`](https://testnet.nearblocks.io/txns/3LXFW74cuLXjxossCn7HtJQmhfPJGqo9nPqvyEcbeYKz) both refused
+  `"insufficient gas: attach at least 210 Tgas"`, no OutLayer receipt, match unchanged (rows 13f-50, 13f-209).
 
 - **F3 (fixed, interfaces-v6): the season secrets profile was owned by the deployer** (`baldingsucks7993.testnet/osd-ad40dcf455fa`).
   The OutLayer keystore keys each row by its `store_secrets` signer, and only that account can re-store, re-scope
@@ -140,8 +147,10 @@ commitment, clone farm, early lifecycle calls); run again after play they verify
 | 12o | Outsider refund_void on a settled season-1 match (pull the stakes back) | refused: "match not void" | refused: Smart contract panicked: match not void | PASS | [`4HmxW2E1nL…`](https://testnet.nearblocks.io/txns/4HmxW2E1nLvjYHNNBcXXtzH2VHkKSjgLBpX3feCNo1R3) |
 | 12p | Outsider commits someone else's agent into settled season 1 | refused: "caller must be the agent or its owner" | refused: Smart contract panicked: caller must be the agent or its owner | PASS | [`8rmwphaWw2…`](https://testnet.nearblocks.io/txns/8rmwphaWw2hAGXaSrJVJAUWo9aYisMdR8AHRJHQmjkMt) |
 | 13-50 | Outsider play_match with 50 Tgas (exploiter vs tft-oneshot) | refused for too little gas, or the match is played normally (never voided by an outsider) | tx ok; OutLayer receipts FAILED (Exceeded the prepaid gas.); match now void (callback_failed) | **FINDING** | [`D65ek8DGCK…`](https://testnet.nearblocks.io/txns/D65ek8DGCKLPqKkcR6j4fpVsbBF8qFJLEXPc5XqhEJoo) |
+| 13f-50 | F2 re-run: outsider play_match with 50 Tgas (season 6, settled match pool-guardian vs prudentbot) | refused "insufficient gas: attach at least 210 Tgas"; no OutLayer call; match status unchanged | refused: Smart contract panicked: insufficient gas: attach at least 210 Tgas; OutLayer receipts 0; match settled → settled | PASS | [`2ykq8MFgUe…`](https://testnet.nearblocks.io/txns/2ykq8MFgUepwqNsm9hEJgRuEf1jN5ZFKJ2EbYcK5eHgS) |
+| 13f-209 | F2 re-run: outsider play_match with 209 Tgas (season 6, settled match pool-guardian vs prudentbot) | refused "insufficient gas: attach at least 210 Tgas"; no OutLayer call; match status unchanged | refused: Smart contract panicked: insufficient gas: attach at least 210 Tgas; OutLayer receipts 0; match settled → settled | PASS | [`3LXFW74cuL…`](https://testnet.nearblocks.io/txns/3LXFW74cuLXjxossCn7HtJQmhfPJGqo9nPqvyEcbeYKz) |
 | 14a | secrets-owner: previous secrets owner baldingsucks7993.testnet calls keystore update_access(AllowAll) on the contract's profile osd-ad40dcf455fa-c | refused ("Secrets not found": rows are keyed by the caller); the contract-owned row is unchanged | refused: Smart contract panicked: panicked at src/secrets.rs:661:14:\nSecrets not found; contract-owned row unchanged: true | PASS | [`3Bxt7AkHC3…`](https://testnet.nearblocks.io/txns/3Bxt7AkHC3PeoHXo6VHVjMefRCWUsN5U53oQVCtUQVkZ) |
 | 14b | secrets-owner: who can modify the season secrets profile after seal | get_config().secrets_owner = osd.baldingsucks7993.testnet; keystore row WasmHash(ad40dcf4…) + Predecessor[osd.baldingsucks7993.testnet] under it; after seal (0 keys) no account can sign as the owner, so nobody can re-store, re-scope or delete it (OutLayer operator trusted) | secrets ref osd.baldingsucks7993.testnet/osd-ad40dcf455fa-c; row present: true; Predecessor[contract] only: true; contract keys: 1; is_sealed: false; not sealed yet: the contract key can still modify it until seal | PASS | – |
 
-54 rows: 52 pass, 2 finding(s), 0 fail. Updated 2026-11-11T13:37:53.943Z.
+56 rows: 54 pass, 2 finding(s), 0 fail. Updated 2026-11-12T07:54:26.263Z.
 <!-- results:end -->
