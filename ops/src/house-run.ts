@@ -21,7 +21,7 @@ import { classifyError, gasFor } from './chain.ts';
 import { ownerIdFor, planSteps, promptFromStrategyFile, PROMPT_MAX_BYTES, type AgentView, type CommitPlan, type Step } from './house.ts';
 import { fetchAll } from './keeper.ts';
 import { loadSignerKey } from './near-chain.ts';
-import { mapLimit } from './retry.ts';
+import { mapLimit, withRetry } from './retry.ts';
 import { NearRpc } from './rpc.ts';
 import type { TxLog } from './txlog.ts';
 import type { Entry, Season } from './types.ts';
@@ -41,6 +41,29 @@ export interface HouseContext {
   gasMarginYocto: bigint;
   concurrency: number;
   log: TxLog;
+  /** Retries per tx on transient errors (HTTP 429/5xx, network, nonce). Default 8 attempts, 1 s → 10 s backoff. */
+  retry?: { maxAttempts?: number; baseDelayMs?: number; maxDelayMs?: number; sleep?: (ms: number) => Promise<void> };
+}
+
+/** Contract refusals that mean an earlier attempt of the same tx already landed. */
+const LANDED_BEFORE = /agent already entered/;
+
+/**
+ * Send one owner tx with backoff on transient errors. A public RPC rate-limits a burst of 30
+ * parallel commits (HTTP 429 at nonce lookup / broadcast); without a retry every commit of the
+ * season was lost. A retried commit that is refused with "agent already entered" counts as landed.
+ */
+export async function sendWithRetry<T>(ctx: Pick<HouseContext, 'retry'>, kind: string, send: (attempt: number) => Promise<T>): Promise<T | 'landed_before'> {
+  const r = ctx.retry ?? {};
+  const out = await withRetry(send, {
+    maxAttempts: r.maxAttempts ?? 8,
+    baseDelayMs: r.baseDelayMs ?? 1_000,
+    maxDelayMs: r.maxDelayMs ?? 10_000,
+    sleep: r.sleep ?? ((ms) => new Promise((res) => setTimeout(res, ms))),
+  });
+  if (out.ok) return out.value;
+  if (kind === 'commit' && out.attempts > 1 && LANDED_BEFORE.test(out.error.message)) return 'landed_before';
+  throw out.error;
 }
 
 export interface Facts {
@@ -243,32 +266,35 @@ export async function runSteps(ctx: HouseContext, steps: Step[], season: Season 
         let hash: string;
         if (s.kind === 'register_agent') {
           const pub = loadOrCreateKey(ctx.network, s.agent_id);
-          const r = await owner.signAndSendTransaction({
+          const r = await sendWithRetry(ctx, s.kind, () => owner.signAndSendTransaction({
             receiverId: ctx.contract,
             actions: [actions.functionCall('register_agent', { name: s.name, agent_public_key: pub }, gasFor('register_agent'), BigInt(s.deposit_yocto))],
             waitUntil: 'FINAL',
-          });
+          }));
+          if (r === 'landed_before') throw new Error('unreachable: only commits resolve as landed_before');
           hash = r.transaction.hash;
         } else if (s.kind === 'claim') {
-          const r = await owner.signAndSendTransaction({
+          const r = await sendWithRetry(ctx, s.kind, () => owner.signAndSendTransaction({
             receiverId: ctx.contract,
             actions: [actions.functionCall('claim', { season_id: s.season_id, agent_id: s.agent_id }, gasFor('claim'), 0n)],
             waitUntil: 'FINAL',
-          });
+          }));
+          if (r === 'landed_before') throw new Error('unreachable: only commits resolve as landed_before');
           hash = r.transaction.hash;
         } else if (s.kind === 'fund_agent') {
-          const r = await owner.signAndSendTransaction({
+          const r = await sendWithRetry(ctx, s.kind, () => owner.signAndSendTransaction({
             receiverId: ctx.contract,
             actions: [actions.functionCall('fund_agent', { agent_id: s.agent_id }, gasFor('fund_agent'), BigInt(s.deposit_yocto))],
             waitUntil: 'FINAL',
-          });
+          }));
+          if (r === 'landed_before') throw new Error('unreachable: only commits resolve as landed_before');
           hash = r.transaction.hash;
         } else {
           if (!season?.pubkey || sid === null) throw new Error('commit needs a season in commit phase with a pubkey');
           const prompt = prompts.get(s.agent_id)!;
           const sealed = sealPrompt(season.pubkey, prompt, s.agent_id, takePrestaged(preFile, s.agent_id, prompt));
           saveSalt(saltFile, s.agent_id, { salt: sealed.salt, commitment: sealed.commitment, prompt_file: s.prompt_file });
-          const r = await owner.signAndSendTransaction({
+          const r = await sendWithRetry(ctx, s.kind, () => owner.signAndSendTransaction({
             receiverId: ctx.contract,
             actions: [
               actions.functionCall(
@@ -280,8 +306,8 @@ export async function runSteps(ctx: HouseContext, steps: Step[], season: Season 
             ],
             waitUntil: 'INCLUDED_FINAL',
             throwOnFailure: true,
-          });
-          hash = r.transaction.hash;
+          }));
+          hash = r === 'landed_before' ? '(landed on an earlier attempt)' : r.transaction.hash;
           dropPrestaged(preFile, s.agent_id);
           res.committed.push(s.agent_id);
         }

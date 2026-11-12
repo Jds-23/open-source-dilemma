@@ -7,6 +7,7 @@ import { commitment, sealPrompt } from '@osd/sdk';
 import { ChainError, classifyError } from '../src/chain.ts';
 import { buildTxIndex, costSummary, familyRows, matchRows, moveRows, parseEventLines, seasonSummary, toCsv, type SeasonData } from '../src/evidence.ts';
 import { CHUNK_SIZE, encodeSimple, fastfsUrl, preparePayloads, sha256Hex, verifyUrl, versionedPath } from '../src/fastfs.ts';
+import { sendWithRetry } from '../src/house-run.ts';
 import { ownerIdFor, planSteps, promptFromStrategyFile, registerDeposit, validatePlan, type CommitPlan } from '../src/house.ts';
 import { roundRobinRound } from '../src/mock-chain.ts';
 import { backoffDelay, mapLimit, withRetry } from '../src/retry.ts';
@@ -382,5 +383,34 @@ describe('near-chain', () => {
     assert.equal(successValue({ status: { SuccessValue: '' } }), undefined);
     assert.equal(successValue({ status: { Failure: {} } }), undefined);
     assert.equal(successValue(null), undefined);
+  });
+});
+
+describe('house sendWithRetry', () => {
+  const fast = { retry: { sleep: async () => {} } };
+  test('retries HTTP 429 until the tx goes through', async () => {
+    let n = 0;
+    const r = await sendWithRetry(fast, 'commit', async () => {
+      n += 1;
+      if (n < 3) throw new Error('{"jsonrpc":"2.0","error":{"code":-429,"message":"Rate limits exceeded"}}');
+      return { transaction: { hash: 'H' } };
+    });
+    assert.deepEqual(r, { transaction: { hash: 'H' } });
+    assert.equal(n, 3);
+  });
+  test('a retried commit refused with "agent already entered" counts as landed; a first refusal throws', async () => {
+    let n = 0;
+    const r = await sendWithRetry(fast, 'commit', async () => {
+      n += 1;
+      throw new Error(n === 1 ? 'fetch failed: socket hang up' : 'Smart contract panicked: agent already entered');
+    });
+    assert.equal(r, 'landed_before');
+    await assert.rejects(sendWithRetry(fast, 'commit', async () => { throw new Error('Smart contract panicked: agent already entered'); }), /already entered/);
+    await assert.rejects(sendWithRetry(fast, 'claim', async () => { throw new Error('Smart contract panicked: nothing claimable'); }), /nothing claimable/);
+  });
+  test('gives up after maxAttempts transient errors', async () => {
+    let n = 0;
+    await assert.rejects(sendWithRetry({ retry: { maxAttempts: 4, sleep: async () => {} } }, 'fund_agent', async () => { n += 1; throw new Error('HTTP 429'); }));
+    assert.equal(n, 4);
   });
 });
