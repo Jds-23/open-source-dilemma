@@ -316,15 +316,36 @@ async fn full_season_flow() -> anyhow::Result<()> {
         env.mock.call("set_output").args_json(json!({"key": mk, "output": output})).transact().await?.into_result()?;
         keys.push((a.clone(), b.clone(), mk));
     }
+    // F2: a low-gas play_match is refused before any state change; the match stays scheduled.
+    {
+        let (a, b, mk) = &keys[0];
+        for tgas in [50, 209] {
+            let r = env
+                .keeper
+                .call(env.osd.id(), "play_match")
+                .args_json(json!({"season_id": sid, "a": a, "b": b}))
+                .deposit(NearToken::from_millinear(20))
+                .gas(Gas::from_tgas(tgas))
+                .transact()
+                .await?;
+            assert!(r.is_failure() && err_text(&r).contains("insufficient gas: attach at least 210 Tgas"), "{tgas}: {}", err_text(&r));
+            let ms = env.view("get_matches", json!({"season_id": sid})).await?;
+            let m = ms.as_array().unwrap().iter().find(|m| m["match_key"] == mk.as_str()).unwrap();
+            assert_eq!(m["status"], "scheduled");
+            assert_eq!(env.mock.view("get_calls").args_json(json!({"key": mk})).await?.json::<u32>()?, 0);
+        }
+    }
     for (i, (a, b, mk)) in keys.iter().enumerate() {
         // pass reversed order sometimes: the contract normalises to a < b
         let (pa, pb) = if i % 2 == 0 { (a, b) } else { (b, a) };
+        // The first match is played with exactly the F2 floor (210 Tgas), the rest with 300.
+        let gas = if i == 0 { Gas::from_tgas(210) } else { Gas::from_tgas(300) };
         let r = env
             .keeper
             .call(env.osd.id(), "play_match")
             .args_json(json!({"season_id": sid, "a": pa, "b": pb}))
             .deposit(NearToken::from_millinear(20))
-            .max_gas()
+            .gas(gas)
             .transact()
             .await?;
         record_gas("play_match", &r);

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OSD dilemma contract ABI (interfaces-v6)",
+  "title": "OSD dilemma contract ABI (interfaces-v7)",
   "description": "Hand-written frozen interface; see INTERFACE.md. Not the near-abi format. JSON args/returns.",
-  "version": "interfaces-v6",
+  "version": "interfaces-v7",
   "contract_testnet": "osd.baldingsucks7993.testnet",
   "near_sdk": "5.9.0",
   "rustc": "1.85.0",
@@ -11,6 +11,7 @@
     "MIN_REGISTER_DEPOSIT": "250000000000000000000000",
     "FC_KEY_ALLOWANCE": "250000000000000000000000",
     "MIN_OUTLAYER_DEPOSIT": "20000000000000000000000",
+    "MIN_PLAY_GAS_TGAS": 210,
     "STALE_PENDING_BLOCKS": 250,
     "MAX_AGENTS": 40,
     "MAX_PROMPT_BYTES": 4000,
@@ -336,6 +337,7 @@
       "payable": ">= 0.02 NEAR (OutLayer; unused refunded to caller)",
       "caller": "anyone (keeper)",
       "effects": "scheduled -> pending; OutLayer request_execution with pinned WasmUrl{url,hash} + secrets_ref; uses the season's pinned wasm/secrets_profile; accepted while status = play (also after play_deadline_ns)",
+      "gas": "v7 (F2): prepaid gas >= MIN_PLAY_GAS = 210 Tgas (OutLayer 150 static + all unused, on_match 40 static, own 20), else panics 'insufficient gas: attach at least 210 Tgas' before any state change (match stays scheduled). Keeper attaches 300 Tgas.",
       "args": {
         "type": "object",
         "additionalProperties": false,

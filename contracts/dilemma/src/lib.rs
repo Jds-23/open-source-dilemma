@@ -1,4 +1,4 @@
-//! Open Source Dilemma contract (`interfaces-v6`, see `interfaces/INTERFACE.md`).
+//! Open Source Dilemma contract (`interfaces-v7`, see `interfaces/INTERFACE.md`).
 //!
 //! Seasons of one-shot prisoner's dilemma between encrypted prompt strategies. Every match
 //! runs once in the pinned OutLayer referee WASM (`WasmUrl{url,hash}` + `secrets_ref`, both
@@ -36,7 +36,21 @@ pub const LLM_SEED: u64 = 42;
 pub const LLM_MAX_TOKENS: u32 = 4;
 const PUBKEY_MAX_SECS: u64 = 30;
 const MATCH_MAX_SECS: u64 = 120;
+/// Static gas reserved for `on_match` (burns ~4 Tgas on testnet, season 6). Gets no share of the
+/// unused gas (weight 0): the surplus goes to OutLayer.
 const CALLBACK_GAS: Gas = Gas::from_tgas(40);
+/// Static gas forwarded to OutLayer `request_execution` (plus all unused gas, weight 1). Season 6:
+/// `request_execution` burned ~5.6 Tgas and passed the rest (~122 Tgas) to its yield callback
+/// `on_execution_response` (burned ~3.3 Tgas); it ran with ~127.5 Tgas attached. F2: with ~2.6 Tgas it fails.
+pub const OUTLAYER_PLAY_GAS: Gas = Gas::from_tgas(150);
+/// `play_match`'s own execution + receipt creation (burned ~4 Tgas with two 4 KB ciphertexts).
+pub const PLAY_OWN_GAS: Gas = Gas::from_tgas(20);
+/// F2: minimum prepaid gas for `play_match` = OutLayer 150 + `on_match` 40 + own 20 = 210 Tgas.
+/// Below it a caller could starve OutLayer and void the one-shot match (`callback_failed`).
+/// The keeper attaches 300 Tgas.
+pub const MIN_PLAY_GAS: Gas = Gas::from_tgas(
+    OUTLAYER_PLAY_GAS.as_tgas() + CALLBACK_GAS.as_tgas() + PLAY_OWN_GAS.as_tgas(),
+);
 const REGISTER_CALLBACK_GAS: Gas = Gas::from_tgas(15);
 const DEFAULT_LIMIT: u32 = 100;
 /// NEAR allows 100 logs / 16 KiB of logs per receipt; each deadline void logs one `match_void`.
@@ -662,7 +676,7 @@ impl Dilemma {
         self.current_season_id = Some(season_id);
         let s = self.season(season_id);
         // Detached promise chain: the call returns the id, on_pubkey stores the key.
-        self.outlayer_call(&s, json!({"action": "derive_pubkey", "season": season_id}), PUBKEY_MAX_SECS).then(
+        self.outlayer_call(&s, json!({"action": "derive_pubkey", "season": season_id}), PUBKEY_MAX_SECS, Gas::from_tgas(0)).then(
             Self::ext(env::current_account_id()).with_static_gas(CALLBACK_GAS).on_pubkey(season_id),
         );
         season_id
@@ -858,6 +872,10 @@ impl Dilemma {
     /// One-shot: `scheduled → pending`, then OutLayer runs the pinned referee once.
     #[payable]
     pub fn play_match(&mut self, season_id: u32, a: AccountId, b: AccountId) -> Promise {
+        // F2: checked first, before any state change.
+        if env::prepaid_gas() < MIN_PLAY_GAS {
+            env::panic_str(&format!("insufficient gas: attach at least {} Tgas", MIN_PLAY_GAS.as_tgas()));
+        }
         require!(env::attached_deposit() >= MIN_OUTLAYER_DEPOSIT, "attach >= 0.02 NEAR");
         let (a, b) = ordered(a, b);
         let s = self.season(season_id);
@@ -890,8 +908,12 @@ impl Dilemma {
         m.status = MatchStatus::Pending;
         m.requested_at_block = Some(env::block_height());
         self.matches.insert(key, m);
-        self.outlayer_call(&s, input, MATCH_MAX_SECS)
-            .then(Self::ext(env::current_account_id()).with_static_gas(CALLBACK_GAS).on_match(season_id, a, b))
+        self.outlayer_call(&s, input, MATCH_MAX_SECS, OUTLAYER_PLAY_GAS).then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(CALLBACK_GAS)
+                .with_unused_gas_weight(0)
+                .on_match(season_id, a, b),
+        )
     }
 
     /// Settles or voids a pending match from the referee output. Never panics on bad output.
@@ -1417,7 +1439,7 @@ impl Dilemma {
         per_side
     }
 
-    fn outlayer_call(&self, s: &SeasonState, input: Value, max_secs: u64) -> Promise {
+    fn outlayer_call(&self, s: &SeasonState, input: Value, max_secs: u64, static_gas: Gas) -> Promise {
         let args = json!({
             "source": {"WasmUrl": {"url": s.wasm.url, "hash": s.wasm.hash, "build_target": "wasm32-wasip2"}},
             "resource_limits": {"max_instructions": 20_000_000_000u64, "max_memory_mb": 128, "max_execution_seconds": max_secs},
@@ -1430,7 +1452,7 @@ impl Dilemma {
             "request_execution".into(),
             args.to_string().into_bytes(),
             env::attached_deposit(),
-            Gas::from_tgas(0),
+            static_gas,
             GasWeight(1),
         )
     }

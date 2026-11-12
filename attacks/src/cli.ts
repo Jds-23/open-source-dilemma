@@ -6,6 +6,7 @@ import { cloneFarm } from './attacks/clone-farm.ts';
 import { contractKey } from './attacks/contract-key.ts';
 import { commitmentMismatch } from './attacks/commitment-mismatch.ts';
 import { duplicatePrompt } from './attacks/duplicate-prompt.ts';
+import { f2LowGas } from './attacks/f2-low-gas.ts';
 import { forgedCallback } from './attacks/forged-callback.ts';
 import { injection } from './attacks/injection.ts';
 import { lowGasPlay } from './attacks/low-gas-play.ts';
@@ -38,6 +39,7 @@ export const ATTACKS: Attack[] = [
   withholding,
   outsiderCalls,
   lowGasPlay,
+  f2LowGas,
   secretsOwner,
 ];
 

@@ -40,11 +40,16 @@ Every row below was produced by a script in `attacks/src/attacks/` and is stored
   overrides (INTERFACE.md §6.4; `ops/scripts/seal.sh`). The keys stay during testing (upgrades); row 05c-after-seal is
   recorded by `run contract-key` once the owner has sealed. Until then 05c (the OutLayer keystore bypass) still works.
 
-- **F2 (open): an outsider can void any scheduled match with a low-gas `play_match`** (row 13-50, live on season 4).
+- **F2 (fixed, interfaces-v7): an outsider could void any scheduled match with a low-gas `play_match`** (row 13-50, live on season 4).
   `play_match` has no prepaid-gas floor: with 50 Tgas the OutLayer `request_execution` receipt fails with "Exceeded the prepaid
   gas", `on_match` voids the one-shot match (`callback_failed`) and it can only be refunded. For ~0.02 NEAR per match anyone can
   void a rival's matches (unranked rival, or a skewed leaderboard). Fix: `require!(env::prepaid_gas() >= Gas::from_tgas(250))`
   (or a computed floor: own work + OutLayer + the 40 Tgas callback) in `play_match`; a contract change, so it needs an ADR.
+  **Fix (interfaces-v7, PR `fix/f2-min-gas`):** `play_match` first requires `prepaid_gas >= MIN_PLAY_GAS = 210 Tgas`
+  (OutLayer `request_execution` 150 Tgas static + all unused gas, `on_match` 40 Tgas static, `play_match` itself 20) and
+  panics `"insufficient gas: attach at least 210 Tgas"` before any state change, so the match stays `scheduled`
+  (INTERFACE.md §9.6; unit + sandbox tests). Season 6 measured: OutLayer ran with ~127.5 Tgas and burned ~9 Tgas over its
+  two receipts, `on_match` ~4 Tgas. Re-run: `pnpm --filter @osd/attacks run f2-low-gas` (rows 13f-*, expect refusal).
 
 - **F3 (fixed, interfaces-v6): the season secrets profile was owned by the deployer** (`baldingsucks7993.testnet/osd-ad40dcf455fa`).
   The OutLayer keystore keys each row by its `store_secrets` signer, and only that account can re-store, re-scope

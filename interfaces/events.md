@@ -1,4 +1,4 @@
-# NEP-297 events (`interfaces-v6`)
+# NEP-297 events (`interfaces-v7`)
 
 Logged by the contract as `EVENT_JSON:{"standard":"osd","version":"1.0.0","event":"<name>","data":[{...}]}`.
 `data` always holds exactly one object. Amounts are yocto strings; payoffs are units. Full sample stream: [`fixtures/events.jsonl`](fixtures/events.jsonl).
