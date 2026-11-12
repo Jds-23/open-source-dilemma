@@ -22,8 +22,5 @@ coverage/
 *.wasm
 *.log
 .DS_Store
-<<<<<<< HEAD
 .vercel
-=======
 web/AGENTS.md
->>>>>>> origin/main
