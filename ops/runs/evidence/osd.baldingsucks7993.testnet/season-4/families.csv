@@ -1,0 +1,5 @@
+season_id,family,agents,moves,cooperate,defect,forfeit,coop_rate,avg_payoff,best_rank
+4,defender,3,19,7,12,0,0.3684,2.3684,1
+4,nice,2,9,4,5,0,0.4444,1.8889,2
+4,injector,3,17,2,15,0,0.1176,1.2353,5
+4,mean,1,5,0,0,5,0,0,9

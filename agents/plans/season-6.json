@@ -1,6 +1,6 @@
 {
   "plan_version": 1,
-  "season_id": 5,
+  "season_id": 6,
   "contract": "osd.baldingsucks7993.testnet",
   "from_season": 1,
   "source": "chain",
@@ -378,5 +378,5 @@
     "always-d.osd.baldingsucks7993.testnet"
   ],
   "skipped": [],
-  "note": "25 house seeds in season-1 seed order (owner hNN = index+1, keeps season-1 owners), then 5 evolver offspring of season 1 (h26..h30). Culled agents are kept as seeds (role culled_kept). Season 4 was the WS-7 attack season."
+  "note": "25 house seeds in season-1 seed order (owner hNN = index+1, keeps season-1 owners), then 5 evolver offspring of season 1 (h26..h30). Culled agents are kept as seeds (role culled_kept). Season 4 was the WS-7 attack season; season 5 was opened with this plan and cancelled with 0 entries (all 30 commits hit RPC HTTP 429, fixed in #35), so the plan runs as season 6. Offspring keep their -s5 names."
 }

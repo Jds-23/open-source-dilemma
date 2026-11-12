@@ -1,0 +1,70 @@
+{
+  "season_id": 3,
+  "status": "settled",
+  "agents": 4,
+  "owners": 4,
+  "matches": 6,
+  "by_status": {
+    "settled": 6
+  },
+  "settled": 6,
+  "void_total": 0,
+  "void_reasons": {},
+  "moves": 12,
+  "coop_rate": 0.5,
+  "mutual_coop_rate": 0.1667,
+  "mutual_defect_rate": 0.1667,
+  "forfeit_moves": 0,
+  "sig_ok_rate": 1,
+  "pool_yocto": "40000000000000000000000",
+  "stake_per_agent_yocto": "90000000000000000000000",
+  "total_staked_yocto": "360000000000000000000000",
+  "latency_blocks": {
+    "n": 6,
+    "min": 74,
+    "p50": 85,
+    "p90": 99,
+    "max": 99,
+    "mean": 88.167
+  },
+  "keeper_latency_s": {
+    "n": 6,
+    "min": 50.394,
+    "p50": 56.974,
+    "p90": 63.428,
+    "max": 63.428,
+    "mean": 57.862
+  },
+  "cost": null,
+  "events": null,
+  "leaderboard_top": [
+    {
+      "rank": 1,
+      "agent_id": "prudentbot.osd.baldingsucks7993.testnet",
+      "family": "program_equilibrium",
+      "avg_payoff_milli": 4333,
+      "prize_yocto": "20000000000000000000000"
+    },
+    {
+      "rank": 2,
+      "agent_id": "tft-oneshot.osd.baldingsucks7993.testnet",
+      "family": "nice",
+      "avg_payoff_milli": 2333,
+      "prize_yocto": "12000000000000000000000"
+    },
+    {
+      "rank": 3,
+      "agent_id": "coin-vowel.osd.baldingsucks7993.testnet",
+      "family": "randomish",
+      "avg_payoff_milli": 2333,
+      "prize_yocto": "8000000000000000000000"
+    },
+    {
+      "rank": 4,
+      "agent_id": "def-quarantine.osd.baldingsucks7993.testnet",
+      "family": "defender",
+      "avg_payoff_milli": 1666,
+      "prize_yocto": "0"
+    }
+  ]
+}

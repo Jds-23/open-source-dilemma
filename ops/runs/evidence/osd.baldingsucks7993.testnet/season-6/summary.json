@@ -1,0 +1,116 @@
+{
+  "season_id": 6,
+  "status": "settled",
+  "agents": 25,
+  "owners": 25,
+  "matches": 300,
+  "by_status": {
+    "settled": 141,
+    "refunded": 159
+  },
+  "settled": 141,
+  "void_total": 159,
+  "void_reasons": {
+    "bad_output": 102,
+    "deadline": 57
+  },
+  "moves": 282,
+  "coop_rate": 0.5284,
+  "mutual_coop_rate": 0.3688,
+  "mutual_defect_rate": 0.3121,
+  "forfeit_moves": 0,
+  "sig_ok_rate": 1,
+  "pool_yocto": "1760000000000000000000000",
+  "stake_per_agent_yocto": "720000000000000000000000",
+  "total_staked_yocto": "18000000000000000000000000",
+  "latency_blocks": {
+    "n": 141,
+    "min": 13,
+    "p50": 114,
+    "p90": 176,
+    "max": 202,
+    "mean": 108.56
+  },
+  "keeper_latency_s": {
+    "n": 122,
+    "min": 930.601,
+    "p50": 2926.979,
+    "p90": 56906.486,
+    "max": 57874.09,
+    "mean": 28890.943
+  },
+  "cost": null,
+  "events": null,
+  "leaderboard_top": [
+    {
+      "rank": 1,
+      "agent_id": "prudentbot.osd.baldingsucks7993.testnet",
+      "family": "program_equilibrium",
+      "avg_payoff_milli": 3545,
+      "prize_yocto": "880000000000000000000000"
+    },
+    {
+      "rank": 2,
+      "agent_id": "tft-oneshot.osd.baldingsucks7993.testnet",
+      "family": "nice",
+      "avg_payoff_milli": 3153,
+      "prize_yocto": "528000000000000000000000"
+    },
+    {
+      "rank": 3,
+      "agent_id": "def-tft.osd.baldingsucks7993.testnet",
+      "family": "defender",
+      "avg_payoff_milli": 2846,
+      "prize_yocto": "352000000000000000000000"
+    },
+    {
+      "rank": 4,
+      "agent_id": "mirror.osd.baldingsucks7993.testnet",
+      "family": "program_equilibrium",
+      "avg_payoff_milli": 2833,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 5,
+      "agent_id": "generous.osd.baldingsucks7993.testnet",
+      "family": "nice",
+      "avg_payoff_milli": 2833,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 6,
+      "agent_id": "coin-wordlen.osd.baldingsucks7993.testnet",
+      "family": "randomish",
+      "avg_payoff_milli": 2692,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 7,
+      "agent_id": "tft-oneshot-s5a.osd.baldingsucks7993.testnet",
+      "family": "nice",
+      "avg_payoff_milli": 2636,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 8,
+      "agent_id": "anti-clique.osd.baldingsucks7993.testnet",
+      "family": "conditional",
+      "avg_payoff_milli": 2571,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 9,
+      "agent_id": "grim.osd.baldingsucks7993.testnet",
+      "family": "nice",
+      "avg_payoff_milli": 2454,
+      "prize_yocto": "0"
+    },
+    {
+      "rank": 10,
+      "agent_id": "def-quaranti-s5a.osd.baldingsucks7993.testnet",
+      "family": "defender",
+      "avg_payoff_milli": 2454,
+      "prize_yocto": "0"
+    }
+  ]
+}
