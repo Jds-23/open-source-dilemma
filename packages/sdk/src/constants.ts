@@ -1,7 +1,9 @@
-// Constants from interfaces/contract-abi.json `constants` (interfaces-v6).
+// Constants from interfaces/contract-abi.json `constants` (interfaces-v7).
 import type { CallMethod } from './types.js';
 
-export const INTERFACE_VERSION = 'interfaces-v6';
+export const INTERFACE_VERSION = 'interfaces-v7';
+/** `play_match` is refused below this prepaid gas (v7, F2); the keeper attaches 300 Tgas. */
+export const MIN_PLAY_GAS_TGAS = 210;
 export const CONTRACT_TESTNET = 'osd.baldingsucks7993.testnet';
 
 export const AGENT_ACCOUNT_FUNDING = 200_000_000_000_000_000_000_000n; // 0.2 NEAR
