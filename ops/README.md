@@ -84,7 +84,7 @@ The contract has no minimum window; the waits are settings and sequencing. Prese
 `max_agents` is a cap, not a count: the stake is fixed at `close_commits` from the real N and the excess of the entry deposit goes back to `claimable`.
 
 **How the deadlines resolve** (`resolveOpenParams`, against chain time right before `open_season` is sent):
-- A relative commit deadline (`+2m`, or `--commit-window 2m`) is a window **measured from pubkey arrival**. The deadline has to be absolute at `open_season`, before the key exists, so the keeper sets `commit_deadline = now + --pubkey-wait (45 s) + window`. `open_season → on_pubkey` measured 12 s (season 1) and 34 s (season 3), so a `+2m` window is ~2–2.5 min in practice; the keeper logs the effective window when the key lands and warns below 60 s.
+- A relative commit deadline (`+2m`, or `--commit-window 2m`) is a window **measured from pubkey arrival**. The deadline has to be absolute at `open_season`, before the key exists, so the keeper sets `commit_deadline = now + --pubkey-wait (90 s) + window`. `open_season → on_pubkey` measured 12 s (season 1), 34 s (season 3) and 73 s (season 6), so a `+2m` window is ~2–2.5 min in practice; the keeper logs the effective window when the key lands and warns below 60 s.
 - A relative play deadline (`+15m`) counts from open. It is only a ceiling: the keeper settles the moment no match is unfinished. Unfinished matches at the deadline are voided, so keep it ≥ 2 × the expected play time.
 
 **Flow:**
@@ -112,7 +112,7 @@ The contract has no minimum window; the waits are settings and sequencing. Prese
 | Milestone | since open (chain time) |
 |---|---|
 | open_season landed | 0 s (tx 5.7 s before the first timing mark) |
-| pubkey seen | 34 s (effective window 106 s with the old 30 s estimate → default now 45 s) |
+| pubkey seen | 34 s (effective window 106 s with the old 30 s estimate → default now 90 s after season 6 took 73 s) |
 | 4 commits sent (parallel, incl. reading chain facts) | +7 s → 42 s |
 | close_commits | 146 s (right at the deadline) |
 | 3 rounds scheduled (parallel) | 150 s |
@@ -150,7 +150,7 @@ Across seasons: `seasons.csv`, `families.csv`. `export-evidence --fixtures` runs
 
 ## Web tx index (`src/cli/export-tx-index.ts`)
 
-`pnpm --filter @osd/ops export-tx-index [--runs-dir ops/runs] [--out tx-index.json]` reads the top-level keeper journals (not `dryrun/`/`mock/`) and writes `{"version":1,"tx":{"<season_id>:<a>:<b>":"<play_match tx hash>"}}` (last `outcome: ok` send per match wins). Host it and point the web's `NEXT_PUBLIC_INDEX_URL` at it; the web also accepts a raw `<season>.jsonl` journal directly.
+`pnpm --filter @osd/ops export-tx-index [--runs-dir ops/runs] [--out ops/runs/tx-index.json] [--stdout]` (writes ops/runs/tx-index.json by default; `--stdout` prints instead) reads the top-level keeper journals (not `dryrun/`/`mock/`) and writes `{"version":1,"tx":{"<season_id>:<a>:<b>":"<play_match tx hash>"}}` (last `outcome: ok` send per match wins). Host it and point the web's `NEXT_PUBLIC_INDEX_URL` at it; the web also accepts a raw `<season>.jsonl` journal directly.
 
 ## Strategy cards (WS-8: `scripts/deploy-cards.sh`, `src/cards.ts`, CLI `src/cli/mint-cards.ts`)
 

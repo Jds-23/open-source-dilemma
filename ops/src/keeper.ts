@@ -13,7 +13,7 @@
 // Fast seasons: a RELATIVE commit deadline ("+2m") is a commit window measured
 // from the season pubkey's arrival. The contract needs an absolute deadline at
 // open_season, before the pubkey exists, so the keeper sets
-//   commit_deadline = chain_now + pubkeyWaitMs (estimate, 45 s) + window
+//   commit_deadline = chain_now + pubkeyWaitMs (estimate, 90 s) + window
 // and logs the effective window once the pubkey lands.
 
 import { gasFor, type Chain, type ChainError, type TxResult } from './chain.ts';
@@ -79,7 +79,7 @@ const NON_REFEREE_VOIDS = new Set(['duplicate_prompt', 'deadline', 'stale_pendin
 
 export const DEFAULT_KEEPER_OPTIONS: Omit<KeeperOptions, 'openDepositYocto' | 'playDepositYocto'> = {
   maxSettleCalls: 32,
-  pubkeyWaitMs: 45_000,
+  pubkeyWaitMs: 90_000,
   concurrency: 5,
   refereeCooldownMs: 30_000,
   maxAttempts: 5,

@@ -172,8 +172,8 @@ describe('fast season on the mock contract', () => {
     const { chain, log, s, openedAt, pubkeySeenAt, committedAt } = await fastSeason('fast-10', 10);
     assert.equal(s.n_entries, 10);
     const deadline = BigInt(s.params.commit_deadline_ns);
-    // deadline = open + 45 s (default pubkey estimate) + 2 min; the mock key lands after 15 blocks
-    assert.equal(deadline - openedAt, 165n * S); // chain time read right before open_season was sent
+    // deadline = open + 90 s (default pubkey estimate) + 2 min; the mock key lands after 15 blocks
+    assert.equal(deadline - openedAt, 210n * S); // chain time read right before open_season was sent
     assert.ok(pubkeySeenAt !== null && committedAt !== null);
     assert.ok(deadline - pubkeySeenAt! >= 120n * S, `effective window ${(deadline - pubkeySeenAt!) / S} s`);
     assert.ok(committedAt! < deadline);
@@ -217,9 +217,9 @@ describe('fast season on the mock contract', () => {
       assert.ok(settled < BigInt(s.params.play_deadline_ns));
       const t = timing(log);
       assert.ok(t.settled - t.all_final <= 10, `settle ${t.settled - t.all_final} s after the last match`);
-      // ≥ 20% headroom against the play deadline
+      // ≥ 15% headroom against the play deadline (was 20% before the keeper pubkey-wait default went 45 s → 90 s)
       const used = Number(settled - BigInt(s.opened_at_ns)) / 1e9;
-      assert.ok(used < budgetMin * 60 * 0.8, `${name}/${n}: ${used} s of ${budgetMin * 60} s`);
+      assert.ok(used < budgetMin * 60 * 0.85, `${name}/${n}: ${used} s of ${budgetMin * 60} s`);
     });
   }
 

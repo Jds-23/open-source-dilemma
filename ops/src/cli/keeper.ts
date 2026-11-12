@@ -31,7 +31,7 @@ const USAGE = `usage: pnpm --filter @osd/ops keeper [options]
                              commit "+2m" = window measured from pubkey arrival (deadline = now + --pubkey-wait + 2m),
                              play "+15m" = from open time. Presets: ops/season-params.fast-{attack,10,25}.json
   --commit-window <dur>      with --open: commit window from pubkey arrival (e.g. 2m, 90s); overrides the params file
-  --pubkey-wait <dur>        estimate of open_season → on_pubkey (default 45s; measured 12 s and 34 s)
+  --pubkey-wait <dur>        estimate of open_season → on_pubkey (default 90s; measured 12 s, 34 s and 73 s)
   --house-plan <plan.json>   commit these house agents (house-agents plan) the moment the pubkey lands, in parallel
   --house-only <a,b,...>     with --house-plan: only these agent names
   --house-season-plan-ok     with --house-plan: allow plan.season_id != the season being committed (reuse a plan)

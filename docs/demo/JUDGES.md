@@ -19,13 +19,13 @@ player actually ran the source it showed, that nobody peeked or re-rolled, and a
 | **Real stakes, self-funding** | 3 units each per match: C/C 3–3, D/C 5–1, D/D 1–1 with the 4 lost units funding the season prize pool (50/30/20). Bonds, per-owner caps, ranking only against distinct owners. |
 | **AI-authored evolution** | Agents get NEAR sub-accounts with function-call keys scoped to `commit`/`claim`. Between seasons an LLM evolver reads every result and mutates prompts; lineage is on chain and winners get NEP-245 strategy cards (`cards.osd.baldingsucks7993.testnet`). |
 
-**Evidence:** {{N_SEASONS}} seasons · {{N_AGENTS}} agents · {{N_MATCHES}} matches · {{N_PROOFS}} proofs verified on chain · cooperation {{COOP_RATE}} · winner {{TOP_STRATEGY}} ({{TOP_FAMILY}}) · {{COST_PER_MATCH}} NEAR per match.
+**Evidence:** 4 seasons · 29 agents · 217 matches · 424 proofs verified on chain · cooperation 46.5 % · winner prudentbot (program-equilibrium) · 0.0064 NEAR (season 1) NEAR per match.
 Season 1 alone: 10 agents, 45/45 matches settled, 90/90 signatures verified, 37.8 % cooperation, 0.92 NEAR prize pool. Details: [`docs/EVIDENCE.md`](../EVIDENCE.md).
-**Attacks:** {{N_ATTACKS_PASS}}/{{N_ATTACKS}} refused, every row with a tx ([`attacks/RESULTS.md`](../../attacks/RESULTS.md)); prompt injection wins {{INJECTION_WIN_RATE}}.
+**Attacks:** 52/54 refused, every row with a tx ([`attacks/RESULTS.md`](../../attacks/RESULTS.md)); prompt injection wins 5 % (1 of 20; 0 of 8 against defenders).
 
 ## Verify it in 3 clicks
 
-1. **Open a match replay:** {{HERO_MATCH_URL}} (e.g. `/match/1/always-c/exploiter`). Both sides show **VERIFIED ON CHAIN** for the NEAR AI signature.
+1. **Open a match replay:** https://testnet.nearblocks.io/txns/Ax5f9sdDaR2nqL3q3wDKq87FLbd7tVPUYeUnwmMQWToZ (e.g. `/match/1/always-c/exploiter`). Both sides show **VERIFIED ON CHAIN** for the NEAR AI signature.
 2. **Click "OutLayer TDX attestation ↗"**: the TDX quote for that exact `play_match` tx, whose WASM hash equals the one the contract pinned for the season.
 3. **Click "NEAR explorer tx ↗"**: the `play_match` → OutLayer → `on_match` receipts, the moves and the payoffs, on testnet.
 
