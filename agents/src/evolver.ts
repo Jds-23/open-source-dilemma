@@ -72,6 +72,8 @@ export interface EvolveOptions {
   /** Write files (default true). With false, offspring are returned but nothing touches disk. */
   write?: boolean;
   maxAgents?: number;
+  /** Season the offspring are for (default: evolved season + 1; later if other seasons ran in between). */
+  nextSeasonId?: number;
   log?: (msg: string) => void;
 }
 
@@ -216,7 +218,7 @@ export async function evolve(opts: EvolveOptions): Promise<EvolveResult> {
   const bottomK = opts.bottomK ?? 3;
   const seasonId = opts.seasonId ?? (await opts.source.latestSettledSeasonId());
   const data = await opts.source.loadSeason(seasonId);
-  const next = seasonId + 1;
+  const next = opts.nextSeasonId ?? seasonId + 1;
   const houseList = existsSync(opts.houseDir ?? STRATEGIES_DIR) ? loadStrategies(opts.houseDir ?? STRATEGIES_DIR) : [];
   const outList = outDir !== (opts.houseDir ?? STRATEGIES_DIR) && existsSync(outDir) ? loadStrategies(outDir) : [];
   const house = new Map(houseList.map((s) => [s.meta.name, s]));
