@@ -82,6 +82,36 @@ storage_budget_near() {
   node -e 'const [n,k,code]=process.argv.slice(1).map(Number);const kb=code+k*(n*4.3+(n*(n-1)/2)*0.7);process.stdout.write((kb/100+1).toFixed(2))' "$1" "$2" "$3"
 }
 
+# reserved_yocto NETWORK CONTRACT → yocto the contract holds for OTHER people, which is not free storage balance:
+# every agent's budget_yocto (get_agent, agents found via get_entries of every season) plus every season's
+# pool_yocto. Conservative: pools already paid out via claim are still counted, so --fund-only may top up a little
+# more than strictly needed. Views only; no keys.
+reserved_yocto() {
+  node -e '
+const [rpc, acct] = process.argv.slice(1);
+const view = async (m, a) => {
+  const r = await (await fetch(rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: "osd", method: "query", params: { request_type: "call_function", finality: "final", account_id: acct, method_name: m, args_base64: Buffer.from(JSON.stringify(a)).toString("base64") } }) })).json();
+  if (!r.result || !r.result.result) throw new Error(m + ": " + JSON.stringify(r.error || r.result));
+  return JSON.parse(Buffer.from(r.result.result).toString());
+};
+(async () => {
+  let total = 0n; const agents = new Set();
+  for (let id = 1; ; id++) {
+    const s = await view("get_season", { season_id: id });
+    if (!s) break;
+    total += BigInt(s.pool_yocto);
+    for (let from = 0; ; from += 100) {
+      const es = await view("get_entries", { season_id: id, from_index: from, limit: 100 });
+      es.forEach((e) => agents.add(e.agent_id));
+      if (es.length < 100) break;
+    }
+  }
+  for (const a of agents) { const g = await view("get_agent", { agent_id: a }); if (g) total += BigInt(g.budget_yocto); }
+  process.stdout.write(total.toString());
+})().catch((e) => { process.stderr.write(String(e) + "\n"); process.exit(1); });
+' "$(rpc_url "$1")" "$2"
+}
+
 # view_json NETWORK CONTRACT METHOD ARGS_JSON → decoded JSON result on stdout (read-only).
 view_json() {
   local args64 body

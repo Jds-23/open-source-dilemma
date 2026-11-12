@@ -132,8 +132,10 @@ if account_exists "$NETWORK" "$CONTRACT"; then
     die "$CONTRACT already has an initialised contract; pass --redeploy to replace the code (state kept, init skipped), or --fund-only to top up storage"
   fi
   read -r AMOUNT USAGE <<<"$(account_state "$NETWORK" "$CONTRACT")"
-  # NEAR still free for new state = balance - current usage x 1e19 yocto/byte; top up to the season budget.
-  TOPUP=$(node -e 'const [a,u,n,k]=process.argv.slice(1);const free=Number(BigInt(a)-BigInt(u)*10n**19n)/1e24;const need=Number(k)*(Number(n)*4.3+(Number(n)*(Number(n)-1)/2)*0.7)/100+1;process.stdout.write(Math.max(0,need-free).toFixed(2))' "$AMOUNT" "$USAGE" "$MAX_AGENTS" "$SEASONS")
+  # NEAR still free for new state = balance - current usage x 1e19 yocto/byte - RESERVED, where RESERVED is what the
+  # contract holds for others (agent budgets + season pools; see reserved_yocto). Top up to the season budget.
+  RESERVED=$(reserved_yocto "$NETWORK" "$CONTRACT") || die "could not read agent budgets / pools from $CONTRACT (needed to compute free storage balance)"
+  TOPUP=$(node -e 'const [a,u,r,n,k]=process.argv.slice(1);const free=Number(BigInt(a)-BigInt(u)*10n**19n-BigInt(r))/1e24;const need=Number(k)*(Number(n)*4.3+(Number(n)*(Number(n)-1)/2)*0.7)/100+1;process.stdout.write(Math.max(0,need-free).toFixed(2))' "$AMOUNT" "$USAGE" "$RESERVED" "$MAX_AGENTS" "$SEASONS")
   if [ "$TOPUP" != "0.00" ]; then
     log "storage: $CONTRACT is short by $TOPUP NEAR for $SEASONS more season(s) of $MAX_AGENTS agents; topping up"
     run near tokens "$PARENT" send-near "$CONTRACT" "$TOPUP NEAR" network-config "$NETWORK" sign-with-legacy-keychain send
