@@ -1,4 +1,4 @@
-# Open Source Dilemma: frozen interfaces (`interfaces-v6`)
+# Open Source Dilemma: frozen interfaces (`interfaces-v7`)
 
 Owner: integrator. Changes only through an `interface-change` PR (see `docs/BUILD_PLAN.md` §0).
 Machine-readable copies: [`contract-abi.json`](contract-abi.json), [`wasm-io.schema.json`](wasm-io.schema.json), [`events.md`](events.md). Mock data: [`fixtures/`](fixtures/).
@@ -93,7 +93,7 @@ No full-access key is added: the agent account can only call `commit`/`claim` on
 | `commit` | agent account or its owner | 0 | `{season_id, agent_id, ciphertext_hex, commitment, family, parent}` | `null` | status ≠ `commit`; past deadline; agent already entered (no overwrite); owner reached `max_entries_per_owner`; `max_agents` reached; budget < `entry_deposit_yocto`; bad hex/size; `family` not `^[a-z0-9_]{1,32}$` |
 | `close_commits` | anyone | 0 | `{season_id}` | `u32` n_entries | before deadline; status ≠ `commit` |
 | `schedule_round` | anyone | 0 | `{season_id}` | `MatchKey[]` for the new round | status ≠ `play`; all rounds scheduled |
-| `play_match` | anyone (keeper) | ≥ 0.02 NEAR (OutLayer; unused part refunded by OutLayer to caller) | `{season_id, a, b}` | promise → `String` `"settled CD"` / `"void"` | match not `scheduled` |
+| `play_match` | anyone (keeper) | ≥ 0.02 NEAR (OutLayer; unused part refunded by OutLayer to caller); **prepaid gas ≥ 210 Tgas** (v7; keeper attaches 300) | `{season_id, a, b}` | promise → `String` `"settled CD"` / `"void"` | prepaid gas < `MIN_PLAY_GAS` = 210 Tgas (`"insufficient gas: attach at least 210 Tgas"`, checked first, match stays `scheduled`, v7); match not `scheduled` |
 | `on_match` | **private** callback | – | `{season_id, a, b}` + callback result (WASM output) | `String` | match not `pending`; not a genuine callback (`"not a callback"`, v5) |
 | `refund_void` | anyone | 0 | `{season_id, a, b}` | `U128` refunded per side | match not `void`, and not `pending` for > 250 blocks |
 | `settle_season` | anyone | 0 | `{season_id}` | `LeaderboardRow[]`; returns `[]` while unfinished matches are voided in batches of 40 after the play deadline: call again until it returns the ranking | status ≠ `play`; unfinished matches and `now < play_deadline_ns` (after the deadline, unfinished matches are voided and refunded, ≤ 40 per call because of the 100-log receipt limit) |
@@ -283,6 +283,16 @@ Integrator additions in v3:
 | Secrets ref | config `secrets_owner`/`secrets_profile` fixed at `new` (per-season profile override only, refused after seal) | owner-only `set_secrets({owner, profile})`, 1 yocto, refused after seal (one way); event `secrets_set` |
 | Secrets owner | deployer account (`baldingsucks7993.testnet`) could still change the profile after seal | profile stored by the contract account itself (`osd.baldingsucks7993.testnet/osd-ad40dcf455fa-c`): immutable once sealed (attacks/RESULTS.md `secrets-owner`) |
 | Ops | `store-secret.sh` signs as the outlayer-cli login | `store-secret.sh --owner <contract> --near-credentials <file>` (default owner = contract); `seal.sh` warns if `secrets_owner != contract` |
+
+### 9.6 `interfaces-v6` → `interfaces-v7` (play_match gas floor, F2)
+
+| Area | `interfaces-v6` | `interfaces-v7` |
+|---|---|---|
+| `play_match` gas | no floor: with ~50 Tgas OutLayer `request_execution` ran out of gas and `on_match` voided the one-shot match (`callback_failed`), so anyone could void any scheduled match for ~0.02 NEAR (attacks/RESULTS.md F2) | refused unless `prepaid_gas ≥ MIN_PLAY_GAS = 210 Tgas`, before any state change: `"insufficient gas: attach at least 210 Tgas"`; the match stays `scheduled` |
+| Gas split | `request_execution` 0 static + weight 1; `on_match` 40 static + weight 1 (unused gas split evenly) | `request_execution` `OUTLAYER_PLAY_GAS` = 150 Tgas static + weight 1 (all unused gas); `on_match` `CALLBACK_GAS` = 40 Tgas static, weight 0; `PLAY_OWN_GAS` = 20 Tgas for `play_match` itself. `MIN_PLAY_GAS` = 150 + 40 + 20 |
+| Rationale | – | season 6 (300 Tgas): `play_match` burned ~4 Tgas, `request_execution` ran with ~127.5 Tgas (burned ~5.6, forwarded ~122 to `on_execution_response`, which burned ~3.3), `on_match` burned ~4 Tgas. The floor gives OutLayer ≥ 150 Tgas (> the ~127.5 Tgas it ran with) |
+
+No state-layout change: in-place redeploy over v6 state needs no migration.
 
 Additions beyond the Phase 0 brief (so other workstreams don't block): `fund_agent`, `withdraw`, `publish_prompt`, `get_config`, `get_entries`, `get_claimable`, `get_published_prompts`, events `season_opened`, `commits_closed`, `prompt_published`, move `F`, WASM inputs `hash_a`/`hash_b`/`action`.
 

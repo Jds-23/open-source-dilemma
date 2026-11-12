@@ -42,7 +42,11 @@ struct Chain {
 
 impl Chain {
     fn set(&self, pred: &str, deposit: NearToken, results: Vec<PromiseResult>) {
+        self.set_gas(pred, deposit, results, Gas::from_tgas(300));
+    }
+    fn set_gas(&self, pred: &str, deposit: NearToken, results: Vec<PromiseResult>, gas: Gas) {
         let ctx = VMContextBuilder::new()
+            .prepaid_gas(gas)
             .current_account_id(acc(CONTRACT))
             .predecessor_account_id(acc(pred))
             .signer_account_id(acc(pred))
@@ -446,6 +450,33 @@ fn duplicate_prompt_fixture_voids() {
     let dup = fx("dup");
     let mk = dup["output"]["match_key"].as_str().unwrap();
     assert_eq!(parse_match_result(Some(dup["output"].to_string().as_bytes()), mk), Err("duplicate_prompt".into()));
+}
+
+#[test]
+fn play_match_requires_min_gas_f2() {
+    let (mut c, mut chain, sid, ids) = small_season(&[("p1", "o1.near"), ("p2", "o2.near")]);
+    let (a, b) = ordered(ids[0].clone(), ids[1].clone());
+    assert_eq!(MIN_PLAY_GAS, Gas::from_tgas(210));
+    assert!(MIN_PLAY_GAS.as_gas() >= OUTLAYER_PLAY_GAS.as_gas() + CALLBACK_GAS.as_gas() + PLAY_OWN_GAS.as_gas());
+    for tgas in [50, 209] {
+        chain.set_gas("griefer.near", MIN_OUTLAYER_DEPOSIT, vec![], Gas::from_tgas(tgas));
+        let err = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = c.play_match(sid, a.clone(), b.clone());
+        }))
+        .unwrap_err();
+        let msg = err.downcast_ref::<String>().cloned().unwrap_or_default();
+        assert!(msg.contains("insufficient gas: attach at least 210 Tgas"), "{msg}");
+        let m = c.get_matches(sid, None, None, None).into_iter().find(|m| m.a == a && m.b == b).unwrap();
+        assert_eq!(m.status, MatchStatus::Scheduled);
+        assert!(m.requested_at_block.is_none());
+    }
+    // Exactly the floor is accepted; the match settles normally.
+    chain.set_gas("griefer.near", MIN_OUTLAYER_DEPOSIT, vec![], MIN_PLAY_GAS);
+    let _ = c.play_match(sid, a.clone(), b.clone());
+    chain.height += 18;
+    let mk = format!("{sid}:{a}:{b}");
+    chain.callback(Some(&out_for(&mk, "C", "C")));
+    assert_eq!(c.on_match(sid, a.clone(), b.clone()), "settled CC");
 }
 
 #[test]

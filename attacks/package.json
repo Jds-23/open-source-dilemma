@@ -31,7 +31,8 @@
     "withholding": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts withholding",
     "secrets-owner": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts secrets-owner",
     "outsider-calls": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts outsider-calls",
-    "low-gas-play": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts low-gas-play"
+    "low-gas-play": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts low-gas-play",
+    "f2-low-gas": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts f2-low-gas"
   },
   "dependencies": {
     "@osd/sdk": "workspace:*",
