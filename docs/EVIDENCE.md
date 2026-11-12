@@ -19,7 +19,7 @@ Testnet only: no real value is at stake, and the sample is small. Treat the stra
 | Best agent (avg payoff per move, all seasons) | `prudentbot` (program_equilibrium), 3.26 over 23 moves; rank 1 in S3 and S6, rank 2 (tied) in S1 |
 | Best family (same measure) | program_equilibrium, 2.59 |
 | Prompt-injection wins | S1 1/9; attack season 4 0/11; pooled 1/20 (5 %); against defenders 0/8 |
-| Attacks | 54 rows in `attacks/RESULTS.md`: 52 PASS, 2 FINDING (F1, F2), 0 FAIL |
+| Attacks | 56 rows in `attacks/results.json`: 3 controls (expected to succeed), 38 attack rows expected to be refused (**37 refused**, 1 not: F2, now fixed and re-tested), 15 behaviour checks, measurements and analysis rows; 0 FAIL after the F2 fix |
 | Cost per match | 0.0064 NEAR (season 1 only, see Cost) |
 | Strategy cards minted | S1 (earlier), S4: 9 cards, S6: 25 cards |
 
@@ -99,24 +99,34 @@ At the post-#37 in-flight cap of 5, a 300-match season is expected to take about
 
 ## Attacks
 
-54 rows, 52 PASS, 2 FINDING, 0 FAIL: [`attacks/RESULTS.md`](../attacks/RESULTS.md). Covers forged callbacks (`on_match`,
+56 rows ([`attacks/RESULTS.md`](../attacks/RESULTS.md), data in `attacks/results.json`), split by what each row expects:
+
+- **3 controls** that are expected to succeed (03g, 05c, 06a). They show the refusals elsewhere are not just a broken setup.
+- **38 attack rows expected to be refused**: **37 refused as expected** (including the 2 F2 re-runs 13f-50 and 13f-209), **1 not** (13-50, F2, since fixed).
+- **15 other rows**: behaviour checks (tampered signatures 06b/06c, duplicate prompt and commitment mismatch 07a to 08c, clone-farm recount 09b), measurements (injection rates 10-*), the secrets-owner check (14b) and the analysis-only row 11. Their expected outcome is not a refusal.
+
+The row file marks 55 as pass and 1 (13-50) as not; `RESULTS.md` also lists the F1 control row 05c as a finding. Covers forged callbacks (`on_match`,
 `on_pubkey`, `on_agent_created`), replay of settled matches, misuse of agent function-call keys, outsider runs of the referee with
 and without secrets, a wrong-WASM probe, tampered NEAR AI signatures, duplicate prompts, commitment mismatch, clone farming,
 injection, early or late lifecycle calls, and secrets-profile ownership. Rows with a testnet tx link a nearblocks page; the
 signature-tamper rows (6a to 6c) ran in a sandbox against the real contract and a mock OutLayer; some rows are analysis only.
 
-Two rows are findings, not passes:
+Two rows carry findings (F1 on the control row 05c, F2 on 13-50):
 
-- **F1** (05c): the contract account held a full-access key. Mitigated in code (callbacks require a promise result; one-way
-  `seal` deletes all keys), live only once the owner seals. See Trust model.
-- **F2** (13-50): an outsider can void a scheduled match by calling `play_match` with too little prepaid gas
+- **F1** (05c): the contract account held a full-access key. Fixed in code (callbacks require a promise result; one-way
+  `seal` deletes all keys); the key removal is live only once the owner seals. See Trust model.
+- **F2** (13-50): an outsider could void a scheduled match by calling `play_match` with too little prepaid gas
   (`callback_failed`, refund only). It cost the outsider about 0.02 NEAR per match.
 
 <!-- F2-STATUS -->
-**F2 status: fix in progress (minimum prepaid gas check in `play_match`); the integrator updates this line when it is merged and redeployed.**
-<!-- /F2-STATUS -->
+**F2 status: fixed (interfaces-v7).** `play_match` now panics with `insufficient gas: attach at least 210 Tgas`
+(`MIN_PLAY_GAS` = 150 Tgas OutLayer + 40 Tgas `on_match` + 20 Tgas own) before any state change, so the match stays `scheduled`.
+Merged in PR #40 and redeployed in place on testnet (deploy tx `9PsinSwwAq52sjrnPagDzQ9pQgJpFqEwzBzkmWXtNzxb`). Live re-runs
+against a settled season-6 match, both refused with no OutLayer call and the match unchanged (rows 13f):
 
-"Refused" in the pass count includes control rows (for example 03g, 06a) that are expected to succeed.
+- 50 Tgas: [`2ykq8MFg...`](https://testnet.nearblocks.io/txns/2ykq8MFgUepwqNsm9hEJgRuEf1jN5ZFKJ2EbYcK5eHgS)
+- 209 Tgas: [`3LXFW74c...`](https://testnet.nearblocks.io/txns/3LXFW74cuLXjxossCn7HtJQmhfPJGqo9nPqvyEcbeYKz)
+<!-- /F2-STATUS -->
 
 ## Voids, stated plainly
 
