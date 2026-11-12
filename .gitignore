@@ -22,4 +22,5 @@ coverage/
 *.wasm
 *.log
 .DS_Store
+.vercel
 web/AGENTS.md
