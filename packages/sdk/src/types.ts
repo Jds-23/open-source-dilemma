@@ -1,4 +1,4 @@
-// Types mirroring interfaces/contract-abi.json `$defs` (interfaces-v6).
+// Types mirroring interfaces/contract-abi.json `$defs` (interfaces-v7).
 
 /** yoctoNEAR as a decimal string. */
 export type U128 = string;

@@ -19,9 +19,9 @@ player actually ran the source it showed, that nobody peeked or re-rolled, and a
 | **Real stakes, self-funding** | 3 units each per match: C/C 3–3, D/C 5–1, D/D 1–1 with the 4 lost units funding the season prize pool (50/30/20). Bonds, per-owner caps, ranking only against distinct owners. |
 | **AI-authored evolution** | Agents get NEAR sub-accounts with function-call keys scoped to `commit`/`claim`. Between seasons an LLM evolver reads every result and mutates prompts; lineage is on chain and winners get NEP-245 strategy cards (`cards.osd.baldingsucks7993.testnet`). |
 
-**Evidence:** 4 seasons · 29 agents · 217 matches · 424 proofs verified on chain · cooperation 46.5 % · winner prudentbot (program-equilibrium) · 0.0064 NEAR (season 1) NEAR per match.
+**Evidence:** 4 seasons · 29 agents · 217 matches · 424 proofs verified on chain · cooperation 46.5 % · winner prudentbot (program-equilibrium) · 0.0064 NEAR per match (season 1).
 Season 1 alone: 10 agents, 45/45 matches settled, 90/90 signatures verified, 37.8 % cooperation, 0.92 NEAR prize pool. Details: [`docs/EVIDENCE.md`](../EVIDENCE.md).
-**Attacks:** 52/54 refused, every row with a tx ([`attacks/RESULTS.md`](../../attacks/RESULTS.md)); prompt injection wins 5 % (1 of 20; 0 of 8 against defenders).
+**Attacks:** 56 rows: 37 of 38 attack rows refused (the exception, F2, is fixed and re-tested live), 3 controls expected to succeed, 15 behaviour checks and measurements; testnet rows carry a tx ([`attacks/RESULTS.md`](../../attacks/RESULTS.md)); prompt injection wins 5 % (1 of 20; 0 of 8 against defenders).
 
 ## Verify it in 3 clicks
 
@@ -36,11 +36,11 @@ Bonus (no UI, after seal): `near view osd.baldingsucks7993.testnet is_sealed '{}
 | Who | Before seal | After seal ({{SEAL_TX}}) |
 |---|---|---|
 | Other players | Can't read prompts (encrypted to the TEE key), can't re-roll, can't act for your agent (scoped keys) | Same |
-| **Us (operator/deployer)** | Holds the contract's full-access key: could upgrade the code or swap the referee override | **Contract deleted its own keys**: no upgrade, no referee change, no direct callback (`"not a callback"` guard). The season secret profile is **owned by the contract account** (interfaces-v6), so nobody can re-store, re-scope or delete it |
+| **Us (operator/deployer)** | Holds the contract's full-access key: could upgrade the code or swap the referee override | **Contract deleted its own keys**: no upgrade, no referee change, no direct callback (`"not a callback"` guard). The season secret profile is **owned by the contract account** (interfaces-v6 onward), so nobody can re-store, re-scope or delete it |
 | NEAR AI Cloud | Signs each completion; signature checked on chain | Same |
 | **OutLayer operator** (remaining trust) | Runs the TEE workers and keystore; could forge a result (detectable via the attestation) or read the secret (not detectable) | Same, stated openly |
 
-Known open finding: an outsider can void a scheduled match with a low-gas `play_match` (attacks F2; refund only, no theft). Fix proposed.
+Findings: F1 (full-access key on the contract) is fixed in code and closed for good by `seal`; F2 (an outsider could void a scheduled match with a low-gas `play_match`, refund only, no theft) is fixed in interfaces-v7: `play_match` needs at least 210 Tgas, verified live (50 and 209 Tgas refused).
 
 ## Tracks
 

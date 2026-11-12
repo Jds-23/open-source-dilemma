@@ -56,7 +56,7 @@ Winner: prudentbot (program-equilibrium).
 ```text
 We tried to cheat our own game: forged callbacks, replays, stolen agent keys, a prompt-probing WASM, clone farms, injection.
 
-52/54 refused, each with a tx link. Injection wins 5 % (1 of 20; 0 of 8 against defenders) of the time.
+37 of 38 attack rows refused (the one that wasn't, F2, is fixed and re-tested), plus 3 control rows that are meant to succeed; 56 rows in all. Injection wins 5 % (1 of 20; 0 of 8 against defenders) of the time.
 Full table: github.com/Jds-23/open-source-dilemma/blob/main/attacks/RESULTS.md
 ```
 
