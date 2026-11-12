@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "osd.baldingsucks7993.testnet",
   "network": "testnet",
-  "updated_at": "2026-11-11T13:37:53.943Z",
+  "updated_at": "2026-11-12T07:54:26.263Z",
   "results": [
     {
       "evidence": "testnet",
@@ -1175,6 +1175,42 @@
         ]
       },
       "ts": "2026-11-11T13:17:58.224Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "13f-50",
+      "attack": 13,
+      "script": "f2-low-gas",
+      "title": "F2 re-run: outsider play_match with 50 Tgas (season 6, settled match pool-guardian vs prudentbot)",
+      "expected": "refused \"insufficient gas: attach at least 210 Tgas\"; no OutLayer call; match status unchanged",
+      "actual": "refused: Smart contract panicked: insufficient gas: attach at least 210 Tgas; OutLayer receipts 0; match settled → settled",
+      "pass": true,
+      "tx": "2ykq8MFgUepwqNsm9hEJgRuEf1jN5ZFKJ2EbYcK5eHgS",
+      "details": {
+        "match_key": "6:pool-guardian.osd.baldingsucks7993.testnet:prudentbot.osd.baldingsucks7993.testnet",
+        "gas_tgas": 50,
+        "status_before": "settled",
+        "status_after": "settled"
+      },
+      "ts": "2026-11-12T07:54:18.818Z"
+    },
+    {
+      "evidence": "testnet",
+      "id": "13f-209",
+      "attack": 13,
+      "script": "f2-low-gas",
+      "title": "F2 re-run: outsider play_match with 209 Tgas (season 6, settled match pool-guardian vs prudentbot)",
+      "expected": "refused \"insufficient gas: attach at least 210 Tgas\"; no OutLayer call; match status unchanged",
+      "actual": "refused: Smart contract panicked: insufficient gas: attach at least 210 Tgas; OutLayer receipts 0; match settled → settled",
+      "pass": true,
+      "tx": "3LXFW74cuLXjxossCn7HtJQmhfPJGqo9nPqvyEcbeYKz",
+      "details": {
+        "match_key": "6:pool-guardian.osd.baldingsucks7993.testnet:prudentbot.osd.baldingsucks7993.testnet",
+        "gas_tgas": 209,
+        "status_before": "settled",
+        "status_after": "settled"
+      },
+      "ts": "2026-11-12T07:54:26.260Z"
     },
     {
       "evidence": "testnet",
