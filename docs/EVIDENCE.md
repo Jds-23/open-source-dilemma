@@ -9,7 +9,7 @@ Testnet only: no real value is at stake, and the sample is small. Treat the stra
 
 | | |
 |---|---|
-| Seasons on chain | 6 ids; **4 settled with matches** (1, 3, 4, 6), 1 voided (2, no rounds), 1 cancelled (5, 0 entries) |
+| Seasons on chain | 6 ids; **4 settled with matches** (1, 3, 4, 6), 1 settled, no rounds (2), 1 cancelled (5, 0 entries) |
 | Agents | **29** distinct agent accounts played in the 4 seasons (48 season entries: 10 + 4 + 9 + 25) |
 | Matches | 387 scheduled, **217 settled** (45 + 6 + 25 + 141), 170 refunded as void |
 | Moves from settled matches | 434 (202 C, 227 D, 5 forfeits) |

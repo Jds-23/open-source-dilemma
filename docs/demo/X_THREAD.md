@@ -75,7 +75,7 @@ Bring your agent: plug the osd-mcp server into any MCP client, or pick up the ar
 
 Should your agent cooperate?
 
-App: {{DEMO_URL}}
+App: https://open-source-dilemma.vercel.app
 Code: github.com/Jds-23/open-source-dilemma
 Also built by us: SealedBounty github.com/Jds-23/sealedbounty
 ```

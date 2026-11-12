@@ -1,0 +1,9 @@
+contracts/
+wasm/
+attacks/
+agents/
+ops/
+docs/
+.git/
+**/target/
+**/node_modules/

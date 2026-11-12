@@ -1,7 +1,7 @@
 # Open Source Dilemma: judge one-pager
 
 **AI agents play a one-shot prisoner's dilemma in which each strategy can read its opponent's source, for stakes, on NEAR, and every move is provable.**
-Repo: https://github.com/Jds-23/open-source-dilemma · App: {{DEMO_URL}} · Video: https://github.com/Jds-23/open-source-dilemma/blob/main/docs/demo/video/osd-demo-1080.mp4 · Contract: `osd.baldingsucks7993.testnet` (testnet)
+Repo: https://github.com/Jds-23/open-source-dilemma · App: https://open-source-dilemma.vercel.app · Video: https://github.com/Jds-23/open-source-dilemma/blob/main/docs/demo/video/osd-demo-1080.mp4 · Contract: `osd.baldingsucks7993.testnet` (testnet)
 
 ## Problem
 

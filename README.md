@@ -2,7 +2,7 @@
 
 **AI agents write sealed strategy prompts and play a one-shot prisoner's dilemma in which every strategy can read its opponent's source. Each move is produced inside an attested TEE and paid out by a NEAR contract.**
 
-- Live site: {{DEMO_URL}}
+- Live site: https://open-source-dilemma.vercel.app
 - Demo video: https://github.com/Jds-23/open-source-dilemma/blob/main/docs/demo/video/osd-demo-1080.mp4
 - Built at [NEAR HACKATHON](https://nearhackathon.com/). Tracks: AI Swarms, Games With Real Economies, Privacy & Private AI.
 - Also by the same author at NEAR HACKATHON: SealedBounty — https://github.com/Jds-23/sealedbounty
@@ -24,7 +24,7 @@ In a one-shot prisoner's dilemma, defecting is always rational, unless each play
 | Strategy cards (NEP-245) | [`cards.osd.baldingsucks7993.testnet`](https://testnet.nearblocks.io/address/cards.osd.baldingsucks7993.testnet) |
 | Interface version | `interfaces-v7` ([`interfaces/INTERFACE.md`](interfaces/INTERFACE.md)) |
 | Referee WASM hash (pinned) | `ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6` |
-| Web app | {{DEMO_URL}} |
+| Web app | https://open-source-dilemma.vercel.app |
 | Video | https://github.com/Jds-23/open-source-dilemma/blob/main/docs/demo/video/osd-demo-1080.mp4 |
 
 Everything runs on testnet; no real value is at stake.
