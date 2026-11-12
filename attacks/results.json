@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "osd.baldingsucks7993.testnet",
   "network": "testnet",
-  "updated_at": "2026-11-12T07:54:26.263Z",
+  "updated_at": "2026-11-12T08:22:43.206Z",
   "results": [
     {
       "evidence": "testnet",
@@ -444,14 +444,31 @@
     },
     {
       "evidence": "testnet",
+      "id": "05c-after-seal",
+      "attack": 5,
+      "script": "contract-key",
+      "title": "After seal: contract key + pinned WASM + game secrets (the 05c keystore bypass)",
+      "expected": "view_access_key_list = [] and is_sealed = true; the OutLayer request cannot be signed as the contract (no tx)",
+      "actual": "keys: []; is_sealed: true; rejected before inclusion: cannot sign: Access key ed25519:CXWcyxnN… does not exist at block height 277337546",
+      "pass": true,
+      "tx": null,
+      "details": {
+        "signer": "osd.baldingsucks7993.testnet",
+        "keys": [],
+        "is_sealed": true
+      },
+      "ts": "2026-11-12T08:22:43.203Z"
+    },
+    {
+      "evidence": "testnet",
       "id": "05c-b",
       "attack": 5,
       "script": "contract-key",
       "title": "Contract FULL-ACCESS key calls #[private] on_match directly (passes the predecessor check)",
       "expected": "refused: \"not a callback\" (0 promise results), or unsignable after seal; match unchanged",
-      "actual": "refused: Smart contract panicked: not a callback; match unchanged: true; contract keys: 1; is_sealed: false",
+      "actual": "rejected before inclusion: cannot sign: Access key ed25519:CXWcyxnN… does not exist at block height 277337545; match unchanged: true; contract keys: 0; is_sealed: true",
       "pass": true,
-      "tx": "CbfNKs5jQh77F6vfag9RGs7sHpXzswyFh6hBKrtXpayS",
+      "tx": null,
       "details": {
         "signer": "osd.baldingsucks7993.testnet",
         "args": {
@@ -459,12 +476,10 @@
           "a": "clique-amber.osd.baldingsucks7993.testnet",
           "b": "coin-vowel.osd.baldingsucks7993.testnet"
         },
-        "keys": [
-          "ed25519:CXWcyxnNj9tfGoTzHS2fVbPfgQ9U9P5HD8aw4GTGcGsV"
-        ],
-        "is_sealed": false
+        "keys": [],
+        "is_sealed": true
       },
-      "ts": "2026-11-11T13:13:15.670Z"
+      "ts": "2026-11-12T08:22:42.523Z"
     },
     {
       "evidence": "sandbox",

@@ -185,7 +185,7 @@ Covered: forged callbacks, replay of settled matches, misuse of agent keys, outs
 **Seal status.**
 
 <!-- SEAL-STATUS -->
-**Not yet sealed.** `is_sealed` returns `false` on testnet and the contract still has its deployer access key. After the owner runs `ops/scripts/seal.sh` this line is replaced with the seal transaction.
+**Sealed on 2026-11-12.** Core tx [`5aHWGH5UMU…`](https://testnet.near.rocks/tx/5aHWGH5UMUYXviUDHWKUuz8ckaF48W2qtRXRCmNB3pNJ), cards tx [`8YjATwoSy1…`](https://testnet.near.rocks/tx/8YjATwoSy1zeHmru2MvPhRbsPkUe5g5GNfR31k34rR4T); `view_access_key_list` returns `[]` for both (`osd.baldingsucks7993.testnet`, `cards.osd.baldingsucks7993.testnet`); `is_sealed` = `true`; event `contract_sealed` emitted by each.
 <!-- /SEAL-STATUS -->
 
 **Remaining trust assumptions** (stated openly):

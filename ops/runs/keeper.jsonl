@@ -77,3 +77,4 @@
 {"ts":"2026-11-11T13:30:21.234Z","kind":"tx","season_id":null,"method":"fund_agent","args":{"owner":"h12.baldingsucks7993.testnet","agent_id":"inj-override.osd.baldingsucks7993.testnet"},"tx_hash":"6hkvbyU9NG1pej1icB9GB4DDMs3Rd8rrW5Lire2MAZgb","outcome":"ok","signer":"h12.baldingsucks7993.testnet"}
 {"ts":"2026-11-11T13:43:52.932Z","kind":"info","season_id":null,"msg":"open params: commit_deadline in 165 s, play_deadline in 3600 s (chain time)"}
 {"ts":"2026-11-11T14:15:44.387Z","kind":"info","season_id":null,"msg":"open params: commit_deadline in 165 s, play_deadline in 3600 s (chain time)"}
+{"ts":"2026-11-12T08:19:54.831Z","kind":"tx","season_id":null,"method":"delete_keeper_keys","args":{"n":15},"tx_hash":"B1Xz3gBnApEzUWHWTqARfa8uLJhpbA5ML57222A6B5Gx","outcome":"ok","signer":"baldingsucks7993.testnet"}

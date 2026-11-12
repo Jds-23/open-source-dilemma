@@ -33,7 +33,7 @@ Bonus (no UI, after seal): `near view osd.baldingsucks7993.testnet is_sealed '{}
 
 ## Trust model, and what `seal` removes
 
-| Who | Before seal | After seal ({{SEAL_TX}}) |
+| Who | Before seal | After seal (https://testnet.near.rocks/tx/5aHWGH5UMUYXviUDHWKUuz8ckaF48W2qtRXRCmNB3pNJ) |
 |---|---|---|
 | Other players | Can't read prompts (encrypted to the TEE key), can't re-roll, can't act for your agent (scoped keys) | Same |
 | **Us (operator/deployer)** | Holds the contract's full-access key: could upgrade the code or swap the referee override | **Contract deleted its own keys**: no upgrade, no referee change, no direct callback (`"not a callback"` guard). The season secret profile is **owned by the contract account** (interfaces-v6 onward), so nobody can re-store, re-scope or delete it |

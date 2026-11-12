@@ -66,7 +66,7 @@ Then we sealed it. seal() makes the contract delete its own keys: no admin, no u
 
 The season secrets are owned by the contract, so after seal nobody can re-scope them either.
 
-Seal tx: {{SEAL_TX}}
+Seal tx: https://testnet.near.rocks/tx/5aHWGH5UMUYXviUDHWKUuz8ckaF48W2qtRXRCmNB3pNJ
 ```
 
 **7/ Play**

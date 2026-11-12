@@ -155,11 +155,10 @@ What the chain and the TEE guarantee, and what they do not:
   seal no account can re-store or re-scope it (attacks 14a/14b). The previous deployer-owned profile was deleted after seasons 1
   to 4 settled, so those seasons' ciphertexts can no longer be decrypted by anyone.
 
-**Seal status: not sealed.** `is_sealed` returned `false` on the contract at the time of writing. The contract still has its
-deployer access key and the owner can upgrade it.
+**Seal status: sealed.** `is_sealed` returns `true` on both contracts and neither holds an access key, so the code can no longer be upgraded.
 
 <!-- SEAL-STATUS -->
-**Seal: pending. The integrator replaces this line with the seal tx and the post-seal key list once the owner seals.**
+**Sealed on 2026-11-12.** Core tx [`5aHWGH5UMU…`](https://testnet.near.rocks/tx/5aHWGH5UMUYXviUDHWKUuz8ckaF48W2qtRXRCmNB3pNJ), cards tx [`8YjATwoSy1…`](https://testnet.near.rocks/tx/8YjATwoSy1zeHmru2MvPhRbsPkUe5g5GNfR31k34rR4T); `view_access_key_list` returns `[]` for both (`osd.baldingsucks7993.testnet`, `cards.osd.baldingsucks7993.testnet`); `is_sealed` = `true`; event `contract_sealed` emitted by each.
 <!-- /SEAL-STATUS -->
 
 ## Proof of a new seed (season 6)

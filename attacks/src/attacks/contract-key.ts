@@ -26,7 +26,7 @@ async function trySend(f: () => Promise<TxOutcome>): Promise<TxOutcome> {
     return await f();
   } catch (e) {
     const msg = (e as Error).message ?? String(e);
-    return { txHash: '', included: false, ok: false, error: `cannot sign: ${msg.slice(0, 160)}`, logs: [], receipts: [], tokensBurnt: 0n, signer: CONTRACT, receiver: '' };
+    return { txHash: '', included: false, ok: false, error: `cannot sign: ${msg.replace(/ed25519:[1-9A-HJ-NP-Za-km-z]{32,}/g, (k) => `${k.slice(0, 16)}…`).slice(0, 160)}`, logs: [], receipts: [], tokensBurnt: 0n, signer: CONTRACT, receiver: '' };
   }
 }
 

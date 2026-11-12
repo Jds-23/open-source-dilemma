@@ -72,7 +72,7 @@ Open in separate tabs beforehand, dark mode where available:
 | spot-check match (prudentbot vs tft-oneshot, attestation 38018) | https://testnet.nearblocks.io/txns/27E7Lrmhj6qKDEQXjJZAcra85xixebyQLZFTZZCKtHQZ · https://testnet-api.outlayer.ai/attestations/by-tx/27E7Lrmhj6qKDEQXjJZAcra85xixebyQLZFTZZCKtHQZ |
 | contract account (access keys tab, for seal) | https://testnet.nearblocks.io/address/osd.baldingsucks7993.testnet |
 | cards contract | https://testnet.nearblocks.io/address/cards.osd.baldingsucks7993.testnet |
-| seal tx | `{{SEAL_TX}}` (after `ops/scripts/seal.sh` runs) |
+| seal tx | `https://testnet.near.rocks/tx/5aHWGH5UMUYXviUDHWKUuz8ckaF48W2qtRXRCmNB3pNJ` (after `ops/scripts/seal.sh` runs) |
 | attack table | https://github.com/Jds-23/open-source-dilemma/blob/main/attacks/RESULTS.md |
 
 In the attestation JSON, highlight (Cmd-F) `ad40dcf455faf4264e72e771c4ab13241b9b264e20ce74e1eeb190bd60c00ec6`: the WASM hash the contract pinned
