@@ -49,7 +49,13 @@ export interface KeeperOptions {
   gas?: bigint;
   /** Cap on settle_season calls in one settle phase (40 agents worst case: 20 void batches + the ranking call). */
   maxSettleCalls: number;
+  /**
+   * Parallel txs AND the cap on matches in flight at OutLayer (status `pending`). A pass only sends
+   * play_match for `concurrency − pending` matches, so OutLayer never runs more referee jobs at once.
+   */
   concurrency: number;
+  /** Plays paused after a referee-side void (bad_output, callback_failed, llm_status_*); doubles per consecutive hit. */
+  refereeCooldownMs: number;
   maxAttempts: number;
   baseDelayMs: number;
   maxDelayMs: number;
@@ -68,10 +74,14 @@ export interface KeeperOptions {
   random?: () => number;
 }
 
+/** Voids that are not OutLayer/referee trouble (no backoff): the attack/deadline paths. */
+const NON_REFEREE_VOIDS = new Set(['duplicate_prompt', 'deadline', 'stale_pending', 'commitment_mismatch']);
+
 export const DEFAULT_KEEPER_OPTIONS: Omit<KeeperOptions, 'openDepositYocto' | 'playDepositYocto'> = {
   maxSettleCalls: 32,
   pubkeyWaitMs: 45_000,
-  concurrency: 15,
+  concurrency: 5,
+  refereeCooldownMs: 30_000,
   maxAttempts: 5,
   baseDelayMs: 1_000,
   maxDelayMs: 30_000,
@@ -104,12 +114,17 @@ export class Keeper {
   private readonly exhaustedWarned = new Set<string>();
   private commitHookDone = false;
   private readonly marked = new Set<string>();
+  /** Adaptive OutLayer concurrency: halved on referee-side voids, +1 per clean pass, ≤ o.concurrency. */
+  private playCap = 0;
+  private pausePasses = 0;
+  private refereeHits = 0;
   private result: KeeperResult = { seasonId: null, status: 'none', playSent: 0, refundSent: 0, settleCalls: 0, skipped: 0, failed: 0 };
 
   constructor(chain: Chain, log: TxLog, o: KeeperOptions) {
     this.chain = chain;
     this.log = log;
     this.o = o;
+    this.playCap = Math.max(1, o.concurrency);
     for (const r of log.records()) if (r.kind === 'info' && r.msg === 'match_final' && typeof r.match_key === 'string') this.seenFinal.add(r.match_key);
   }
 
@@ -306,10 +321,14 @@ export class Keeper {
     const sid = s.season_id;
     const matches = await this.allMatches(sid);
     const head = await this.chain.head();
-    this.recordFinals(sid, matches, head.height);
+    const fresh = this.recordFinals(sid, matches, head.height);
+    this.adaptPlayCap(sid, fresh);
     const pastDeadline = head.timestampNs >= BigInt(s.params.play_deadline_ns);
 
-    const toPlay = pastDeadline ? [] : matches.filter((m) => this.eligibleToPlay(m, head.height));
+    const inFlight = matches.filter((m) => m.status === 'pending').length;
+    const slots = this.pausePasses > 0 ? 0 : Math.max(0, this.playCap - inFlight);
+    if (this.pausePasses > 0) this.pausePasses -= 1;
+    const toPlay = pastDeadline ? [] : matches.filter((m) => this.eligibleToPlay(m, head.height)).slice(0, slots);
     const toRefund = matches.filter((m) => this.eligibleToRefund(m, head.height));
     const counts = countBy(matches.map((m) => m.status));
     this.note('phase', sid, `play pass: ${JSON.stringify(counts)}; to play ${toPlay.length}, to refund ${toRefund.length}`);
@@ -408,10 +427,31 @@ export class Keeper {
     return height - last > this.o.graceBlocks && sends.length < this.o.maxSendsPerMatch;
   }
 
-  private recordFinals(sid: number, matches: Match[], height: number): void {
+  /**
+   * AIMD on OutLayer load. Season 6 (testnet, 15 keys, no in-flight cap) sent all 300 play_match at once and
+   * 102 matches voided as `bad_output` (the referee WASM trapped ~1 s in, in bursts). Any referee-side void
+   * halves the cap and pauses new plays; a pass with settles and no such void raises the cap by one.
+   */
+  private adaptPlayCap(sid: number, fresh: Match[]): void {
+    const refereeVoids = fresh.filter((m) => m.status === 'void' && !NON_REFEREE_VOIDS.has(m.void_reason ?? ''));
+    if (refereeVoids.length > 0) {
+      this.refereeHits += 1;
+      const cooldown = Math.min(this.o.maxDelayMs * 4, this.o.refereeCooldownMs * 2 ** (this.refereeHits - 1));
+      this.playCap = Math.max(1, Math.floor(this.playCap / 2));
+      this.pausePasses = Math.max(1, Math.ceil(cooldown / Math.max(1, this.o.pollMs)));
+      this.note('warn', sid, `${refereeVoids.length} referee-side void(s) (${[...new Set(refereeVoids.map((m) => m.void_reason))].join(', ')}): in-flight cap → ${this.playCap}, plays paused ${cooldown / 1000} s`);
+    } else if (fresh.some((m) => m.status === 'settled')) {
+      this.refereeHits = 0;
+      this.playCap = Math.min(Math.max(1, this.o.concurrency), this.playCap + 1);
+    }
+  }
+
+  private recordFinals(sid: number, matches: Match[], height: number): Match[] {
+    const fresh: Match[] = [];
     for (const m of matches) {
       if (!['settled', 'void', 'refunded'].includes(m.status) || this.seenFinal.has(m.match_key)) continue;
       this.seenFinal.add(m.match_key);
+      fresh.push(m);
       this.log.write({
         kind: 'info',
         season_id: sid,
@@ -426,6 +466,7 @@ export class Keeper {
         observed_at_block: height,
       });
     }
+    return fresh;
   }
 
   // ── plumbing ──────────────────────────────────────────────────────────

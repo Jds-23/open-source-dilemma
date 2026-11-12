@@ -40,7 +40,7 @@ const USAGE = `usage: pnpm --filter @osd/ops keeper [options]
   --wasm-url <url>           with --open: pin this referee WASM for the new season (needs --wasm-hash)
   --wasm-hash <hex>          with --open: sha256 of that WASM (needs --wasm-url)
   --secrets-profile <name>   with --open: OutLayer secrets profile for the new season (default: get_config)
-  --concurrency <n>          parallel txs: play_match, schedule_round, refund_void, house commits (default 15)
+  --concurrency <n>          parallel txs + cap on matches in flight at OutLayer (default 5; halved on referee voids)
   --play-deposit <NEAR>      deposit per play_match (default 0.05; OutLayer refunds the unused part)
   --open-deposit <NEAR>      deposit for open_season (default 0.05)
   --gas-tgas <n>             gas for every call (default per method: play_match/settle_season/open_season 300,

@@ -277,7 +277,7 @@ describe('keeper: dry run', () => {
     await chain.call('close_commits', { season_id: 1 });
     for (let r = 0; r < 5; r++) await chain.call('schedule_round', { season_id: 1 });
     const dry = new DryRunChain(chain);
-    await new Keeper(dry, log, opts({ once: true, okOutcome: 'dry_run' })).run();
+    await new Keeper(dry, log, opts({ once: true, okOutcome: 'dry_run', concurrency: 15 })).run();
     assert.equal(dry.planned.filter((p) => p.method === 'play_match').length, 15);
     const res = await new Keeper(chain, log, opts()).run();
     assert.equal(res.status, 'settled');

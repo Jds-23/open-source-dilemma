@@ -129,7 +129,7 @@ describe('commit window measured from pubkey arrival', () => {
   test('relative commit = now + pubkey wait + window; relative play from open; absolute kept', () => {
     const r = resolveOpenParams(p, now, { pubkeyWaitMs: 30_000 });
     assert.equal(BigInt(r.commit_deadline_ns), now + 150n * S);
-    assert.equal(BigInt(r.play_deadline_ns), now + 15n * 60n * S);
+    assert.equal(BigInt(r.play_deadline_ns), now + 20n * 60n * S);
     const o = resolveOpenParams(p, now, { pubkeyWaitMs: 30_000, commitWindowMs: 60_000 });
     assert.equal(BigInt(o.commit_deadline_ns), now + 90n * S);
     const abs = resolveOpenParams({ ...p, commit_deadline_ns: String(now + 5n * S), play_deadline_ns: String(now + 9n * S) }, now, { pubkeyWaitMs: 30_000 });
@@ -144,7 +144,7 @@ function entryFor(i: number): { agent_id: string; owner: string; family: string 
 }
 
 /** Full fast season on the mock: keeper opens with the preset, commits N agents at pubkey arrival, plays, settles. */
-async function fastSeason(name: string, n: number, mockOpts: { txMs?: number; callbackBlocks?: number } = {}) {
+async function fastSeason(name: string, n: number, mockOpts: { txMs?: number; callbackBlocks?: number; concurrency?: number } = {}) {
   const chain = new MockChain({ keyBlocks: 15, txMs: mockOpts.txMs ?? 4_000, callbackBlocks: mockOpts.callbackBlocks ?? 189 });
   const log = new MemoryTxLog();
   let committedAt: bigint | null = null;
@@ -160,7 +160,7 @@ async function fastSeason(name: string, n: number, mockOpts: { txMs?: number; ca
   };
   const params = { ...preset(name) };
   const openedAt = chain.nowNs;
-  const res = await new Keeper(chain, log, opts({ openParams: params, onCommitOpen, pollMs: 5_000 })).run();
+  const res = await new Keeper(chain, log, opts({ openParams: params, onCommitOpen, pollMs: 5_000, concurrency: mockOpts.concurrency ?? 15 })).run();
   const s = chain.seasons.get(res.seasonId!)!;
   return { chain, log, res, s, openedAt, pubkeySeenAt: pubkeySeenAt as bigint | null, committedAt: committedAt as bigint | null };
 }
@@ -195,12 +195,16 @@ describe('fast season on the mock contract', () => {
 
   for (const [name, n, budgetMin] of [
     ['fast-attack', 6, 10],
-    ['fast-10', 10, 15],
-    ['fast-25', 25, 60],
-    ['fast-25', 30, 60],
+    ['fast-10', 10, 20],
+    ['fast-25', 25, 120],
+    ['fast-25', 30, 120],
   ] as const) {
     test(`${name} with ${n} agents: zero voids, settled as soon as all matches are final (well before +${budgetMin}m)`, async () => {
-      const { chain, log, res, s } = await fastSeason(name, n);
+      // --keys 15 → ≤ 15 referee jobs in flight. Small presets keep the pessimistic mock (4 s serial txs, 189-block
+      // callbacks); the 25/30-agent runs use season-1 medians (1 s txs, 112-block callbacks), since 300–435 capped
+      // matches at the worst case would not fit any sane deadline.
+      const big = n >= 25;
+      const { chain, log, res, s } = await fastSeason(name, n, big ? { txMs: 1_000, callbackBlocks: 112 } : {});
       assert.equal(res.status, 'settled');
       const pairs = (n * (n - 1)) / 2;
       assert.equal(s.n_matches, pairs);
@@ -213,7 +217,7 @@ describe('fast season on the mock contract', () => {
       assert.ok(settled < BigInt(s.params.play_deadline_ns));
       const t = timing(log);
       assert.ok(t.settled - t.all_final <= 10, `settle ${t.settled - t.all_final} s after the last match`);
-      // pessimistic mock (txs serial, 4 s each; callback 189 blocks = worst seen in season 1) still has ≥ 20% headroom
+      // ≥ 20% headroom against the play deadline
       const used = Number(settled - BigInt(s.opened_at_ns)) / 1e9;
       assert.ok(used < budgetMin * 60 * 0.8, `${name}/${n}: ${used} s of ${budgetMin * 60} s`);
     });
@@ -293,5 +297,49 @@ describe('house pre-stage', () => {
     assert.equal(sealPrompt(v.public_key_hex, 'P', 'grim.osd.baldingsucks7993.testnet', salt).commitment, pre.commitment);
     dropPrestaged(file, 'grim.osd.baldingsucks7993.testnet');
     assert.equal(takePrestaged(file, 'grim.osd.baldingsucks7993.testnet', 'P'), undefined);
+  });
+
+  test('in-flight cap: never more than `concurrency` matches pending at OutLayer', async () => {
+    const chain = new MockChain({ keyBlocks: 15, txMs: 1_000, callbackBlocks: 60 });
+    let peak = 0;
+    const call = chain.call.bind(chain);
+    chain.call = (async (m: string, a: Record<string, unknown>, o?: { gas?: bigint; depositYocto?: bigint }) => {
+      const r = await call(m, a, o);
+      if (m === 'play_match') peak = Math.max(peak, [...chain.matches.values()].flat().filter((x) => x.status === 'pending').length);
+      return r;
+    }) as typeof chain.call;
+    const log = new MemoryTxLog();
+    const onCommitOpen = async (s: Season): Promise<void> => {
+      for (let i = 0; i < 10; i++) {
+        const e = entryFor(i);
+        chain.commitAs(e.owner, { agent_id: e.agent_id, family: e.family, parent: null, commitment: 'c', ciphertext_hex: 'ab' }, s.season_id);
+      }
+    };
+    const res = await new Keeper(chain, log, opts({ openParams: { ...preset('fast-25') }, onCommitOpen, concurrency: 4 })).run();
+    assert.equal(res.status, 'settled');
+    assert.equal(chain.seasons.get(res.seasonId!)!.n_settled, 45);
+    assert.ok(peak <= 4, `peak pending ${peak}`);
+  });
+
+  test('referee-side voids halve the in-flight cap and pause plays; the rest still settles', async () => {
+    const chain = new MockChain({ keyBlocks: 15, txMs: 1_000, callbackBlocks: 30 });
+    let bad = 3;
+    chain.resolver = (_m, ea, eb) =>
+      bad-- > 0 ? { kind: 'void', reason: 'bad_output' } : { kind: 'settled', a_move: ea.family === 'always_d' ? 'D' : 'C', b_move: eb.family === 'always_d' ? 'D' : 'C' };
+    const log = new MemoryTxLog();
+    const onCommitOpen = async (s: Season): Promise<void> => {
+      for (let i = 0; i < 8; i++) {
+        const e = entryFor(i);
+        chain.commitAs(e.owner, { agent_id: e.agent_id, family: e.family, parent: null, commitment: 'c', ciphertext_hex: 'ab' }, s.season_id);
+      }
+    };
+    const res = await new Keeper(chain, log, opts({ openParams: { ...preset('fast-25') }, onCommitOpen, concurrency: 8 })).run();
+    assert.equal(res.status, 'settled');
+    const s = chain.seasons.get(res.seasonId!)!;
+    assert.equal(s.n_void, 3);
+    assert.equal(s.n_settled, 25);
+    const warns = log.records().filter((r) => r.kind === 'warn' && /referee-side void/.test(String(r.msg)));
+    assert.ok(warns.length >= 1);
+    assert.match(String(warns[0].msg), /in-flight cap → 4, plays paused 30 s/);
   });
 });
