@@ -3,7 +3,7 @@
 // → CSV/JSON per season and across seasons. Read-only.
 //
 //   pnpm --filter @osd/ops export-evidence --fixtures            # from interfaces/fixtures
-//   pnpm --filter @osd/ops export-evidence --season 1,2,3 [--fetch-tx]
+//   pnpm --filter @osd/ops export-evidence --season 1,2,3 [--fetch-tx [--tx-delay-ms 250]]  (tx statuses cached in ops/.state/txcache)
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -13,7 +13,7 @@ import { fetchAll } from '../keeper.ts';
 import { DEFAULT_RPC, NearRpc, type TxStatus } from '../rpc.ts';
 import { readJsonl } from '../txlog.ts';
 import type { Entry, LeaderboardRow, Match, Season } from '../types.ts';
-import { DEFAULTS, die, FIXTURES_DIR, RUNS_DIR } from './common.ts';
+import { DEFAULTS, die, FIXTURES_DIR, OPS_DIR, RUNS_DIR } from './common.ts';
 
 async function main(): Promise<void> {
   const { values: v } = parseArgs({
@@ -27,6 +27,7 @@ async function main(): Promise<void> {
       'runs-dir': { type: 'string' },
       events: { type: 'string' },
       'fetch-tx': { type: 'boolean', default: false },
+      'tx-delay-ms': { type: 'string' },
       out: { type: 'string' },
     },
   });
@@ -64,9 +65,22 @@ async function main(): Promise<void> {
       };
       if (v['fetch-tx']) {
         sd.txs = new Map<string, TxStatus>();
+        // Cache every final tx status on disk (a rerun after an RPC 429 refetches nothing) and pace the
+        // lookups: a 300-match season is ~700 EXPERIMENTAL_tx_status calls, which trips the free RPC rate limit.
+        const cacheDir = join(OPS_DIR, '.state', 'txcache');
+        mkdirSync(cacheDir, { recursive: true });
+        const delayMs = Number(v['tx-delay-ms'] ?? '0');
         for (const r of runlog) {
           if (r.kind !== 'tx' || r.outcome !== 'ok' || !r.tx_hash || typeof r.signer !== 'string') continue;
-          sd.txs.set(r.tx_hash, await rpc.txStatus(r.tx_hash, r.signer));
+          const cf = join(cacheDir, `${r.tx_hash}.json`);
+          if (existsSync(cf)) {
+            sd.txs.set(r.tx_hash, JSON.parse(readFileSync(cf, 'utf8')) as TxStatus);
+            continue;
+          }
+          const st = await rpc.txStatus(r.tx_hash, r.signer);
+          writeFileSync(cf, JSON.stringify(st));
+          sd.txs.set(r.tx_hash, st);
+          if (delayMs > 0) await new Promise((res) => setTimeout(res, delayMs));
         }
       }
       data.push(sd);
