@@ -1,6 +1,6 @@
 {
   "commit_deadline_ns": "+2m",
-  "play_deadline_ns": "+15m",
+  "play_deadline_ns": "+20m",
   "unit_yocto": "10000000000000000000000",
   "bond_yocto": "50000000000000000000000",
   "max_agents": 10,
